@@ -206,18 +206,18 @@ class NeuralTrainer():
 			self.test_monitor.add_loss(loss)
 
 
-	def save_model(self):
+	def save_model(self, sess):
 		"""save model parameters to file, according to filepath"""
 
 		if self.save == 'best':
 			min_loss, min_epoch = self.valid_monitor.get_min_loss()
 			if self.valid_monitor.loss[-1] <= min_loss:
 				filepath = self.filepath + '_best.ckpt'
-				self.nnmodel.save_model_parameters(filepath)
+				self.nnmodel.save_model_parameters(sess, filepath)
 		elif self.save == 'all':
 			epoch = len(self.valid_monitor.loss)
 			filepath = self.filepath + '_' + str(epoch) +'.ckpt'
-			self.nnmodel.save_model_parameters(filepath)
+			self.nnmodel.save_model_parameters(sess, filepath)
 
 	def save_all_metrics(self, filepath):
 		"""save all performance metrics"""

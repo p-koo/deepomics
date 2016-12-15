@@ -33,7 +33,7 @@ def train_minibatch(sess, nntrainer, data, batch_size=128, num_epochs=500,
                                                 batch_size=batch_size)
 
         # save model
-        nntrainer.save_model()
+        nntrainer.save_model(sess)
 
         # check for early stopping
         if patience:
