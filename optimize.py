@@ -138,10 +138,13 @@ def build_updates(optimizer, **kwargs):
 def build_loss(predictions, targets, optimization):
 	
 	# cost function
-	if 'clip_value' in optimization.keys():
-		clip_value = optimization['clip_value']
+	if (optimization['objective'] == 'binary') | (optimization['objective'] == 'categorical'):
+		clip_value = True
 	else:
-		clip_value = False
+		if 'clip_value' in optimization.keys():
+			clip_value = optimization['clip_value']
+		else:
+			clip_value = False
 
 	# build loss function
 	loss = cost_function(predictions=predictions, targets=targets, 

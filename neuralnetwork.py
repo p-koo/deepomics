@@ -311,6 +311,9 @@ class MonitorPerformance():
 
 	def print_results(self, name):
 		 if self.verbose == 1:
+		 	if name == 'test':
+		 		name += ' '
+
 			print("  " + name + " loss:\t\t{:.5f}".format(self.loss[-1]/1.))
 			mean_vals, error_vals = self.get_metric_values()
 

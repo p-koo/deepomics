@@ -119,10 +119,10 @@ def calculate_metrics(label, prediction, objective):
 		auc_pr, pr_curves = pr(label, prediction)
 		mean = [np.nanmean(correct), np.nanmean(auc_roc), np.nanmean(auc_pr)]
 		std = [np.nanstd(correct), np.nanstd(auc_roc), np.nanstd(auc_pr)]
-		print "ROC"
-		print auc_roc
-		print "PR"
-		print auc_pr
+		#print "ROC"
+		#print auc_roc
+		#print "PR"
+		#print auc_pr
 	elif (objective == 'squared_error'):
 		corr = pearsonr(label,prediction)
 		rsqr, slope = rsquare(label, prediction)
