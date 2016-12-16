@@ -1,17 +1,26 @@
+import os, sys, time
+import tensorflow as tf
+import numpy as np
+import optimize, utils, metrics
+
+
+__all__ = [
+	"NeuralOptimizer"
+]
+
 
 class NeuralOptimizer:
 	"""Class to build a neural network and perform basic functions"""
 
-	def __init__(self, model_layers, input_var, target_var, optimization, filepath):
+	def __init__(self, model_layers, input_vars, target_vars, optimization, filepath):
 		self.model_layers = model_layers
-		self.input_var = input_var
-		self.target_var = target_var
+		self.input_vars = input_vars
+		self.target_vars = target_vars
 		self.optimization = optimization
 		self.filepath = filepath
 		self.optimal_loss = 1e20
 		self.hyperparameters = []
 		self.loss = []
-
 
 	def sample_network(self):
 		"""generate a network, sampling from the ranges provided by
@@ -124,15 +133,20 @@ class NeuralOptimizer:
 		optimization = self.sample_optimization()
 
 		# build network
-		nnmodel = nn.NeuralNet(net, self.input_var, self.target_var)
+		nnmodel = nn.NeuralNet(net, self.input_vars)
 
 		# build trainer
-		nntrainer = nn.NeuralTrainer(nnmodel, optimization, save='best', filepath=self.filepath)
+		nntrainer = nn.NeuralTrainer(nnmodel, target_vars, optimization, 
+									save='best', filepath=self.filepath)
 
 		# train network
-		fit.train_minibatch(nntrainer, data={'train': train}, batch_size=batch_size, 
-							num_epochs=num_epochs, patience=[], verbose=0, shuffle=True)
 		
+		sess = tf.Session()
+		sess.run(tf.initialize_all_variables()) # initialize variables
+		learn.train_minibatch(sess, nntrainer, {'train':  [X_train, y_train]}, 
+								batch_size=batch_size, num_epochs=num_epochs, 
+		                    	patience=[], verbose=0, shuffle=True)
+	
 		loss = nntrainer.train_monitor.get_loss()
 
 		return model_layers, optimization, loss
