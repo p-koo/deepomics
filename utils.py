@@ -37,12 +37,12 @@ class Variable():
 		self.shape = shape
 
 		if self.name:
-			self.variable = tf.Variable(var(shape), name=self.name)
+			self.var = tf.Variable(var(shape), name=self.name)
 		else:
-			self.variable = tf.Variable(var(shape))
+			self.var = tf.Variable(var(shape))
 		
-	def get_variable(self):
-		return self.variable
+	def variable(self):
+		return self.var
 	
 	def get_shape(self):
 		return self.shape
@@ -64,6 +64,8 @@ class Variable():
 		
 	def is_trainable(self):
 		return self.trainable
+
+		
 def make_directory(path, foldername, verbose=1):
 	"""make a directory"""
 

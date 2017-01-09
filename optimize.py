@@ -151,14 +151,6 @@ def build_loss(predictions, targets, optimization):
 						 objective=optimization['objective'], 
 						 clip_value=clip_value)
 
-	if 'l1_weight_decay' in optimization.keys():
-		l1 = get_l1_parameters(net)
-		loss += tf.reduce_sum(tf.abs(l1)) * optimization['l1_weight_decay']
-
-	if 'l2_weight_decay' in optimization.keys():
-		l2 = get_l1_parameters(net)
-		loss += tf.reduce_sum(tf.square(l2)) * optimization['l2_weight_decay']
-
 	return loss
 
 
@@ -186,39 +178,3 @@ def cost_function(predictions, targets, objective, **kwargs):
 		loss = []
 		
 	return loss
-
-
-def get_l1_parameters(net):    
-	params = []
-	for layer in net:
-		if hasattr(net[layer], 'is_l1_regularize'):
-			if net[layer].is_l1_regularize():
-				variables = net[layer].get_variable()
-				if isinstance(variables, list):
-					for var in variables:
-						params.append(var.get_variable())
-				else:
-					params.append(variables.get_variable())
-	return merge_parameters(params)
-
-def get_l2_parameters(net):    
-	params = []
-	for layer in net:
-		if hasattr(net[layer], 'is_l2_regularize'):
-			if net[layer].is_l2_regularize():
-				variables = net[layer].get_variable()
-				if isinstance(variables, list):
-					for var in variables:
-						params.append(var.get_variable())
-				else:
-					params.append(variables.get_variable())
-	return merge_parameters(params)
-
-
-
-def merge_parameters(params):
-	all_params = []
-	for param in params:
-		all_params = tf.concat(0, [all_params, tf.reshape(param, [-1,])])
-	return all_params
-	

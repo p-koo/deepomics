@@ -3,6 +3,7 @@ from .base import BaseLayer
 from ..utils import Variable
 from .. import init
 
+
 __all__ = [
 	"Conv1DLayer"
 ]
@@ -14,10 +15,11 @@ class Conv1DLayer(BaseLayer):
 	def __init__(self, incoming, filter_size, num_filters, W=[],
 				  strides=[], padding=[], **kwargs):
 
+		self.incoming = incoming
 		self.filter_size = filter_size
 		self.num_filters = num_filters
 		
-		dim = incoming.get_output_shape()[3].value
+		dim = incoming.output().get_shape()[3].value
 		shape = [filter_size, 1, dim, num_filters]
 		self.shape = shape
 
@@ -33,30 +35,17 @@ class Conv1DLayer(BaseLayer):
 		self.padding = padding
 		if not padding:
 			self.padding = 'VALID'
-			
-		# input data shape
-		self.incoming_shape = incoming.get_output_shape()
 		
-		# output of convolution
-		self.output = tf.nn.conv2d( input=incoming.get_output(), 
-									filter=self.W.get_variable(), 
-									strides=self.strides, 
-								   	padding=self.padding, 
-								   	**kwargs)
-		# shape of the output
-		self.output_shape = self.output.get_shape()
 		
-	def get_input_shape(self):
-		return self.incoming_shape
+	def output(self):
+		return tf.nn.conv2d( input=self.incoming.output(), 
+							filter=self.W.variable(), 
+							strides=self.strides, 
+						   	padding=self.padding)
 	
-	def get_output(self):
-		return self.output
-	
-	def get_output_shape(self):
-		return self.output_shape
 	
 	def get_variable(self):
-		return self.W
+		return self.W.variable()
 	
 	def set_trainable(self, status):
 		self.W.set_trainable(status)
@@ -76,3 +65,4 @@ class Conv1DLayer(BaseLayer):
 	def is_l2_regularize(self):
 		return self.W.is_l2_regularize()  
 		
+ 

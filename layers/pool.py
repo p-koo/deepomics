@@ -10,6 +10,7 @@ __all__ = [
 class MaxPool1DLayer(BaseLayer):
 	def __init__(self, incoming, pool_size, strides=[], padding=[], **kwargs):
 		
+		self.incoming = incoming
 		self.pool_size = [1, pool_size, 1, 1]
 
 		if not strides:
@@ -20,23 +21,10 @@ class MaxPool1DLayer(BaseLayer):
 		if not self.padding:
 			self.padding = 'SAME'
 		
-		self.incoming_shape = incoming.get_output_shape()
-		
-		self.output = tf.nn.max_pool(incoming.get_output(), 
-									ksize=self.pool_size, 
-									strides=self.strides, 
-									padding=self.padding, 
-									**kwargs)
-		
-		self.output_shape = self.output.get_shape()
-		
-	def get_input_shape(self):
-		return self.incoming_shape
+	def output(self):
+		return tf.nn.max_pool(self.incoming.output(), 
+							ksize=self.pool_size, 
+							strides=self.strides, 
+							padding=self.padding)
 	
-	def get_output(self):
-		return self.output
-	
-	def get_output_shape(self):
-		return self.output_shape
-		
 		

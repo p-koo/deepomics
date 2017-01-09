@@ -16,14 +16,14 @@ class DenseLayer(BaseLayer):
 	def __init__(self, incoming, num_units, W=[], b=[], **kwargs):
 
 		self.num_units = num_units
-		
-		if len(incoming.get_output_shape()) > 2:
-			incoming = ReshapeLayer(incoming)
-			
-		num_inputs = incoming.get_output_shape()[1].value
-		shape = [num_inputs, num_units]
-		self.shape = shape
 
+		if len(incoming.output().get_shape()) > 2:
+			incoming = ReshapeLayer(incoming)
+						
+		num_inputs = incoming.output().get_shape()[1].value
+		shape = [num_inputs, num_units]
+		
+		self.incoming = incoming
 		
 		if not W:
 			self.W = Variable(var=init.HeNormal(), shape=shape, **kwargs)
@@ -35,28 +35,19 @@ class DenseLayer(BaseLayer):
 		else:
 			self.b = Variable(var=b, shape=[num_units], **kwargs)
 			
-		self.incoming_shape = incoming.get_output_shape()
 		
-		self.output = tf.matmul(incoming.get_output(), self.W.get_variable())
+	def output(self):
+
+		val = tf.matmul(self.incoming.output(), self.W.variable())
 		if self.b:
-			self.output += self.b.get_variable()
-			
-		self.output_shape = self.output.get_shape()
-		
-	def get_input_shape(self):
-		return self.incoming_shape
-	
-	def get_output(self):
-		return self.output
-	
-	def get_output_shape(self):
-		return self.output_shape
+			val+= self.b.variable()
+		return val
 	
 	def get_variable(self):
 		if self.b:
-			return [self.W, self.b]
+			return [self.W.variable(), self.b.variable()]
 		else:
-			return self.W
+			return self.W.variable()
 	
 	def set_trainable(self, status):
 		self.W.set_trainable(status)
