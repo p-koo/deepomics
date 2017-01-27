@@ -15,15 +15,28 @@ class ActivationLayer(BaseLayer):
 
 	def __init__(self, incoming, function=[], **kwargs):
 		
-		self.incoming = incoming
 		self.function = function
 		if not self.function:
 			self.function = 'relu'
 			
-	def output(self):
-		return activation(z=self.incoming.output(), 
-								function=self.function)
+		self.incoming_shape = incoming.get_output_shape()
+		
+		self.output = activation(z=incoming.get_output(), 
+								function=self.function, 
+								**kwargs)
+		
+		self.output_shape = self.output.get_shape()
+		
+	def get_input_shape(self):
+		return self.incoming_shape
 	
+	def get_output(self):
+		return self.output
+	
+	def get_output_shape(self):
+		return self.output_shape
+
+
 
 
 class BiasLayer(BaseLayer):
@@ -31,12 +44,11 @@ class BiasLayer(BaseLayer):
 	
 	def __init__(self, incoming, b=[], **kwargs):
 		
-		self.incoming = incoming
-		incoming_shape = incoming.output().get_shape()
-		if len(incoming_shape) > 2:
-			num_units = incoming_shape[3].value
+		self.incoming_shape = incoming.get_output_shape()
+		if len(self.incoming_shape) > 2:
+			num_units = self.incoming_shape[3].value
 		else:
-			num_units = incoming_shape[1].value
+			num_units = self.incoming_shape[1].value
 
 			
 		if not b:
@@ -47,14 +59,20 @@ class BiasLayer(BaseLayer):
 			self.b = Variable(var=b, shape=[num_units], **kwargs)
 			
 		
-	def output(self):
-		return  self.incoming.output() + self.b.variable()
+		self.output = incoming.get_output() + self.b.get_variable()
+		self.output_shape = self.output.get_shape()
+		
+	def get_input_shape(self):
+		return self.incoming_shape
 	
-	def output_shape(self):
-		return  self.incoming.output_shape() 
+	def get_output(self):
+		return self.output
+	
+	def get_output_shape(self):
+		return self.output_shape
 	
 	def get_variable(self):
-		return self.b.variable()
+		return self.b
 	
 	def set_trainable(self, status):
 		self.b.set_trainable(status)

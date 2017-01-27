@@ -1,3 +1,4 @@
+from __future__ import print_function 
 import os, sys, time
 import tensorflow as tf
 import numpy as np
@@ -21,25 +22,25 @@ __all__ = [
 class NeuralNet:
 	"""Class to build a neural network and perform basic functions."""
 	
-	def __init__(self, network, placeholders):
+	def __init__(self, network, input_vars):
 		self.network = network
-		self.placeholders = placeholders
+		self.input_vars = input_vars
 		self.saver = tf.train.Saver() 
 
 	def inspect_layers(self):
-		"""print each layer type and parameters"""
+		"""print(each layer type and parameters"""
 
-		print '----------------------------------------------------------------------------'
-		print 'Network architecture:'
-		print '----------------------------------------------------------------------------'
+		print('----------------------------------------------------------------------------')
+		print('Network architecture:')
+		print('----------------------------------------------------------------------------')
 		counter = 1
 		for layer in self.network:
-			output_shape = self.network[layer].output().get_shape()
+			output_shape = self.network[layer].get_output_shape()
 
-			print 'layer'+str(counter) + ': ' + layer 
-			print output_shape
+			print('layer'+str(counter) + ': ' + layer )
+			print(output_shape)
 			counter += 1
-		print '----------------------------------------------------------------------------'
+		print('----------------------------------------------------------------------------')
 
 	
 	def get_parameters(self, sess, layer=[]):
@@ -57,7 +58,15 @@ class NeuralNet:
 			
 		fmaps = []
 		for i in range(num_batches):
-			feed_dict = data_slice(self.placeholders, X, indices, batch_size, i)    
+			feed_dict = data_slice(self.input_vars, X, indices, batch_size, i)    
+			fmaps.append(sess.run(self.network[layer].get_output(), feed_dict=feed_dict))
+
+		# get remainder
+		index = range(num_batches*batch_size, X[0].shape[0])    
+		if index:
+			feed_dict = {}
+		for i in range(len(X)):
+			feed_dict[self.input_vars[i]] = X[i][index]
 			fmaps.append(sess.run(self.network[layer].get_output(), feed_dict=feed_dict))
 
 		fmaps = np.vstack(fmaps)
@@ -76,66 +85,6 @@ class NeuralNet:
 		self.saver.restore(sess, filepath)
 
 
-	def get_all_parameters(self):    
-		params = []
-		for layer in self.network:
-			if hasattr(self.network[layer], 'get_variable'):
-				variables = self.network[layer].get_variable()
-				if isinstance(variables, list):
-					params.extend(variables)
-				else:
-					params.append(variables)
-		return params
-
-
-
-	def get_trainable(self):    
-		params = []
-		for layer in self.network:
-			if hasattr(self.network[layer], 'is_trainable'):
-				if self.network[layer].is_trainable():
-					variables = self.network[layer].get_variable()
-					if isinstance(variables, list):
-						params.extend(variables)
-					else:
-						params.append(variables)
-		return params
-
-	def get_l1_parameters(self):    
-		params = []
-		for layer in self.network:
-			if hasattr(self.network[layer], 'is_l1_regularize'):
-				if self.network[layer].is_l1_regularize():
-					variables = self.network[layer].get_variable()
-					if isinstance(variables, list):
-						params.extend(variables)
-					else:
-						params.append(variables)
-		return merge_parameters(params)
-
-	def get_l2_parameters(self):    
-		params = []
-		for layer in self.network:
-			if hasattr(self.network[layer], 'is_l2_regularize'):
-				if self.network[layer].is_l2_regularize():
-					variables = self.network[layer].get_variable()
-					if isinstance(variables, list):
-						params.extend(variables)
-					else:
-						params.append(variables)
-		return merge_parameters(params)
-
-	def get_layer_parameters(self, layer):
-		params = []
-		if hasattr(self.network[layer], 'get_variable'):
-			variables = self.network[layer].get_variable()
-			if isinstance(variables, list):
-				params.extend(variables)
-			else:
-				params.append(variables)
-		else:
-			print layer + " has no parameters"
-		return params
 
 
 #----------------------------------------------------------------------------------------------------
@@ -145,11 +94,14 @@ class NeuralNet:
 
 class NeuralTrainer():
 
-	def __init__(self, nnmodel, optimization, save='best', filepath='.'):
+	def __init__(self, nnmodel, target_vars, optimization, save='best', filepath='.'):
 		self.nnmodel = nnmodel
-		self.placeholders = nnmodel.placeholders
-
-
+		self.target_vars = target_vars
+		self.input_vars = nnmodel.input_vars
+		self.placeholders = []
+		for inputs in self.input_vars:
+			self.placeholders.append(inputs)
+		self.placeholders.append(target_vars)
 		
 		self.optimization = optimization    
 		self.objective = optimization['objective']
@@ -158,26 +110,14 @@ class NeuralTrainer():
 		
 		# get predictions
 		self.predictions = get_predictions(nnmodel.network, optimization['objective'])
-		self.loss = optimize.build_loss(self.predictions, self.placeholders['targets'], optimization)
-
-		if 'l1' in optimization.keys():
-			l1 = self.nnmodel.get_l1_parameters()
-			self.loss += tf.reduce_sum(tf.abs(l1)) * optimization['l1']
-
-		if 'l2' in optimization.keys():
-			l2 = self.nnmodel.get_l1_parameters()
-			self.loss += tf.reduce_sum(tf.square(l2)) * optimization['l2']
+		self.loss = optimize.build_loss(self.predictions, target_vars, optimization)
 
 		# setup optimizer
 		self.updates = optimize.build_updates(optimizer=optimization['optimizer'])
 
 		# get list of trainable parameters (default is trainable)
-		trainable_params = self.nnmodel.get_trainable()
-
-		
-		# Create a variable to track the global step
-		global_step = tf.Variable(0, name='global_step', trainable=False)
-		self.train_step = self.updates.minimize(self.loss, var_list=trainable_params, global_step=global_step)
+		trainable_params = get_trainable(nnmodel.network)
+		self.train_step = self.updates.minimize(self.loss, var_list=trainable_params)
 
 
 		self.train_monitor = MonitorPerformance(name="train", objective=self.objective, verbose=1)
@@ -192,16 +132,16 @@ class NeuralTrainer():
 		performance = MonitorPerformance('train', self.objective, verbose)
 		performance.set_start_time(start_time = time.time())
 
-		indices, num_batches = data_indices(X['inputs'], batch_size=batch_size, shuffle=shuffle)
+		indices, num_batches = data_indices(X, batch_size=batch_size, shuffle=shuffle)
 			
 		value = 0
 		for i in range(num_batches):
-			feed_dict = data_slice(self.placeholders, X, indices, i)            
+			feed_dict = data_slice(self.placeholders, X, indices, batch_size, i)            
 			results = sess.run([self.train_step, self.loss, self.predictions], feed_dict=feed_dict)           
-			value += self.train_metric(results[2], feed_dict[self.placeholders['targets']])
+			value += self.train_metric(results[2], feed_dict[self.target_vars])
 			performance.add_loss(results[1])
 			performance.progress_bar(i+1., num_batches, value/(i+1))
-		print "" 
+		print("")
 		return performance.get_mean_loss()
 
 
@@ -226,19 +166,19 @@ class NeuralTrainer():
 		
 		
 	def test_model(self, sess, X, batch_size=128, name='test', verbose=1):
-		"""perform a complete forward pass, store and print results"""
+		"""perform a complete forward pass, store and print(results)"""
 
 		performance = MonitorPerformance('test',self.objective, verbose)
 		
-		indices, num_batches = data_indices(X['inputs'], batch_size, shuffle=False)    
+		indices, num_batches = data_indices(X, batch_size, shuffle=False)    
 		label = []
 		prediction = []
 		for i in range(num_batches):
-			feed_dict = data_slice(self.placeholders, X, indices, i)            
+			feed_dict = data_slice(self.placeholders, X, indices, batch_size, i)            
 			results = sess.run([self.loss, self.predictions], feed_dict=feed_dict)          
 			performance.add_loss(results[0])
 			prediction.append(results[1])
-			label.append(feed_dict[self.placeholders['targets']])
+			label.append(feed_dict[self.target_vars])
 		prediction = np.vstack(prediction)
 		label = np.vstack(label)
 		test_loss = performance.get_mean_loss()
@@ -298,7 +238,7 @@ class NeuralTrainer():
 		if min_loss < current_loss:
 			if patience - (current_epoch - min_epoch) < 0:
 				status = False
-				print "Patience ran out... Early stopping."
+				print("Patience ran out... Early stopping.")
 		return status
 
 
@@ -371,9 +311,9 @@ class MonitorPerformance():
 
 
 	def print_results(self, name):
-		if self.verbose == 1:
-			if name == 'test':
-				name += ' '
+		 if self.verbose == 1:
+		 	if name == 'test':
+		 		name += ' '
 
 			print("  " + name + " loss:\t\t{:.5f}".format(self.loss[-1]/1.))
 			mean_vals, error_vals = self.get_metric_values()
@@ -388,10 +328,10 @@ class MonitorPerformance():
 				print("  " + name + " slope:\t\t{:.5f}+/-{:.5f}".format(mean_vals[2], error_vals[2]))
 
 
-	def progress_bar(self, niter, num_batches, value, bar_length=30):
+	def progress_bar(self, epoch, num_batches, value, bar_length=30):
 		if self.verbose == 1:
-			remaining_time = (time.time()-self.start_time)*(num_batches-niter)/niter
-			percent = niter/num_batches
+			remaining_time = (time.time()-self.start_time)*(num_batches-epoch)/epoch
+			percent = epoch/num_batches
 			progress = '='*int(round(percent*bar_length))
 			spaces = ' '*int(bar_length-round(percent*bar_length))
 			if (self.objective == "binary") | (self.objective == "categorical"):
@@ -407,7 +347,7 @@ class MonitorPerformance():
 
 	def save_metrics(self, filepath):
 		savepath = filepath + "_" + self.name +"_performance.pickle"
-		print "saving metrics to " + savepath
+		print("saving metrics to " + savepath)
 
 		f = open(savepath, 'wb')
 		cPickle.dump(self.name, f, protocol=cPickle.HIGHEST_PROTOCOL)
@@ -425,8 +365,6 @@ class MonitorPerformance():
 #--------------------------------------------------------------------------------------------------
 
 
-
-
 def data_indices(X, batch_size, shuffle=False):
 	
 	if isinstance(X, list):
@@ -436,53 +374,72 @@ def data_indices(X, batch_size, shuffle=False):
 			
 	num_batches = num_data // batch_size
 	if shuffle:
-		index = np.random.permutation(num_data)
+		indices = np.random.permutation(num_data)
 	else:
-		index = range(num_data)
-
-	indices = []
-	for i in range(num_batches):
-		indices.append(index[i*batch_size:i*batch_size+batch_size])
-
-	# get remainder
-	index = range(num_batches*batch_size, num_data)    
-	if index:
-		indices.append(index)
-		num_batches += 1
-
+		indices = range(num_data)
 	return indices, num_batches
 
 
-def data_slice(placeholders, X, indices, index):
+def data_slice(placeholders, X, indices, batch_size, start_idx):
+	index = indices[start_idx:start_idx+batch_size]
 	feed_dict = {}
-	for key in placeholders.keys():
-		if isinstance(placeholders[key], list):
-			for i in range(len(placeholders[key])):
-				if X[key][i].shape[0] > 1:
-					feed_dict[placeholders[key][i]] = X[key][i][indices[index]]
-				else:
-					feed_dict[placeholders[key][i]] = X[key][i]
-		else:
-			if key in X.keys():
-				if hasattr(X[key], "__len__"):
-					feed_dict[placeholders[key]] = X[key][indices[index]]
-				else:
-					feed_dict[placeholders[key]] = X[key]
+	for i in range(len(X)):
+		feed_dict[placeholders[i]] = X[i][index]
 			
 	return feed_dict
+	
 
 def get_predictions(network, objective):
 	if objective == 'vae':
-		predictions = network['X'].output()
+		predictions = []
 	elif (objective == 'binary') | (objective == 'categorical') | (objective == 'squared_error'):
-		predictions = network['output'].output()
+		predictions = network['output'].get_output()
 		
 	return predictions
 
 
-def merge_parameters(params):
-	all_params = []
-	for param in params:
-		all_params = tf.concat(0, [all_params, tf.reshape(param, [-1,])])
-	return all_params
+
+def get_all_parameters(net):    
+	params = []
+	for layer in net:
+		if hasattr(net[layer], 'get_variable'):
+			variables = net[layer].get_variable()
+			if isinstance(variables, list):
+				for var in variables:
+					params.append(var.get_variable())
+			else:
+				params.append(variables.get_variable())
+	return params
+
+
+
+def get_trainable(net):    
+	params = []
+	for layer in net:
+		if hasattr(net[layer], 'is_trainable'):
+			if net[layer].is_trainable():
+				variables = net[layer].get_variable()
+				if isinstance(variables, list):
+					for var in variables:
+						params.append(var.get_variable())
+				else:
+					params.append(variables.get_variable())
+	return params
+
+
+
+def get_layer_parameters(net, layer):
+	params = []
+	if hasattr(net[layer], 'get_variable'):
+		variables = net[layer].get_variable()
+		if isinstance(variables, list):
+			for var in variables:
+				params.append(var.get_variable())
+		else:
+			params.append(variables.get_variable())
+	else:
+		print(layer + " has no parameters")
+	return params
+
+
 	

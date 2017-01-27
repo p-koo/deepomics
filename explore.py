@@ -1,3 +1,4 @@
+from __future__ import print_function 
 import os, sys, time
 import tensorflow as tf
 import numpy as np
@@ -158,7 +159,7 @@ class NeuralOptimizer:
 		for i in range(num_trials):
 			model_layers, optimization, loss = self.explore(batch_size, num_epochs)
 			if loss[-1] < self.optimal_loss:
-				print "lower loss found. Updating parameters"
+				print("lower loss found. Updating parameters")
 				self.optimal_loss = loss[-1]
 				self.update_network(model_layers)
 				self.update_optimization(optimization)

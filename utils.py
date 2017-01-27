@@ -1,3 +1,4 @@
+from __future__ import print_function 
 import tensorflow as tf
 import init
 
@@ -37,12 +38,12 @@ class Variable():
 		self.shape = shape
 
 		if self.name:
-			self.var = tf.Variable(var(shape), name=self.name)
+			self.variable = tf.Variable(var(shape), name=self.name)
 		else:
-			self.var = tf.Variable(var(shape))
+			self.variable = tf.Variable(var(shape))
 		
-	def variable(self):
-		return self.var
+	def get_variable(self):
+		return self.variable
 	
 	def get_shape(self):
 		return self.shape
@@ -64,19 +65,17 @@ class Variable():
 		
 	def is_trainable(self):
 		return self.trainable
-
-		
 def make_directory(path, foldername, verbose=1):
 	"""make a directory"""
 
 	if not os.path.isdir(path):
 		os.mkdir(path)
-		print "making directory: " + path
+		print("making directory: " + path)
 
 	outdir = os.path.join(path, foldername)
 	if not os.path.isdir(outdir):
 		os.mkdir(outdir)
-		print "making directory: " + outdir
+		print("making directory: " + outdir)
 	return outdir
 
 
@@ -105,22 +104,22 @@ def meme_generate(W, output_file='meme.txt', prefix='filter'):
 	f = open(output_file, 'w')
 
 	# print intro material
-	print >> f, 'MEME version 4'
-	print >> f, ''
-	print >> f, 'ALPHABET= ACGT'
-	print >> f, ''
-	print >> f, 'Background letter frequencies:'
-	print >> f, 'A %.4f C %.4f G %.4f T %.4f' % tuple(nt_freqs)
-	print >> f, ''
+	f.write('MEME version 4')
+	f.write('')
+	f.write('ALPHABET= ACGT')
+	f.write('')
+	f.write('Background letter frequencies:')
+	f.write('A %.4f C %.4f G %.4f T %.4f' % tuple(nt_freqs))
+	f.write('')
 
 	for j in range(len(W)):
 		pwm = np.array(W[j])
 
-		print >> f, 'MOTIF %s%d' % (prefix, j)
-		print >> f, 'letter-probability matrix: alength= 4 w= %d nsites= %d' % (pwm.shape[1], 1000)
+		f.write('MOTIF %s%d' % (prefix, j))
+		f.write('letter-probability matrix: alength= 4 w= %d nsites= %d' % (pwm.shape[1], 1000))
 		for i in range(pwm.shape[1]):
-			print >> f, '%.4f %.4f %.4f %.4f' % tuple(pwm[:,i])
-		print >> f, ''
+			f.write('%.4f %.4f %.4f %.4f' % tuple(pwm[:,i]))
+		f.write('')
 
 	f.close()
 	

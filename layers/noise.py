@@ -8,14 +8,21 @@ __all__ = [
 
 
 class DropoutLayer(BaseLayer):
-	def __init__(self, incoming, keep_prob, is_training, **kwargs):
+	def __init__(self, incoming, p=0.5, **kwargs):
 				
-		self.incoming = incoming
-		self.keep_prob = keep_prob
-		self.is_training = is_training
-
-	def output(self):
-
-		keep_prob = tf.select(self.is_training, self.keep_prob, 1)
-		return tf.nn.dropout(self.incoming.output(), keep_prob=keep_prob)
+		self.incoming_shape = incoming.get_output_shape()
+		
+		self.output = tf.nn.dropout(incoming.get_output(), keep_prob=p)
+		
+		self.output_shape = self.output.get_shape()
+		
+	def get_input_shape(self):
+		return self.incoming_shape
+	
+	def get_output(self):
+		return self.output
+	
+	def get_output_shape(self):
+		return self.output_shape
+		
 	

@@ -19,7 +19,6 @@ def train_minibatch(sess, nntrainer, data, batch_size=128, num_epochs=500,
 			sys.stdout.write("\rEpoch %d out of %d \n"%(epoch+1, num_epochs))
 
 		# training set
-		data['train']['is_training'] = True
 		train_loss = nntrainer.train_epoch(sess, 
 											data['train'], 
 											batch_size=batch_size, 
@@ -30,7 +29,6 @@ def train_minibatch(sess, nntrainer, data, batch_size=128, num_epochs=500,
 
 		# test current model with cross-validation data and store results
 		if 'valid' in data.keys():
-			data['valid']['is_training'] = False
 			valid_loss = nntrainer.test_model(sess, 
 												data['valid'], 
 												name="valid", 

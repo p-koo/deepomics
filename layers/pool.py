@@ -7,7 +7,6 @@ __all__ = [
 	"MaxPool2DLayer"
 ]
 
-
 class MaxPool1DLayer(BaseLayer):
 	def __init__(self, incoming, pool_size, strides=[], padding=[], **kwargs):
 		
@@ -23,7 +22,7 @@ class MaxPool1DLayer(BaseLayer):
 		
 		self.incoming_shape = incoming.get_output_shape()
 		
-		self.output = tf.nn.max_pool(incoming.output(), 
+		self.output = tf.nn.max_pool(incoming.get_output(), 
 									ksize=self.pool_size, 
 									strides=self.strides, 
 									padding=self.padding, 
@@ -31,24 +30,18 @@ class MaxPool1DLayer(BaseLayer):
 		
 		self.output_shape = self.output.get_shape()
 		
-	def input_shape(self):
+	def get_input_shape(self):
 		return self.incoming_shape
 	
-	def output(self):
+	def get_output(self):
 		return self.output
 	
-	def output_shape(self):
+	def get_output_shape(self):
 		return self.output_shape
 		
 		
 class MaxPool2DLayer(BaseLayer):
 	def __init__(self, incoming, pool_size, strides=[], padding=[], **kwargs):
-
-		if not W:
-			self.W = Variable(var=init.HeNormal(), shape=self.shape, **kwargs)
-		else:
-			self.W = Variable(var=W, shape=self.shape, **kwargs)
-			
 		if not isinstance(pool_size, [list, tuple]):
 			self.pool_size = [1, pool_size, pool_size, 1]
 		else:
@@ -61,14 +54,14 @@ class MaxPool2DLayer(BaseLayer):
 				self.strides = [1, strides, strides, 1]
 			else:
 				self.strides = [1, strides[0], strides[1], 1]
-
+		
 		self.padding = padding
 		if not self.padding:
 			self.padding = 'SAME'
 		
 		self.incoming_shape = incoming.get_output_shape()
 		
-		self.output = tf.nn.max_pool(incoming.output(), 
+		self.output = tf.nn.max_pool(incoming.get_output(), 
 									ksize=self.pool_size, 
 									strides=self.strides, 
 									padding=self.padding, 
@@ -76,13 +69,13 @@ class MaxPool2DLayer(BaseLayer):
 		
 		self.output_shape = self.output.get_shape()
 		
-	def input_shape(self):
+	def get_input_shape(self):
 		return self.incoming_shape
 	
-	def output(self):
+	def get_output(self):
 		return self.output
 	
-	def output_shape(self):
+	def get_output_shape(self):
 		return self.output_shape
 		
 		
