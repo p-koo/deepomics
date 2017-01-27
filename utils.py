@@ -1,6 +1,6 @@
 from __future__ import print_function 
 import tensorflow as tf
-import init
+from init import *
 
 
 __all__ = [
