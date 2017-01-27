@@ -23,7 +23,7 @@ class Conv1DLayer(BaseLayer):
 		self.shape = shape
 
 		if not W:
-			self.W = Variable(var=init.HeNormal(), shape=shape, **kwargs)
+			self.W = Variable(var=HeNormal(), shape=shape, **kwargs)
 		else:
 			self.W = Variable(var=W, shape=shape, **kwargs)
 			
@@ -96,7 +96,7 @@ class Conv2DLayer(BaseLayer):
 			self.shape = [filter_size[0], filter_size[1], dim, num_filters]
 
 		if not W:
-			self.W = Variable(var=init.HeNormal(), shape=self.shape, **kwargs)
+			self.W = Variable(var=HeNormal(), shape=self.shape, **kwargs)
 		else:
 			self.W = Variable(var=W, shape=self.shape, **kwargs)
 			
