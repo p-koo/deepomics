@@ -90,10 +90,10 @@ class Conv2DLayer(BaseLayer):
 		
 		dim = incoming.get_output_shape()[3].value
 
-		if not isinstance(filter_size, list):
+		if not isinstance(filter_size, [list, tuple]):
 			self.shape = [filter_size, filter_size, dim, num_filters]
 		else:
-			self.shape = filter_size
+			self.shape = [filter_size[0], filter_size[1], dim, num_filters]
 
 		if not W:
 			self.W = Variable(var=init.HeNormal(), shape=self.shape, **kwargs)
@@ -104,10 +104,10 @@ class Conv2DLayer(BaseLayer):
 		if not strides:		
 			self.strides = [1, 1, 1, 1]
 		else:
-			if not isinstance(strides, list):
+			if not isinstance(strides, [list, tuple]):
 				self.strides = [1, strides, strides, 1]
 			else:
-				self.strides = strides
+				self.strides = [1, strides[0], strides[1], 1]
 
 		self.padding = padding
 		if not padding:
