@@ -39,7 +39,7 @@ class Conv1DLayer(BaseLayer):
 		self.incoming_shape = incoming.get_output_shape()
 		
 		# output of convolution
-		self.output = tf.nn.conv2d( input=incoming.get_output(), 
+		self.output = tf.nn.conv2d( input=incoming.output(), 
 									filter=self.W.get_variable(), 
 									strides=self.strides, 
 								   	padding=self.padding, 
@@ -47,13 +47,13 @@ class Conv1DLayer(BaseLayer):
 		# shape of the output
 		self.output_shape = self.output.get_shape()
 		
-	def get_input_shape(self):
+	def input_shape(self):
 		return self.incoming_shape
 	
-	def get_output(self):
+	def output(self):
 		return self.output
 	
-	def get_output_shape(self):
+	def output_shape(self):
 		return self.output_shape
 	
 	def get_variable(self):
@@ -117,7 +117,7 @@ class Conv2DLayer(BaseLayer):
 		self.incoming_shape = incoming.get_output_shape()
 		
 		# output of convolution
-		self.output = tf.nn.conv2d( input=incoming.get_output(), 
+		self.output = tf.nn.conv2d( input=incoming.output(), 
 									filter=self.W.get_variable(), 
 									strides=self.strides, 
 								   	padding=self.padding, 
@@ -125,13 +125,13 @@ class Conv2DLayer(BaseLayer):
 		# shape of the output
 		self.output_shape = self.output.get_shape()
 		
-	def get_input_shape(self):
+	def input_shape(self):
 		return self.incoming_shape
 	
-	def get_output(self):
+	def output(self):
 		return self.output
 	
-	def get_output_shape(self):
+	def output_shape(self):
 		return self.output_shape
 	
 	def get_variable(self):

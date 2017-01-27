@@ -13,8 +13,6 @@ class BaseLayer(object):
 	def output(self):
 		raise NotImplementedError()
 		
-	def get_output_shape(self):
-		raise NotImplementedError()
 
 
 
@@ -27,5 +25,5 @@ class InputLayer(BaseLayer):
 	def output(self):
 		return self.incoming
 	
-	def get_output_shape(self):
-		return self.incoming.
+	def output_shape(self):
+		return self.incoming.get_shape()

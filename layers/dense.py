@@ -21,14 +21,14 @@ class DenseLayer(BaseLayer):
 			incoming = ReshapeLayer(incoming)
 						
 		num_inputs = incoming.output().get_shape()[1].value
-		shape = [num_inputs, num_units]
+		self.shape = [num_inputs, num_units]
 		
 		self.incoming = incoming
 		
 		if not W:
-			self.W = Variable(var=init.HeNormal(), shape=shape, **kwargs)
+			self.W = Variable(var=init.HeNormal(), shape=self.shape, **kwargs)
 		else:
-			self.W = Variable(var=W, shape=shape, **kwargs)
+			self.W = Variable(var=W, shape=self.shape, **kwargs)
 			
 		if not b:
 			self.b = Variable(var=init.Constant(0.05), shape=[num_units], **kwargs)
@@ -43,6 +43,9 @@ class DenseLayer(BaseLayer):
 			val+= self.b.variable()
 		return val
 	
+	def output_shape(self):
+		return self.shape
+		
 	def get_variable(self):
 		if self.b:
 			return [self.W.variable(), self.b.variable()]

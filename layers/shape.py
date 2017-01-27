@@ -19,4 +19,5 @@ class ReshapeLayer(BaseLayer):
 	
 	def output(self):
 		return tf.reshape(self.incoming.output(), self.shape)
+
 	

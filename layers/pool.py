@@ -23,7 +23,7 @@ class MaxPool1DLayer(BaseLayer):
 		
 		self.incoming_shape = incoming.get_output_shape()
 		
-		self.output = tf.nn.max_pool(incoming.get_output(), 
+		self.output = tf.nn.max_pool(incoming.output(), 
 									ksize=self.pool_size, 
 									strides=self.strides, 
 									padding=self.padding, 
@@ -31,13 +31,13 @@ class MaxPool1DLayer(BaseLayer):
 		
 		self.output_shape = self.output.get_shape()
 		
-	def get_input_shape(self):
+	def input_shape(self):
 		return self.incoming_shape
 	
-	def get_output(self):
+	def output(self):
 		return self.output
 	
-	def get_output_shape(self):
+	def output_shape(self):
 		return self.output_shape
 		
 		
@@ -68,7 +68,7 @@ class MaxPool2DLayer(BaseLayer):
 		
 		self.incoming_shape = incoming.get_output_shape()
 		
-		self.output = tf.nn.max_pool(incoming.get_output(), 
+		self.output = tf.nn.max_pool(incoming.output(), 
 									ksize=self.pool_size, 
 									strides=self.strides, 
 									padding=self.padding, 
@@ -76,13 +76,13 @@ class MaxPool2DLayer(BaseLayer):
 		
 		self.output_shape = self.output.get_shape()
 		
-	def get_input_shape(self):
+	def input_shape(self):
 		return self.incoming_shape
 	
-	def get_output(self):
+	def output(self):
 		return self.output
 	
-	def get_output_shape(self):
+	def output_shape(self):
 		return self.output_shape
 		
 		

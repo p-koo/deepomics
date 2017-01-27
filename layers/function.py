@@ -50,6 +50,9 @@ class BiasLayer(BaseLayer):
 	def output(self):
 		return  self.incoming.output() + self.b.variable()
 	
+	def output_shape(self):
+		return  self.incoming.output_shape() 
+	
 	def get_variable(self):
 		return self.b.variable()
 	
