@@ -42,22 +42,22 @@ class MaxPool1DLayer(BaseLayer):
 		
 class MaxPool2DLayer(BaseLayer):
 	def __init__(self, incoming, pool_size, strides=[], padding=[], **kwargs):
-		if not isinstance(pool_size, [list, tuple]):
+		if not isinstance(pool_size, (list, tuple)):
 			self.pool_size = [1, pool_size, pool_size, 1]
 		else:
 			self.pool_size = [1, pool_size[0], pool_size[1], 1]
 
 		if not strides:		
-			self.strides = [1, 1, 1, 1]
+			self.strides = self.pool_size
 		else:
-			if not isinstance(strides, [list, tuple]):
+			if not isinstance(strides, (list, tuple)):
 				self.strides = [1, strides, strides, 1]
 			else:
 				self.strides = [1, strides[0], strides[1], 1]
 		
 		self.padding = padding
 		if not self.padding:
-			self.padding = 'SAME'
+			self.padding = 'VALID'
 		
 		self.incoming_shape = incoming.get_output_shape()
 		
