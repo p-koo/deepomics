@@ -2,8 +2,8 @@ from __future__ import print_function
 import os, sys, time
 import tensorflow as tf
 import numpy as np
-from optimize import *
-from metrics import *
+from .optimize import *
+from .metrics import *
 
 
 __all__ = [
@@ -74,16 +74,16 @@ class NeuralNet:
 		return fmaps
 
 
-	def save_model_parameters(self, sess, filepath='/tmp/model.ckpt'):
+	def save_model_parameters(self, sess, filepath='model.ckpt'):
 		"""save model parameters to a file"""
 		
-		self.saver.save(sess, filepath)
+		#self.saver.save(sess, filepath)
 		
 
-	def load_model_parameters(self, sess, filepath='/tmp/model.ckpt'):
+	def load_model_parameters(self, sess, filepath='model.ckpt'):
 		"""initialize network with all_param_values"""
 		
-		self.saver.restore(sess, filepath)
+		#self.saver.restore(sess, filepath)
 
 
 
@@ -150,7 +150,7 @@ class NeuralTrainer():
 		"""metric to monitor performance during training"""
 
 		if self.objective == 'categorical':
-			return np.mean(np.argmax(predictions, axis=1) == y)
+			return np.mean(np.argmax(predictions, axis=1) == np.argmax(y, axis=1))
 		
 		elif self.objective == 'binary':
 			return np.mean(np.round(predictions) == y)
@@ -312,9 +312,9 @@ class MonitorPerformance():
 
 
 	def print_results(self, name):
-		 if self.verbose == 1:
-		 	if name == 'test':
-		 		name += ' '
+		if self.verbose == 1:
+			if name == 'test':
+				name += ' '
 
 			print("  " + name + " loss:\t\t{:.5f}".format(self.loss[-1]/1.))
 			mean_vals, error_vals = self.get_metric_values()
