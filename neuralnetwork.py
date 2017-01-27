@@ -2,7 +2,8 @@ from __future__ import print_function
 import os, sys, time
 import tensorflow as tf
 import numpy as np
-import optimize, utils, metrics
+from optimize import *
+from metrics import *
 
 
 __all__ = [
@@ -110,10 +111,10 @@ class NeuralTrainer():
 		
 		# get predictions
 		self.predictions = get_predictions(nnmodel.network, optimization['objective'])
-		self.loss = optimize.build_loss(self.predictions, target_vars, optimization)
+		self.loss = build_loss(self.predictions, target_vars, optimization)
 
 		# setup optimizer
-		self.updates = optimize.build_updates(optimizer=optimization['optimizer'])
+		self.updates = build_updates(optimizer=optimization['optimizer'])
 
 		# get list of trainable parameters (default is trainable)
 		trainable_params = get_trainable(nnmodel.network)
@@ -287,7 +288,7 @@ class MonitorPerformance():
 
 
 	def update(self, loss, prediction, label):
-		scores = metrics.calculate_metrics(label, prediction, self.objective)
+		scores = calculate_metrics(label, prediction, self.objective)
 		self.add_loss(loss)
 		self.add_metrics(scores)
 
