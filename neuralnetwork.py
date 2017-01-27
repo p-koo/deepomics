@@ -371,7 +371,7 @@ class MonitorPerformance():
 
 
 	def print_results(self, name):
-		 if self.verbose == 1:
+		if self.verbose == 1:
 			if name == 'test':
 				name += ' '
 
