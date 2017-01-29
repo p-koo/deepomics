@@ -27,6 +27,11 @@ class Variable():
 		if 'l2' in kwargs.keys():
 			self.l2_regularize = kwargs['l2']
 		
+		if 'regularize' in kwargs.keys():
+			if not kwargs['regularize']:
+				self.l1_regularize = False
+				self.l2_regularize = False
+
 		self.trainable = True
 		if 'trainable' in kwargs.keys():
 			self.l1_regularize = kwargs['trainable']

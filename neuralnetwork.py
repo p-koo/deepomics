@@ -95,14 +95,11 @@ class NeuralNet:
 
 class NeuralTrainer():
 
-	def __init__(self, nnmodel, target_vars, optimization, save='best', filepath='.'):
+	def __init__(self, nnmodel, target_vars, placeholders, optimization, save='best', filepath='.'):
 		self.nnmodel = nnmodel
 		self.target_vars = target_vars
 		self.input_vars = nnmodel.input_vars
-		self.placeholders = []
-		for inputs in self.input_vars:
-			self.placeholders.append(inputs)
-		self.placeholders.append(target_vars)
+		self.placeholders = placeholders
 		
 		self.optimization = optimization    
 		self.objective = optimization['objective']
@@ -316,7 +313,8 @@ class MonitorPerformance():
 			if name == 'test':
 				name += ' '
 
-			print("  " + name + " loss:\t\t{:.5f}".format(self.loss[-1]/1.))
+			print(self.loss)
+			print("  " + name + " loss:\t\t{:.5f}".format(self.loss[-1]))
 			mean_vals, error_vals = self.get_metric_values()
 
 			if (self.objective == "binary") | (self.objective == "categorical"):
@@ -360,7 +358,6 @@ class MonitorPerformance():
 
 
 
-
 #--------------------------------------------------------------------------------------------------
 # helper functions
 #--------------------------------------------------------------------------------------------------
@@ -385,8 +382,10 @@ def data_slice(placeholders, X, indices, batch_size, start_idx):
 	index = indices[start_idx:start_idx+batch_size]
 	feed_dict = {}
 	for i in range(len(X)):
-		feed_dict[placeholders[i]] = X[i][index]
-			
+		if hasattr(X[i], "__len__"):
+			feed_dict[placeholders[i]] = X[i][index]
+		else:
+			feed_dict[placeholders[i]] = X[i]		
 	return feed_dict
 	
 
