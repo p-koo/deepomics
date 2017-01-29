@@ -135,7 +135,7 @@ def build_updates(optimizer, **kwargs):
 
 
 
-def build_loss(predictions, targets, optimization):
+def build_loss(network, predictions, targets, optimization):
 	
 	# cost function
 	if (optimization['objective'] == 'binary') | (optimization['objective'] == 'categorical'):
@@ -151,13 +151,13 @@ def build_loss(predictions, targets, optimization):
 						 objective=optimization['objective'], 
 						 clip_value=clip_value)
 
-	if 'l1_weight_decay' in optimization.keys():
-		l1 = get_l1_parameters(net)
-		loss += tf.reduce_sum(tf.abs(l1)) * optimization['l1_weight_decay']
+	if 'l1' in optimization.keys():
+		l1 = get_l1_parameters(network)
+		loss += tf.reduce_sum(tf.abs(l1)) * optimization['l1']
 
-	if 'l2_weight_decay' in optimization.keys():
-		l2 = get_l1_parameters(net)
-		loss += tf.reduce_sum(tf.square(l2)) * optimization['l2_weight_decay']
+	if 'l2' in optimization.keys():
+		l2 = get_l1_parameters(network)
+		loss += tf.reduce_sum(tf.square(l2)) * optimization['l2']
 
 	return loss
 
@@ -200,6 +200,7 @@ def get_l1_parameters(net):
 				else:
 					params.append(variables.get_variable())
 	return merge_parameters(params)
+
 
 def get_l2_parameters(net):    
 	params = []

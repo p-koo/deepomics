@@ -108,7 +108,7 @@ class NeuralTrainer():
 		
 		# get predictions
 		self.predictions = get_predictions(nnmodel.network, optimization['objective'])
-		self.loss = build_loss(self.predictions, target_vars, optimization)
+		self.loss = build_loss(nnmodel.network, self.predictions, target_vars, optimization)
 
 		# setup optimizer
 		self.updates = build_updates(optimizer=optimization['optimizer'])
@@ -313,7 +313,6 @@ class MonitorPerformance():
 			if name == 'test':
 				name += ' '
 
-			print(self.loss)
 			print("  " + name + " loss:\t\t{:.5f}".format(self.loss[-1]))
 			mean_vals, error_vals = self.get_metric_values()
 
@@ -339,8 +338,6 @@ class MonitorPerformance():
 			elif (self.objective == 'squared_error'):
 				sys.stdout.write("\r[%s] %.1f%% -- time=%ds -- loss=%.5f -- correlation=%.5f  " \
 				%(progress+spaces, percent*100, remaining_time, self.get_mean_loss(), value))
-
-
 			sys.stdout.flush()
 
 
