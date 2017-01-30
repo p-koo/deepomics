@@ -7,7 +7,31 @@ from .. import init
 __all__ = [
 	"ActivationLayer",
 	"BiasLayer",
+	"ElementwiseSumLayer"
 ]
+
+
+
+class ElementwiseSumLayer(BaseLayer):
+	"""activation layer"""
+
+	def __init__(self, incomings, **kwargs):
+		
+
+		self.incoming_shape = incomings[0].get_output_shape()
+		self.output = tf.add(incomings[0].get_output(), incomings[1].get_output())
+		self.output_shape = self.output.get_shape()
+		
+	def get_input_shape(self):
+		return self.incoming_shape
+	
+	def get_output(self):
+		return self.output
+	
+	def get_output_shape(self):
+		return self.output_shape
+
+
 
 
 class ActivationLayer(BaseLayer):
