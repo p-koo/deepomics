@@ -27,7 +27,8 @@ class NeuralNet:
 	def __init__(self, network, input_vars):
 		self.network = network
 		self.input_vars = input_vars
-		self.saver = tf.train.Saver
+		self.saver = tf.train.Saver()
+
 
 	def inspect_layers(self):
 		"""print(each layer type and parameters"""
@@ -75,16 +76,17 @@ class NeuralNet:
 		return fmaps
 
 
-	def save_model_parameters(self, sess, filepath='model.ckpt', global_step=None):
+	def save_model_parameters(self, sess, filepath='model.ckpt'):
 		"""save model parameters to a file"""
-		
-		self.saver.save(sess, filepath, global_step=global_step)
+		print("saving model to: ", filepath)
+		self.saver.save(sess, save_path=filepath)
 		
 
-	def load_model_parameters(self, sess, filepath='model.ckpt', global_step=None):
+	def load_model_parameters(self, sess, filepath='model.ckpt'):
 		"""initialize network with all_param_values"""
-		
-		self.saver.restore(sess, filepath, global_step=global_step)
+
+		print("loading model from: ", filepath)
+		self.saver.restore(sess, save_path=filepath)
 
 
 
@@ -207,18 +209,19 @@ class NeuralTrainer():
 			self.test_monitor.add_loss(loss)
 
 
-	def save_model(self, sess):
+	def save_model(self, sess, epoch=None):
 		"""save model parameters to file, according to filepath"""
 
 		if self.save == 'best':
 			min_loss, min_epoch = self.valid_monitor.get_min_loss()
 			if self.valid_monitor.loss[-1] <= min_loss:
+				print('lower cross-validation found')
 				filepath = self.filepath + '_best.ckpt'
-				self.nnmodel.save_model_parameters(sess, filepath, global_step=None)
+				self.nnmodel.save_model_parameters(sess, filepath)
 		elif self.save == 'all':
 			epoch = len(self.valid_monitor.loss)
-			filepath = self.filepath + '_all.ckpt'
-			self.nnmodel.save_model_parameters(sess, filepath, global_step=epoch)
+			filepath = self.filepath + '_' + str(epoch) + '.ckpt'
+			self.nnmodel.save_model_parameters(sess, filepath)
 
 	def save_all_metrics(self, filepath):
 		"""save all performance metrics"""
