@@ -49,7 +49,7 @@ def train_minibatch(sess, nntrainer, data, batch_size=128, num_epochs=500,
 
 
 
-def train_variable_learning_rate(nntrainer, train, valid, learning_rate_schedule, 
+def train_variable_learning_rate(sess, nntrainer, train, valid, learning_rate_schedule, 
 						batch_size=128, num_epochs=500, patience=10, verbose=1, shuffle=True):
 	"""Train a model with cross-validation data and test data
 			learning_rate_schedule = {  0: 0.001

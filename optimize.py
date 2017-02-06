@@ -8,37 +8,44 @@ __all__ = [
 ]
 
 
-def build_updates(optimizer, **kwargs):
+def build_updates(optimization):
+
+	if 'optimizer' in optimization.keys():
+		optimizer = optimization['optimizer']
+	else:
+		optimizer = 'adam'
+		optimization['learning_rate'] = 0.001
+
 	if optimizer == 'sgd':
 		learning_rate = 0.005
-		if 'learning_rate' in kwargs.keys():
-			leanring_rate = kwargs['learning_rate']
+		if 'learning_rate' in optimization.keys():
+			leanring_rate = optimization['learning_rate']
 		use_locking = False
-		if 'use_locking' in kwargs.keys():
-			use_locking = kwargs['use_locking']
+		if 'use_locking' in optimization.keys():
+			use_locking = optimization['use_locking']
 		name = 'adadelta'
-		if 'name' in kwargs.keys():
-			name = kwargs['name']
+		if 'name' in optimization.keys():
+			name = optimization['name']
 		return tf.train.GradientDescentOptimizer(learning_rate=learning_rate, 
 												 use_locking=use_locking, 
 												 name=name)
 
 	elif optimizer == 'momentum':
 		learning_rate = 0.005
-		if 'learning_rate' in kwargs.keys():
-			leanring_rate = kwargs['learning_rate']
+		if 'learning_rate' in optimization.keys():
+			leanring_rate = optimization['learning_rate']
 		momentum = 0.9
-		if 'momentum' in kwargs.keys():
-			momentum = kwargs['momentum']
+		if 'momentum' in optimization.keys():
+			momentum = optimization['momentum']
 		use_nesterov = True
-		if 'use_nesterov' in kwargs.keys():
-			use_nesterov = kwargs['use_nesterov']
+		if 'use_nesterov' in optimization.keys():
+			use_nesterov = optimization['use_nesterov']
 		use_locking = False
-		if 'use_locking' in kwargs.keys():
-			use_locking = kwargs['use_locking']
+		if 'use_locking' in optimization.keys():
+			use_locking = optimization['use_locking']
 		name = 'momenum'
-		if 'name' in kwargs.keys():
-			name = kwargs['name']
+		if 'name' in optimization.keys():
+			name = optimization['name']
 		return tf.train.MomentumOptimizer(learning_rate=learning_rate, 
 										  momentum=momentum, 
 										  use_nesterov=use_nesterov, 
@@ -47,23 +54,23 @@ def build_updates(optimizer, **kwargs):
 	
 	elif optimizer == 'adam':
 		learning_rate = 0.001
-		if 'learning_rate' in kwargs.keys():
-			leanring_rate = kwargs['learning_rate']
+		if 'learning_rate' in optimization.keys():
+			leanring_rate = optimization['learning_rate']
 		beta1 = 0.95
-		if 'beta1' in kwargs.keys():
-			beta1 = kwargs['beta1']
+		if 'beta1' in optimization.keys():
+			beta1 = optimization['beta1']
 		beta2 = 0.999
-		if 'beta2' in kwargs.keys():
-			beta2 = kwargs['beta2']
+		if 'beta2' in optimization.keys():
+			beta2 = optimization['beta2']
 		epsilon = 1e-08
-		if 'epsilon' in kwargs.keys():
-			epsilon = kwargs['epsilon']
+		if 'epsilon' in optimization.keys():
+			epsilon = optimization['epsilon']
 		use_locking = False
-		if 'use_locking' in kwargs.keys():
-			use_locking = kwargs['use_locking']
+		if 'use_locking' in optimization.keys():
+			use_locking = optimization['use_locking']
 		name = 'adam'
-		if 'name' in kwargs.keys():
-			name = kwargs['name']
+		if 'name' in optimization.keys():
+			name = optimization['name']
 		return tf.train.AdamOptimizer(learning_rate=learning_rate, 
 									  beta1=beta1, 
 									  beta2=beta2, 
@@ -73,20 +80,20 @@ def build_updates(optimizer, **kwargs):
 
 	elif optimizer == 'rmsprop':
 		learning_rate = 0.001
-		if 'learning_rate' in kwargs.keys():
-			leanring_rate = kwargs['learning_rate']
+		if 'learning_rate' in optimization.keys():
+			leanring_rate = optimization['learning_rate']
 		rho = 0.95
-		if 'rho' in kwargs.keys():
-			rho = kwargs['rho']
+		if 'rho' in optimization.keys():
+			rho = optimization['rho']
 		epsilon = 1e-08
-		if 'epsilon' in kwargs.keys():
-			epsilon = kwargs['epsilon']
+		if 'epsilon' in optimization.keys():
+			epsilon = optimization['epsilon']
 		use_locking = False
-		if 'use_locking' in kwargs.keys():
-			use_locking = kwargs['use_locking']
+		if 'use_locking' in optimization.keys():
+			use_locking = optimization['use_locking']
 		name = 'rmsprop'
-		if 'name' in kwargs.keys():
-			name = kwargs['name']
+		if 'name' in optimization.keys():
+			name = optimization['name']
 		return tf.train.RMSPropOptimizer(learning_rate=learning_rate, 
 										 rho=rho, 
 										 epsilon=epsilon, 
@@ -95,20 +102,20 @@ def build_updates(optimizer, **kwargs):
 	
 	elif optimizer == 'adadelta':
 		learning_rate = 0.001
-		if 'learning_rate' in kwargs.keys():
-			leanring_rate = kwargs['learning_rate']
+		if 'learning_rate' in optimization.keys():
+			leanring_rate = optimization['learning_rate']
 		rho = 0.95
-		if 'rho' in kwargs.keys():
-			rho = kwargs['rho']
+		if 'rho' in optimization.keys():
+			rho = optimization['rho']
 		epsilon = 1e-08
-		if 'epsilon' in kwargs.keys():
-			epsilon = kwargs['epsilon']
+		if 'epsilon' in optimization.keys():
+			epsilon = optimization['epsilon']
 		use_locking = False
-		if 'use_locking' in kwargs.keys():
-			use_locking = kwargs['use_locking']
+		if 'use_locking' in optimization.keys():
+			use_locking = optimization['use_locking']
 		name = 'adadelta'
-		if 'name' in kwargs.keys():
-			name = kwargs['name']
+		if 'name' in optimization.keys():
+			name = optimization['name']
 		return tf.train.AdadeltaOptimizer(learning_rate=learning_rate, 
 										  rho=rho, 
 										  epsilon=epsilon, 
@@ -117,17 +124,17 @@ def build_updates(optimizer, **kwargs):
 
 	elif optimizer == 'adagrad':
 		learning_rate = 0.001
-		if 'learning_rate' in kwargs.keys():
-			leanring_rate = kwargs['learning_rate']
+		if 'learning_rate' in optimization.keys():
+			leanring_rate = optimization['learning_rate']
 		initial_accumulator_value = 0.95
-		if 'initial_accumulator_value' in kwargs.keys():
-			initial_accumulator_value = kwargs['initial_accumulator_value']
+		if 'initial_accumulator_value' in optimization.keys():
+			initial_accumulator_value = optimization['initial_accumulator_value']
 		use_locking = False
-		if 'use_locking' in kwargs.keys():
-			use_locking = kwargs['use_locking']
+		if 'use_locking' in optimization.keys():
+			use_locking = optimization['use_locking']
 		name = 'adagrad'
-		if 'name' in kwargs.keys():
-			name = kwargs['name']
+		if 'name' in optimization.keys():
+			name = optimization['name']
 		return tf.train.AdagradOptimizer(learning_rate=learning_rate, 
 										 initial_accumulator_value=initial_accumulator_value, 
 										 use_locking=use_locking, 
@@ -171,7 +178,7 @@ def cost_function(predictions, targets, objective, **kwargs):
 		
 	if objective == 'binary':   
 		loss = -tf.reduce_mean(targets*tf.log(predictions) + (1-targets)*tf.log(1-predictions))
-		# loss = tf.nn.sigmoid_cross_entropy_with_logits(predictions, targets, name='binary_loss')
+		#loss = tf.nn.sigmoid_cross_entropy_with_logits(predictions, targets, name='binary_loss')
 
 	elif objective == 'categorical':
 		predictions = tf.clip_by_value(predictions,1e-7,1-1e-7)

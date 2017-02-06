@@ -27,6 +27,7 @@ class NeuralNet:
 	def __init__(self, network, input_vars):
 		self.network = network
 		self.input_vars = input_vars
+		
 		self.saver = tf.train.Saver()
 
 
@@ -57,23 +58,18 @@ class NeuralNet:
 	def get_activations(self, sess, layer, X, batch_size=500):
 		"""get the feature maps of a given convolutional layer"""
 		
-		indices, num_batches = data_indices(X, batch_size=batch_size, shuffle=False)
+
+		batch_generator = BatchGenerator(X, self.placeholders, batch_size, shuffle=False)
+		#indices, num_batches = data_indices(X['inputs'], batch_size=batch_size, shuffle=shuffle)
 			
 		fmaps = []
-		for i in range(num_batches):
-			feed_dict = data_slice(self.input_vars, X, indices, batch_size, i)    
-			fmaps.append(sess.run(self.network[layer].get_output(), feed_dict=feed_dict))
-
-		# get remainder
-		index = range(num_batches*batch_size, X[0].shape[0])    
-		if index:
-			feed_dict = {}
-		for i in range(len(X)):
-			feed_dict[self.input_vars[i]] = X[i][index]
-			fmaps.append(sess.run(self.network[layer].get_output(), feed_dict=feed_dict))
-
+		for i in range(batch_generator.get_num_batches()):  
+			feed_dict = batch_generator.next_minibatch(X) 
+			#feed_dict = data_slice(self.inputs, X, indices, i)    
+			fmaps.append(self.sess.run(self.network[layer].get_output(), feed_dict=feed_dict))
 		fmaps = np.vstack(fmaps)
 		return fmaps
+
 
 
 	def save_model_parameters(self, sess, filepath='model.ckpt'):
@@ -98,10 +94,10 @@ class NeuralNet:
 
 class NeuralTrainer():
 
-	def __init__(self, nnmodel, target_vars, placeholders, optimization, save='best', filepath='.'):
+	def __init__(self, nnmodel, placeholders, optimization, save='best', filepath='.'):
 		self.nnmodel = nnmodel
-		self.target_vars = target_vars
 		self.input_vars = nnmodel.input_vars
+		self.targets = placeholders['targets']
 		self.placeholders = placeholders
 		
 		self.optimization = optimization    
@@ -112,10 +108,10 @@ class NeuralTrainer():
 		
 		# get predictions
 		self.predictions = get_predictions(nnmodel.network, optimization['objective'])
-		self.loss = build_loss(nnmodel.network, self.predictions, target_vars, optimization)
+		self.loss = build_loss(nnmodel.network, self.predictions, self.targets, optimization)
 
 		# setup optimizer
-		self.updates = build_updates(optimizer=optimization['optimizer'])
+		self.updates = build_updates(optimization)
 
 		# get list of trainable parameters (default is trainable)
 		trainable_params = get_trainable(nnmodel.network)
@@ -127,20 +123,24 @@ class NeuralTrainer():
 		self.valid_monitor = MonitorPerformance(name="cross-validation", objective=self.objective, verbose=1)
 
 		
-	def train_epoch(self, sess, X, batch_size=128, verbose=1, shuffle=True):        
+	def train_epoch(self, sess, feed_X, batch_size=128, verbose=1, shuffle=True):        
 		"""Train a mini-batch --> single epoch"""
 
 		# set timer for epoch run
 		performance = MonitorPerformance('train', self.objective, verbose)
 		performance.set_start_time(start_time = time.time())
 
-		indices, num_batches = data_indices(X, batch_size=batch_size, shuffle=shuffle)
+		batch_generator = BatchGenerator(feed_X['inputs'], self.placeholders, batch_size, shuffle)
+		#indices, num_batches = data_indices(X['inputs'], batch_size=batch_size, shuffle=shuffle)
 			
+		num_batches = batch_generator.get_num_batches()
+
 		value = 0
 		for i in range(num_batches):
-			feed_dict = data_slice(self.placeholders, X, indices, batch_size, i)            
+			#feed_dict = data_slice(self.placeholders, X, indices, i)      
+			feed_dict = batch_generator.next_minibatch(feed_X)     
 			results = sess.run([self.train_step, self.loss, self.predictions], feed_dict=feed_dict)           
-			value += self.train_metric(results[2], feed_dict[self.target_vars])
+			value += self.train_metric(results[2], feed_dict[self.targets])
 			performance.add_loss(results[1])
 			performance.progress_bar(i+1., num_batches, value/(i+1))
 		print("")
@@ -167,20 +167,22 @@ class NeuralTrainer():
 
 		
 		
-	def test_model(self, sess, X, batch_size=128, name='test', verbose=1):
+	def test_model(self, sess, feed_X, batch_size=128, name='test', verbose=1):
 		"""perform a complete forward pass, store and print(results)"""
 
 		performance = MonitorPerformance('test',self.objective, verbose)
 		
-		indices, num_batches = data_indices(X, batch_size, shuffle=False)    
+		batch_generator = BatchGenerator(feed_X['inputs'], self.placeholders, batch_size, shuffle=False)
+		#indices, num_batches = data_indices(X['inputs'], batch_size, shuffle=False)    
 		label = []
 		prediction = []
-		for i in range(num_batches):
-			feed_dict = data_slice(self.placeholders, X, indices, batch_size, i)            
+		for i in range(batch_generator.get_num_batches()):
+			#feed_dict = data_slice(self.placeholders, X, indices, i)      
+			feed_dict = batch_generator.next_minibatch(feed_X)         
 			results = sess.run([self.loss, self.predictions], feed_dict=feed_dict)          
 			performance.add_loss(results[0])
 			prediction.append(results[1])
-			label.append(feed_dict[self.target_vars])
+			label.append(feed_dict[self.targets])
 		prediction = np.vstack(prediction)
 		label = np.vstack(label)
 		test_loss = performance.get_mean_loss()
@@ -358,38 +360,78 @@ class MonitorPerformance():
 		f.close()
 
 
+#--------------------------------------------------------------------------------------------------
+# Batch Generator Class
+#--------------------------------------------------------------------------------------------------
+
+
+class BatchGenerator():
+	def __init__(self, X, placeholders, batch_size=128, shuffle=False):
+
+		if isinstance(X, list):
+			self.num_data = X[0].shape[0]
+		else:
+			self.num_data = X.shape[0]
+
+		self.placeholders = placeholders
+		self.current_batch = 0
+
+		self.generate_minibatches(batch_size, shuffle)
+
+	def generate_minibatches(self, batch_size=128, shuffle=False):
+
+		if shuffle:
+			index = np.random.permutation(self.num_data)
+		else:
+			index = range(self.num_data)
+
+		self.batch_size = batch_size
+		self.num_batches = self.num_data // self.batch_size
+
+		self.indices = []
+		for i in range(self.num_batches):
+			self.indices.append(index[i*self.batch_size:i*self.batch_size+self.batch_size])
+
+		# get remainder
+		index = range(self.num_batches*self.batch_size, self.num_data)    
+		if index:
+			self.indices.append(index)
+			self.num_batches += 1
+
+		self.current_batch = 0
+
+	def next_minibatch(self, feed_X):
+		feed_dict = {}
+		for key in self.placeholders.keys():
+			if isinstance(self.placeholders[key], list):
+				for i in range(len(self.placeholders[key])):
+					if X[key][i].shape[0] > 1:
+						feed_dict[self.placeholders[key][i]] = feed_X[key][i][self.indices[self.current_batch]]
+					else:
+						feed_dict[self.placeholders[key][i]] = feed_X[key][i]
+			else:
+				if key in feed_X.keys():
+					if hasattr(feed_X[key], "__len__"):
+						feed_dict[self.placeholders[key]] = feed_X[key][self.indices[self.current_batch]]
+					else:
+						feed_dict[self.placeholders[key]] = feed_X[key]
+
+		self.current_batch += 1
+		if self.current_batch == self.num_batches:
+			self.current_batch = 0
+
+		return feed_dict
+
+	def get_batch_index(self):
+		return self.current_batch
+
+	def get_num_batches(self):
+		return self.num_batches
 
 
 #--------------------------------------------------------------------------------------------------
 # helper functions
 #--------------------------------------------------------------------------------------------------
-
-
-def data_indices(X, batch_size, shuffle=False):
-	
-	if isinstance(X, list):
-		num_data = X[0].shape[0]
-	else:
-		num_data = X.shape[0]
-			
-	num_batches = num_data // batch_size
-	if shuffle:
-		indices = np.random.permutation(num_data)
-	else:
-		indices = range(num_data)
-	return indices, num_batches
-
-
-def data_slice(placeholders, X, indices, batch_size, start_idx):
-	index = indices[start_idx:start_idx+batch_size]
-	feed_dict = {}
-	for i in range(len(X)):
-		if hasattr(X[i], "__len__"):
-			feed_dict[placeholders[i]] = X[i][index]
-		else:
-			feed_dict[placeholders[i]] = X[i]		
-	return feed_dict
-	
 
 def get_predictions(network, objective):
 	if objective == 'vae':
