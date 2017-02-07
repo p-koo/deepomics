@@ -58,14 +58,11 @@ class NeuralNet:
 	def get_activations(self, sess, layer, X, batch_size=500):
 		"""get the feature maps of a given convolutional layer"""
 		
-
 		batch_generator = BatchGenerator(X, self.placeholders, batch_size, shuffle=False)
-		#indices, num_batches = data_indices(X['inputs'], batch_size=batch_size, shuffle=shuffle)
 			
 		fmaps = []
 		for i in range(batch_generator.get_num_batches()):  
 			feed_dict = batch_generator.next_minibatch(X) 
-			#feed_dict = data_slice(self.inputs, X, indices, i)    
 			fmaps.append(self.sess.run(self.network[layer].get_output(), feed_dict=feed_dict))
 		fmaps = np.vstack(fmaps)
 		return fmaps
@@ -131,13 +128,10 @@ class NeuralTrainer():
 		performance.set_start_time(start_time = time.time())
 
 		batch_generator = BatchGenerator(feed_X['inputs'], self.placeholders, batch_size, shuffle)
-		#indices, num_batches = data_indices(X['inputs'], batch_size=batch_size, shuffle=shuffle)
-			
 		num_batches = batch_generator.get_num_batches()
 
 		value = 0
 		for i in range(num_batches):
-			#feed_dict = data_slice(self.placeholders, X, indices, i)      
 			feed_dict = batch_generator.next_minibatch(feed_X)     
 			results = sess.run([self.train_step, self.loss, self.predictions], feed_dict=feed_dict)           
 			value += self.train_metric(results[2], feed_dict[self.targets])
@@ -171,13 +165,11 @@ class NeuralTrainer():
 		"""perform a complete forward pass, store and print(results)"""
 
 		performance = MonitorPerformance('test',self.objective, verbose)
-		
 		batch_generator = BatchGenerator(feed_X['inputs'], self.placeholders, batch_size, shuffle=False)
-		#indices, num_batches = data_indices(X['inputs'], batch_size, shuffle=False)    
+
 		label = []
 		prediction = []
 		for i in range(batch_generator.get_num_batches()):
-			#feed_dict = data_slice(self.placeholders, X, indices, i)      
 			feed_dict = batch_generator.next_minibatch(feed_X)         
 			results = sess.run([self.loss, self.predictions], feed_dict=feed_dict)          
 			performance.add_loss(results[0])
@@ -224,6 +216,7 @@ class NeuralTrainer():
 			epoch = len(self.valid_monitor.loss)
 			filepath = self.filepath + '_' + str(epoch) + '.ckpt'
 			self.nnmodel.save_model_parameters(sess, filepath)
+
 
 	def save_all_metrics(self, filepath):
 		"""save all performance metrics"""
