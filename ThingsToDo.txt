@@ -1,0 +1,22 @@
+Things to do:
+- layer: add lstm
+- layer: add bidirectional lstm
+- add word embeddings
+- layer: add a mutliplicative gate layer
+- explore: make number of layers a free parameter
+
+examples:
+- add MNIST example w/ standard tensorflow tutorial network
+- add Genome motif example
+- add vae example for image analysis
+- add highway network example
+- add style transfer example
+- add pretrained residual network for image analysis
+- add pretrained inception network for image analysis
+- add pretrained alexnet for image analysis
+- add densenet for image analysis
+
+other things:
+- more flexibility to regularize each layer with different strengths
+- more flexibility with dropout to use different strengths for different layers
+- more integrated variable storage with tensorflow graph w/ flags, i.e. regularize
