@@ -26,51 +26,45 @@ def model(input_shape, num_labels=None):
             'name': 'input'
             }
   layer2 = {'layer': 'conv2d', 
-            'num_filters': 24,
-            'filter_size': (2, 5),
+            'num_filters': 32,
+            'filter_size': (3, 7),
             'batch_norm': is_training,
             'activation': 'relu',
             'name': 'conv1'
             }
   layer3 = {'layer': 'residual-conv',
-            'filter_size': 5,
+            'filter_size': (1,5),
             'is_training': is_training,
+            'pool_size': (1,9),
             'name': 'resid1'
            }
   layer4 = {'layer': 'conv2d', 
             'num_filters': 64,
-            'filter_size': (2, 5),
+            'filter_size': (1, 5),
             'batch_norm': is_training,
             'activation': 'relu',
             'name': 'conv2'
             }
   layer5 = {'layer': 'residual-conv',
-            'filter_size': 5,
+            'filter_size': (1,5),
             'is_training': is_training,
-            'pool_size': (1,10),
-            'name': 'resid1'
+            'pool_size': (1,8),
+            'name': 'resid2'
            }
-  layer6 = {'layer': 'conv2d', 
-            'num_filters': 15,
-            'filter_size': (1,1),
-            'batch_norm': is_training,
-            'activation': 'relu',
-            'name': 'conv3'
-            }
-  layer7 = {'layer': 'dense', 
+  layer6 = {'layer': 'dense', 
             'num_units': 256,
-            'activation': 'sigmoid',
+            'activation': 'relu',
             'dropout': keep_prob,
             'name': 'dense1'
             }
-  layer8 = {'layer': 'dense', 
+  layer7 = {'layer': 'dense', 
             'num_units': num_labels,
             'activation': 'sigmoid',
             'name': 'dense2'
             }
 
   #from tfomics import build_network
-  model_layers = [layer1, layer2, layer3, layer4, layer5, layer6, layer7, layer8]
+  model_layers = [layer1, layer2, layer3, layer4, layer5, layer6, layer7]
   net = build_network(model_layers)
 
   # optimization parameters

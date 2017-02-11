@@ -26,21 +26,37 @@ def model(input_shape, num_labels):
                 }
     layer2 = {'layer': 'conv1d', 
                 'num_filters': {'start': 20, 'bounds': [1, 200], 'scale': 20},
-                'filter_size': {'start': 19, 'bounds': [5, 27], 'scale': 10, 'multiples': 2, 'offset': 1},
+                'filter_size': {'start': 5, 'bounds': [3, 19], 'scale': 6, 'multiples': 2, 'offset': 0},
                 'batch_norm': is_training,
                 'padding': 'SAME',
                 'activation': 'relu',
-                'pool_size': {'start': 20, 'bounds': [1, 200], 'scale': 10, 'multiples': 4},
+                'pool_size': {'start': 4, 'bounds': [1, 10], 'scale': 6, 'multiples': 4},
                 'name': 'conv1'
                 }
-    layer3 = {'layer': 'dense', 
+    layer3 = {'layer': 'conv1d', 
+                'num_filters': {'start': 20, 'bounds': [1, 200], 'scale': 20},
+                'filter_size': {'start': 5, 'bounds': [3, 19], 'scale': 6, 'multiples': 2, 'offset': 0},
+                'batch_norm': is_training,
+                'padding': 'SAME',
+                'activation': 'relu',
+                'pool_size': {'start': 4, 'bounds': [1, 10], 'scale': 6, 'multiples': 4},
+                'dropout': keep_prob,
+                'name': 'conv2'
+                }
+    layer4 = {'layer': 'dense', 
+                'num_units': {'start': 120, 'bounds': [20, 1000], 'scale': 100, 'multiples': 10},
+                'activation': 'sigmoid',
+                'dropout': keep_prob,
+                'name': 'dense1'
+                }
+    layer5 = {'layer': 'dense', 
                 'num_units': num_labels,
                 'activation': 'sigmoid',
-                'name': 'dense1'
+                'name': 'dense2'
                 }
 
     #from tfomics import build_network
-    model_layers = [layer1, layer2, layer3]
+    model_layers = [layer1, layer2, layer3, layer4, layer5]
 
     # optimization parameters
     optimization = {"objective": "binary",

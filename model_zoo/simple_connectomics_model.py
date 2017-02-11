@@ -49,13 +49,13 @@ def model(input_shape, num_labels=None):
             }
   layer5 = {'layer': 'dense', 
             'num_units': 100,
-            'activation': 'sigmoid',
+            'activation': 'relu',
             'dropout': keep_prob,
             'name': 'dense1'
             }
   layer6 = {'layer': 'dense', 
             'num_units': num_labels,
-            'activation': 'softmax',
+            'activation': 'sigmoid',
             'name': 'dense2'
             }
 
@@ -64,7 +64,7 @@ def model(input_shape, num_labels=None):
   net = build_network(model_layers)
 
   # optimization parameters
-  optimization = {"objective": "categorical",
+  optimization = {"objective": "binary",
                   "optimizer": "adam",
                   "learning_rate": 0.001,      
                   "l2": 1e-6,

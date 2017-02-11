@@ -79,7 +79,7 @@ class NeuralNet:
 		"""initialize network with all_param_values"""
 
 		print("loading model from: ", filepath)
-		self.saver.restore(sess, save_path=filepath)
+		self.saver.restore(sess, filepath)
 
 
 
@@ -241,13 +241,13 @@ class NeuralTrainer():
 		return status
 
 
-	def set_best_parameters(self, filepath=[]):
+	def set_best_parameters(self, sess, filepath=[]):
 		""" set the best parameters from file"""
 		
 		if not filepath:
 			filepath = self.filepath + '_best.ckpt'
 
-		self.nnmodel.load_model_parameters(filepath)
+		self.nnmodel.load_model_parameters(sess, filepath)
 
 
 
