@@ -64,7 +64,7 @@ def model(input_shape, num_labels=None):
 						'pool_size': (1,3),
 						'name': 'resid3'
 					 }
- 	layer8 = {'layer': 'dense', 
+	layer8 = {'layer': 'dense', 
 						'num_units': 256,
 						'activation': 'relu',
 						'dropout': keep_prob,

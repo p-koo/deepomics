@@ -4,11 +4,12 @@ import numpy as np
 from six.moves import cPickle
 
 import tensorflow as tf
-import optimize, utils, learn
-from build_network import *
-import neuralnetwork as nn
 
+from .learn import train_minibatch
+from .build_network import *
+from .neuralnetwork import NeuralNet, NeuralTrainer
 
+ 
 __all__ = [
 	"NeuralOptimizer"
 ]
@@ -123,18 +124,21 @@ class NeuralOptimizer:
 		net = build_network(new_model_layers)
 
 		# compile neural network model
-		nnmodel = nn.NeuralNet(net, self.placeholders['inputs'])
+		nnmodel = NeuralNet(net, self.placeholders['inputs'])
 
 		# compile neural trainer
-		nntrainer = nn.NeuralTrainer(nnmodel, self.placeholders, new_optimization, save='best', filepath=filepath)
+		nntrainer = NeuralTrainer(nnmodel, self.placeholders, new_optimization, save='best', filepath=filepath)
 
 		# run session
 		sess = tf.Session()
 
 		# initialize variables
-		sess.run(tf.initialize_all_variables())
+		if 'is_training' in self.placeholders.keys():
+			sess.run(tf.global_variables_initializer(), feed_dict={self.placeholders['is_training']: True})
+		else:
+			sess.run(tf.global_variables_initializer())
 
-		learn.train_minibatch(sess, nntrainer, {'train': train}, batch_size=batch_size, num_epochs=num_epochs, 
+		train_minibatch(sess, nntrainer, {'train': train}, batch_size=batch_size, num_epochs=num_epochs, 
 								patience=[], verbose=0, shuffle=True)
 
 		loss = nntrainer.test_model(sess, valid, batch_size=batch_size, verbose=0)
