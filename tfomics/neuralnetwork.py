@@ -164,29 +164,6 @@ class NeuralTrainer():
 		else:
 			self.sess = self.start_sess()
 
-
-	def start_sess(self):
-
-		# run session
-		sess = tf.Session()
-
-		# initialize variables
-		if 'is_training' in self.placeholders.keys():
-			sess.run(tf.global_variables_initializer(), feed_dict={self.placeholders['is_training']: True})
-		else:
-			sess.run(tf.global_variables_initializer())
-			#sess.run(tf.initialize_all_variables())
-
-		return sess
-
-
-	def close_sess(self):
-		self.sess.close()
-
-
-	def get_sess(self):
-		return self.sess
-
 		
 	def train_epoch(self, feed_X, batch_size=128, verbose=1, shuffle=True):        
 		"""Train a mini-batch --> single epoch"""
@@ -338,6 +315,26 @@ class NeuralTrainer():
 		
 		return self.nnmodel.get_activations(self.sess, X, layer, batch_size)
 
+
+	def start_sess(self):
+		"""start tensorflow session"""
+		# run session
+		sess = tf.Session()
+
+		# initialize variables
+		if 'is_training' in self.placeholders.keys():
+			sess.run(tf.global_variables_initializer(), feed_dict={self.placeholders['is_training']: True})
+		else:
+			sess.run(tf.global_variables_initializer())
+			#sess.run(tf.initialize_all_variables())
+
+		return sess
+
+
+	def close_sess(self):
+		"""close tensorflow session"""
+		self.sess.close()
+		
 
 
 #----------------------------------------------------------------------------------------------------
