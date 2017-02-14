@@ -24,6 +24,7 @@ def build_layers(model_layers, network=OrderedDict()):
 	for model_layer in model_layers:
 		layer = model_layer['layer']
 		name = model_layer['name']
+
 		if layer == "input":
 
 			# add input layer
@@ -38,7 +39,7 @@ def build_layers(model_layers, network=OrderedDict()):
 				network = conv_residual_block(network, lastlayer, model_layer['name'], 
 										 	model_layer['filter_size'], model_layer['is_training'], keep_prob)
 				lastlayer = name+'_resid'
-			elif model_layer == 'residual-dense':
+			elif layer == 'residual-dense':
 				if 'keep_prob' in model_layer.keys():
 					keep_prob = model_layer['keep_prob']
 				else:
