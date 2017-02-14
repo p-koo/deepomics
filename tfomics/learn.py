@@ -10,7 +10,7 @@ __all__ = [
 
 
 
-def train_minibatch(sess, nntrainer, data, batch_size=128, num_epochs=500, 
+def train_minibatch(nntrainer, data, batch_size=128, num_epochs=500, 
 					patience=10, verbose=1, shuffle=True):
 	"""Train a model with cross-validation data and test data"""
 
@@ -23,20 +23,20 @@ def train_minibatch(sess, nntrainer, data, batch_size=128, num_epochs=500,
 				sys.stdout.write("\rEpoch %d out of %d \n"%(epoch+1, num_epochs))
 
 		# training set
-		train_loss = nntrainer.train_epoch(sess, data['train'], 
+		train_loss = nntrainer.train_epoch(data['train'], 
 											batch_size=batch_size, 
 											verbose=verbose, 
 											shuffle=shuffle)
 
 		# test current model with cross-validation data and store results
 		if 'valid' in data.keys():
-			valid_loss = nntrainer.test_model(sess, data['valid'], 
+			valid_loss = nntrainer.test_model(data['valid'], 
 												name="valid", 
 												batch_size=batch_size,
 												verbose=verbose)
 
 			# save model
-			nntrainer.save_model(sess, epoch)
+			nntrainer.save_model(epoch)
 
 			# check for early stopping
 			if patience:
@@ -48,7 +48,7 @@ def train_minibatch(sess, nntrainer, data, batch_size=128, num_epochs=500,
 
 
 
-def train_anneal_batch_size(sess, nntrainer, train, valid, batch_schedule, 
+def train_anneal_batch_size(nntrainer, train, valid, batch_schedule, 
 							num_epochs=500, patience=10, verbose=1, shuffle=True):
 	"""Train a model with cross-validation data and test data
 			batch_schedule = {  0: 50, 
@@ -70,20 +70,20 @@ def train_anneal_batch_size(sess, nntrainer, train, valid, batch_schedule,
 			batch_size = batch_schedule[epoch]
 
 		# training set
-		train_loss = nntrainer.train_epoch(sess, data['train'], 
+		train_loss = nntrainer.train_epoch(data['train'], 
 											batch_size=batch_size, 
 											verbose=verbose, 
 											shuffle=shuffle)
 
 		# test current model with cross-validation data and store results
 		if 'valid' in data.keys():
-			valid_loss = nntrainer.test_model(sess, data['valid'], 
+			valid_loss = nntrainer.test_model(data['valid'], 
 												name="valid", 
 												batch_size=batch_size,
 												verbose=verbose)
 
 			# save model
-			nntrainer.save_model(sess)
+			nntrainer.save_model(epoch)
 
 			# check for early stopping
 			if patience:
@@ -96,7 +96,7 @@ def train_anneal_batch_size(sess, nntrainer, train, valid, batch_schedule,
 
 
 
-def train_anneal_learning_rate(sess, nntrainer, train, valid, learning_rate_schedule, 
+def train_anneal_learning_rate(nntrainer, train, valid, learning_rate_schedule, 
 						batch_size=128, num_epochs=500, patience=10, verbose=1, shuffle=True):
 	"""Train a model with cross-validation data and test data
 			learning_rate_schedule = {  0: 0.001
@@ -116,22 +116,20 @@ def train_anneal_learning_rate(sess, nntrainer, train, valid, learning_rate_sche
 			nntrainer.placeholders['learning_rate'] = np.float32(learning_rate_schedule[epoch])
 
 		# training set
-		train_loss = nntrainer.train_epoch(sess, 
-											data['train'], 
+		train_loss = nntrainer.train_epoch(data['train'], 
 											batch_size=batch_size, 
 											verbose=verbose, 
 											shuffle=shuffle)
 
 		# test current model with cross-validation data and store results
 		if 'valid' in data.keys():
-			valid_loss = nntrainer.test_model(sess, 
-												data['valid'], 
+			valid_loss = nntrainer.test_model(data['valid'], 
 												name="valid", 
 												batch_size=batch_size,
 												verbose=verbose)
 
 			# save model
-			nntrainer.save_model(sess)
+			nntrainer.save_model(epoch)
 
 			# check for early stopping
 			if patience:

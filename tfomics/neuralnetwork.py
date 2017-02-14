@@ -43,30 +43,46 @@ class NeuralNet:
 			counter += 1
 		print('----------------------------------------------------------------------------')
 
-	
+
 	def get_parameters(self, sess, layer=[]):
 		"""return all the parameters of the network"""
+
 		if layer:
-			return sess.run(get_layer_parameters(self.network, layer=layer))
+				if hasattr(self.network[layer], 'get_variable'):
+					variables = self.network[layer].get_variable()
+					if isinstance(variables, list):
+						params = []
+						for var in variables:
+							params.append(sess.run(var.get_variable()))
+					else:
+						params = sess.run(variables.get_variable())
+				else:
+					print(layer + " has no parameters")
+				return params
 		else:
-			return sess.run(get_all_parameters(self.network))
+			params = []
+			for layer in self.network:
+				if hasattr(self.network[layer], 'get_variable'):
+					params.append(self.get_parameters(sess, layer=layer))
+			return params
 
 
-	def get_activations(self, sess, layer, X, batch_size=500):
-		"""get the feature maps of a given convolutional layer"""
+	def get_activations(self, sess, feed_X, layer, batch_size=500):
+		"""get the real-valued feature maps of a given convolutional layer"""
 		
-		batch_generator = BatchGenerator(X, self.placeholders, batch_size, shuffle=False)
+		batch_generator = BatchGenerator(feed_X['inputs'], self.placeholders, batch_size, shuffle=False)
 			
 		fmaps = []
 		for i in range(batch_generator.get_num_batches()):  
-			feed_dict = batch_generator.next_minibatch(X) 
-			fmaps.append(self.sess.run(self.network[layer].get_output(), feed_dict=feed_dict))
+			feed_dict = batch_generator.next_minibatch(feed_X) 
+			fmaps.append(sess.run(self.network[layer].get_output(), feed_dict=feed_dict))
 		fmaps = np.vstack(fmaps)
 		return fmaps
 
 
 	def save_model_parameters(self, sess, filepath='model.ckpt'):
 		"""save model parameters to a file"""
+
 		print("  saving model to: ", filepath)
 		self.saver.save(sess, save_path=filepath)
 		
@@ -78,6 +94,26 @@ class NeuralNet:
 		self.saver.restore(sess, filepath)
 
 
+	def get_trainable_parameters(self):   
+		"""get all trainable parameters (tensorflow variables) in network""" 
+
+		params = []
+		for layer in self.network:
+			if hasattr(self.network[layer], 'is_trainable'):
+				if self.network[layer].is_trainable():
+					variables = self.network[layer].get_variable()
+					if isinstance(variables, list):
+						for var in variables:
+							params.append(var.get_variable())
+					else:
+						params.append(variables.get_variable())
+		return params
+
+
+	def get_output_layer(self, layer='output'):
+		"""get tensor graph output node"""
+
+		return self.network[layer].get_output()
 
 
 #----------------------------------------------------------------------------------------------------
@@ -87,7 +123,7 @@ class NeuralNet:
 class NeuralTrainer():
 	""" class to train a neural network model """
 
-	def __init__(self, nnmodel, optimization=[], save='best', filepath='.'):
+	def __init__(self, nnmodel, optimization=[], save='best', filepath='.', **kwargs):
 		self.nnmodel = nnmodel
 		self.placeholders = nnmodel.placeholders
 		self.targets = self.placeholders['targets']
@@ -107,14 +143,14 @@ class NeuralTrainer():
 		self.filepath = filepath
 		
 		# get predictions
-		self.predictions = get_predictions(nnmodel.network, optimization['objective'])
+		self.predictions = nnmodel.get_output_layer(layer='output')
 		self.loss = build_loss(nnmodel.network, self.predictions, self.targets, optimization)
 
 		# setup optimizer
 		self.updates = build_updates(optimization)
 
 		# get list of trainable parameters (default is trainable)
-		trainable_params = get_trainable(nnmodel.network)
+		trainable_params = nnmodel.get_trainable_parameters()
 		self.train_step = self.updates.minimize(self.loss, var_list=trainable_params)
 
 		# instantiate monitor class to monitor performance
@@ -122,8 +158,37 @@ class NeuralTrainer():
 		self.test_monitor = MonitorPerformance(name="test", objective=self.objective, verbose=1)
 		self.valid_monitor = MonitorPerformance(name="cross-validation", objective=self.objective, verbose=1)
 
+		# start tensorflow session
+		if 'sess' in kwargs.keys():
+			self.sess = kwargs['sess']
+		else:
+			self.sess = self.start_sess()
+
+
+	def start_sess(self):
+
+		# run session
+		sess = tf.Session()
+
+		# initialize variables
+		if 'is_training' in self.placeholders.keys():
+			sess.run(tf.global_variables_initializer(), feed_dict={self.placeholders['is_training']: True})
+		else:
+			sess.run(tf.global_variables_initializer())
+			#sess.run(tf.initialize_all_variables())
+
+		return sess
+
+
+	def close_sess(self):
+		self.sess.close()
+
+
+	def get_sess(self):
+		return self.sess
+
 		
-	def train_epoch(self, sess, feed_X, batch_size=128, verbose=1, shuffle=True):        
+	def train_epoch(self, feed_X, batch_size=128, verbose=1, shuffle=True):        
 		"""Train a mini-batch --> single epoch"""
 
 		# set timer for epoch run
@@ -137,7 +202,7 @@ class NeuralTrainer():
 		value = 0
 		for i in range(num_batches):
 			feed_dict = batch_generator.next_minibatch(feed_X)     
-			results = sess.run([self.train_step, self.loss, self.predictions], feed_dict=feed_dict)           
+			results = self.sess.run([self.train_step, self.loss, self.predictions], feed_dict=feed_dict)           
 			value += self.train_metric(results[2], feed_dict[self.targets])
 			performance.add_loss(results[1])
 			performance.progress_bar(i+1., num_batches, value/(i+1))
@@ -171,7 +236,7 @@ class NeuralTrainer():
 			return C/num_dims
 
 		
-	def test_model(self, sess, feed_X, batch_size=128, name='test', verbose=1):
+	def test_model(self, feed_X, batch_size=128, name='test', verbose=1):
 		"""perform a complete forward pass, store and print(results)"""
 
 		# instantiate monitor performance and batch generator
@@ -182,7 +247,7 @@ class NeuralTrainer():
 		prediction = []
 		for i in range(batch_generator.get_num_batches()):
 			feed_dict = batch_generator.next_minibatch(feed_X)         
-			results = sess.run([self.loss, self.predictions], feed_dict=feed_dict)          
+			results = self.sess.run([self.loss, self.predictions], feed_dict=feed_dict)          
 			performance.add_loss(results[0])
 			prediction.append(results[1])
 			label.append(feed_dict[self.targets])
@@ -216,7 +281,7 @@ class NeuralTrainer():
 			self.test_monitor.add_loss(loss)
 
 
-	def save_model(self, sess, epoch=None):
+	def save_model(self, epoch=None):
 		"""save model parameters to file, according to filepath"""
 
 		if self.save == 'best':
@@ -224,11 +289,11 @@ class NeuralTrainer():
 			if self.valid_monitor.loss[-1] <= min_loss:
 				print('  lower cross-validation found')
 				filepath = self.filepath + '_best.ckpt'
-				self.nnmodel.save_model_parameters(sess, filepath)
+				self.nnmodel.save_model_parameters(self.sess, filepath)
 		elif self.save == 'all':
 			epoch = len(self.valid_monitor.loss)
 			filepath = self.filepath + '_' + str(epoch) + '.ckpt'
-			self.nnmodel.save_model_parameters(sess, filepath)
+			self.nnmodel.save_model_parameters(self.sess, filepath)
 
 
 	def save_all_metrics(self, filepath):
@@ -253,13 +318,25 @@ class NeuralTrainer():
 		return status
 
 
-	def set_best_parameters(self, sess, filepath=[]):
+	def set_best_parameters(self, filepath=[]):
 		""" set the best parameters from file"""
 		
 		if not filepath:
 			filepath = self.filepath + '_best.ckpt'
 
-		self.nnmodel.load_model_parameters(sess, filepath)
+		self.nnmodel.load_model_parameters(self.sess, filepath)
+
+
+	def get_parameters(self, layer=[]):
+		"""return all the parameters of the network"""
+
+		return self.nnmodel.get_parameters(self.sess, layer)
+
+
+	def get_activations(self, X, layer, batch_size=500):
+		"""get the real-valued feature maps of a given convolutional layer"""
+		
+		return self.nnmodel.get_activations(self.sess, X, layer, batch_size)
 
 
 
@@ -291,10 +368,6 @@ class MonitorPerformance():
 	def add_metrics(self, scores):
 		self.metric.append(scores[0])
 		self.metric_std.append(scores[1])
-
-
-	def get_length(self):
-		return len(self.loss)
 
 
 	def update(self, loss, prediction, label):
@@ -436,61 +509,10 @@ class BatchGenerator():
 		return self.num_batches
 
 
-#--------------------------------------------------------------------------------------------------
-# helper functions
-#--------------------------------------------------------------------------------------------------
-
-def get_predictions(network, objective):
-	if objective == 'vae':
-		predictions = []
-	elif (objective == 'binary') | (objective == 'categorical') | (objective == 'squared_error'):
-		predictions = network['output'].get_output()
-		
-	return predictions
 
 
 
-def get_all_parameters(net):    
-	params = []
-	for layer in net:
-		if hasattr(net[layer], 'get_variable'):
-			variables = net[layer].get_variable()
-			if isinstance(variables, list):
-				for var in variables:
-					params.append(var.get_variable())
-			else:
-				params.append(variables.get_variable())
-	return params
 
-
-
-def get_trainable(net):    
-	params = []
-	for layer in net:
-		if hasattr(net[layer], 'is_trainable'):
-			if net[layer].is_trainable():
-				variables = net[layer].get_variable()
-				if isinstance(variables, list):
-					for var in variables:
-						params.append(var.get_variable())
-				else:
-					params.append(variables.get_variable())
-	return params
-
-
-
-def get_layer_parameters(net, layer):
-	params = []
-	if hasattr(net[layer], 'get_variable'):
-		variables = net[layer].get_variable()
-		if isinstance(variables, list):
-			for var in variables:
-				params.append(var.get_variable())
-		else:
-			params.append(variables.get_variable())
-	else:
-		print(layer + " has no parameters")
-	return params
 
 
 	
