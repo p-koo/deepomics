@@ -2,32 +2,29 @@ from __future__ import print_function
 import os, sys, time
 import tensorflow as tf
 import numpy as np
-from .optimize import *
-from .metrics import *
-from .utils import *
+from .optimize import build_loss, build_updates
+from .metrics import calculate_metrics
+#from .utils import *
 
 
 __all__ = [
 	"NeuralNet",
 	"NeuralTrainer",
-	"MonitorPerformance"
+	"MonitorPerformance",
+	"BatchGenerator"
 ]
-
 
 
 #------------------------------------------------------------------------------------------
 # Neural Network model class
 #------------------------------------------------------------------------------------------
 
-
-
 class NeuralNet:
 	"""Class to build a neural network and perform basic functions."""
 	
-	def __init__(self, network, input_vars):
+	def __init__(self, network, placeholders):
 		self.network = network
-		self.input_vars = input_vars
-		
+		self.placeholders = placeholders
 		self.saver = tf.train.Saver()
 
 
@@ -68,10 +65,9 @@ class NeuralNet:
 		return fmaps
 
 
-
 	def save_model_parameters(self, sess, filepath='model.ckpt'):
 		"""save model parameters to a file"""
-		print("saving model to: ", filepath)
+		print("  saving model to: ", filepath)
 		self.saver.save(sess, save_path=filepath)
 		
 
@@ -88,19 +84,26 @@ class NeuralNet:
 # Train neural networks class
 #----------------------------------------------------------------------------------------------------
 
-
 class NeuralTrainer():
+	""" class to train a neural network model """
 
-	def __init__(self, nnmodel, placeholders, optimization, save='best', filepath='.'):
+	def __init__(self, nnmodel, optimization=[], save='best', filepath='.'):
 		self.nnmodel = nnmodel
-		self.input_vars = nnmodel.input_vars
-		self.targets = placeholders['targets']
-		self.placeholders = placeholders
+		self.placeholders = nnmodel.placeholders
+		self.targets = self.placeholders['targets']
 		
+		# default optimizer if none given
+		if not optimization:
+			optimization = {}
+			optimization['objective'] = 'adam'
+			optimization['learning_rate'] = 0.001
+		else:
+			if 'objective' not in optimization.keys():
+				optimization['objective'] = 'adam'
+				optimization['learning_rate'] = 0.001
 		self.optimization = optimization    
 		self.objective = optimization['objective']
 		self.save = save
-
 		self.filepath = filepath
 		
 		# get predictions
@@ -114,7 +117,7 @@ class NeuralTrainer():
 		trainable_params = get_trainable(nnmodel.network)
 		self.train_step = self.updates.minimize(self.loss, var_list=trainable_params)
 
-
+		# instantiate monitor class to monitor performance
 		self.train_monitor = MonitorPerformance(name="train", objective=self.objective, verbose=1)
 		self.test_monitor = MonitorPerformance(name="test", objective=self.objective, verbose=1)
 		self.valid_monitor = MonitorPerformance(name="cross-validation", objective=self.objective, verbose=1)
@@ -127,6 +130,7 @@ class NeuralTrainer():
 		performance = MonitorPerformance('train', self.objective, verbose)
 		performance.set_start_time(start_time = time.time())
 
+		# instantiate batch generator
 		batch_generator = BatchGenerator(feed_X['inputs'], self.placeholders, batch_size, shuffle)
 		num_batches = batch_generator.get_num_batches()
 
@@ -137,34 +141,40 @@ class NeuralTrainer():
 			value += self.train_metric(results[2], feed_dict[self.targets])
 			performance.add_loss(results[1])
 			performance.progress_bar(i+1., num_batches, value/(i+1))
-		if verbose:
-			print("")
-		return performance.get_mean_loss()
+		if verbose > 1:
+			print(" ")
+
+		# calculate mean loss and store
+		loss = performance.get_mean_loss()
+		self.add_loss(loss, 'train')
+
+		return loss
 
 
 	def train_metric(self, predictions, y):
 		"""metric to monitor performance during training"""
 
 		if self.objective == 'categorical':
-			return np.mean(np.argmax(predictions, axis=1) == np.argmax(y, axis=1))
-		
+			if y.shape[1] > 1:
+				return np.mean(np.argmax(predictions, axis=1) == np.argmax(y, axis=1))
+			else:
+				return np.mean(np.argmax(predictions, axis=1) == y)
+				
 		elif self.objective == 'binary':
 			return np.mean(np.round(predictions) == y)
 		
 		elif self.objective == 'squared_error':
-			
 			num_dims = y.shape[1]
-			
 			C = 0
 			for i in range(num_dims):
 				C += np.corrcoef(predictions[:,i],y[:,i])[0][1]
 			return C/num_dims
 
 		
-		
 	def test_model(self, sess, feed_X, batch_size=128, name='test', verbose=1):
 		"""perform a complete forward pass, store and print(results)"""
 
+		# instantiate monitor performance and batch generator
 		performance = MonitorPerformance('test',self.objective, verbose)
 		batch_generator = BatchGenerator(feed_X['inputs'], self.placeholders, batch_size, shuffle=False)
 
@@ -180,15 +190,17 @@ class NeuralTrainer():
 		label = np.vstack(label)
 		test_loss = performance.get_mean_loss()
 
-		if verbose:
-			if name == "train":
-				self.train_monitor.update(test_loss, prediction, label)
+		if name == "train":
+			self.train_monitor.update(test_loss, prediction, label)
+			if verbose >= 1:
 				self.train_monitor.print_results(name)
-			elif name == "valid":
-				self.valid_monitor.update(test_loss, prediction, label)
+		elif name == "valid":
+			self.valid_monitor.update(test_loss, prediction, label)
+			if verbose >= 1:
 				self.valid_monitor.print_results(name)
-			elif name == "test":
-				self.test_monitor.update(test_loss, prediction, label)
+		elif name == "test":
+			self.test_monitor.update(test_loss, prediction, label)
+			if verbose >= 1:
 				self.test_monitor.print_results(name)
 		return test_loss
 
@@ -210,7 +222,7 @@ class NeuralTrainer():
 		if self.save == 'best':
 			min_loss, min_epoch = self.valid_monitor.get_min_loss()
 			if self.valid_monitor.loss[-1] <= min_loss:
-				print('lower cross-validation found')
+				print('  lower cross-validation found')
 				filepath = self.filepath + '_best.ckpt'
 				self.nnmodel.save_model_parameters(sess, filepath)
 		elif self.save == 'all':
@@ -310,7 +322,7 @@ class MonitorPerformance():
 
 
 	def print_results(self, name):
-		if self.verbose == 1:
+		if self.verbose >= 1:
 			if name == 'test':
 				name += ' '
 
@@ -326,9 +338,8 @@ class MonitorPerformance():
 				print("  " + name + " rsquare:\t{:.5f}+/-{:.5f}".format(mean_vals[1], error_vals[1]))
 				print("  " + name + " slope:\t\t{:.5f}+/-{:.5f}".format(mean_vals[2], error_vals[2]))
 
-
 	def progress_bar(self, epoch, num_batches, value, bar_length=30):
-		if self.verbose == 1:
+		if self.verbose > 1:
 			remaining_time = (time.time()-self.start_time)*(num_batches-epoch)/epoch
 			percent = epoch/num_batches
 			progress = '='*int(round(percent*bar_length))
@@ -344,7 +355,7 @@ class MonitorPerformance():
 
 	def save_metrics(self, filepath):
 		savepath = filepath + "_" + self.name +"_performance.pickle"
-		print("saving metrics to " + savepath)
+		print("  saving metrics to " + savepath)
 
 		f = open(savepath, 'wb')
 		cPickle.dump(self.name, f, protocol=cPickle.HIGHEST_PROTOCOL)
@@ -354,12 +365,14 @@ class MonitorPerformance():
 		f.close()
 
 
+
 #--------------------------------------------------------------------------------------------------
 # Batch Generator Class
 #--------------------------------------------------------------------------------------------------
 
-
 class BatchGenerator():
+	""" helper class to generate mini-batches """
+
 	def __init__(self, X, placeholders, batch_size=128, shuffle=False):
 
 		if isinstance(X, list):

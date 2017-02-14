@@ -133,10 +133,7 @@ def activation(z, function='relu', **kwargs):
 		output = tf.nn.sigmoid(z, **kwargs)
 
 	elif function == 'softmax':
-		y_out = tf.nn.sigmoid(z)
-		expy = tf.exp(y_out)
-		sumexpy = tf.reduce_sum(expy)
-		output = tf.div(expy, sumexpy, **kwargs)
+		output = tf.nn.softmax(z, **kwargs)
 
 	elif function == 'elu':
 		output = tf.nn.elu(z, **kwargs)
