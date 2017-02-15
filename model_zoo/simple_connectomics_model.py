@@ -29,7 +29,7 @@ def model(input_shape, num_labels=None):
             'num_filters': 18,
             'filter_size': (2, 5),
             'batch_norm': is_training,
-            'activation': 'relu',
+            'activation': 'prelu',
             'name': 'conv1'
             }
   layer3 = {'layer': 'conv2d', 
@@ -44,12 +44,12 @@ def model(input_shape, num_labels=None):
             'num_filters': 15,
             'filter_size': (1,1),
             'batch_norm': is_training,
-            'activation': 'relu',
+            'activation': 'prelu',
             'name': 'conv3'
             }
   layer5 = {'layer': 'dense', 
             'num_units': 100,
-            'activation': 'relu',
+            'activation': 'prelu',
             'dropout': keep_prob,
             'name': 'dense1'
             }

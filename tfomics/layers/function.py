@@ -42,12 +42,21 @@ class ActivationLayer(BaseLayer):
 		self.function = function
 		if not self.function:
 			self.function = 'relu'
-			
+
+		self.alpha = []
+		if self.function == 'prelu':
+			self.alpha = Variable(var=init.Constant(0.2), shape=(), **kwargs)
+			self.output = activation(z=incoming.get_output(), 
+									function=self.function, 
+									alpha=self.alpha.get_variable())
+		else:
+			self.output = activation(z=incoming.get_output(), 
+									function=self.function, 
+									**kwargs)
+
 		self.incoming_shape = incoming.get_output_shape()
 		
-		self.output = activation(z=incoming.get_output(), 
-								function=self.function, 
-								**kwargs)
+
 		
 		self.output_shape = self.output.get_shape()
 		
@@ -60,7 +69,14 @@ class ActivationLayer(BaseLayer):
 	def get_output_shape(self):
 		return self.output_shape
 
+	def get_variable(self):	
+		return self.alpha
 
+	def is_trainable(self):
+		if self.alpha:
+			return self.alpha.is_trainable()
+		else:
+			return False	
 
 
 class BiasLayer(BaseLayer):
@@ -143,5 +159,17 @@ def activation(z, function='relu', **kwargs):
 
 	elif function == 'tanh':
 		output = tf.nn.tanh(z, **kwargs)
+
+	elif function == 'leaky_relu':
+		if 'leakiness' in kwargs.keys():
+			leakiness = kwargs['leakiness']
+		else:
+			leakiness = 0.1
+		output = tf.nn.relu(z) - leakiness*tf.nn.relu(-z)
+		print(output)
+
+	elif function == 'prelu':
+		output = tf.nn.relu(z) - kwargs['alpha']*tf.nn.relu(-z)
+
 
 	return output

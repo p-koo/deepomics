@@ -1,2 +1,0 @@
-model_checkpoint_path: "1d_version_residual_best.ckpt"
-all_model_checkpoint_paths: "1d_version_residual_best.ckpt"

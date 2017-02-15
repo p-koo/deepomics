@@ -86,7 +86,7 @@ def model(input_shape, num_labels=None):
   # optimization parameters
   optimization = {"objective": "categorical",
                   "optimizer": "adam",
-                  "learning_rate": 0.001,      
+                  "learning_rate": 0.001,
                   "l2": 1e-6,
                   # "l1": 0, 
                   }

@@ -34,9 +34,10 @@ def model(input_shape, num_labels=None):
 						'pool_size': 10,
 						'name': 'conv1'
 						}
-	layer3 = {'layer': 'residual-conv',
+	layer3 = {'layer': 'residual-conv1d',
 						'filter_size': 5,
 						'is_training': is_training,
+						'dropout': keep_prob,
 						'name': 'resid1'
 					 }
 	layer4 = {'layer': 'conv1d', 
@@ -50,12 +51,12 @@ def model(input_shape, num_labels=None):
 						'name': 'conv2'
 						}
 	layer5 = {'layer': 'dense', 
-						'W': init.HeNormal(),
-						'b': init.Constant(0.05),
-						'num_units': num_labels,
-						'activation': 'sigmoid',
-						'name': 'dense1'
-						}
+				'W': init.HeNormal(),
+				'b': init.Constant(0.05),
+				'num_units': num_labels,
+				'activation': 'sigmoid',
+				'name': 'dense1'
+				}
 
 	#from tfomics import build_network
 	model_layers = [layer1, layer2, layer3, layer4, layer5]
@@ -63,11 +64,11 @@ def model(input_shape, num_labels=None):
 
 	# optimization parameters
 	optimization = {"objective": "binary",
-									"optimizer": "adam",
-									"learning_rate": 0.001,      
-									"l2": 1e-6,
-									# "l1": 0, 
-									}
+					"optimizer": "adam",
+					"learning_rate": 0.001,      
+					"l2": 1e-6,
+					# "l1": 0, 
+					}
 
 	return net, placeholders, optimization
 
