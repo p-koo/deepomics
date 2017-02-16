@@ -227,6 +227,6 @@ def get_l2_parameters(net):
 def merge_parameters(params):
 	all_params = []
 	for param in params:
-		all_params = tf.concat(0, [all_params, tf.reshape(param, [-1,])])
+		all_params = tf.concat([all_params, tf.reshape(param, [-1,])], axis=0)
 	return all_params
 	

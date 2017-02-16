@@ -126,13 +126,13 @@ class NeuralTrainer():
 		self.placeholders = nnmodel.placeholders
 
 		# setup hidden feed_dict for dropout and is_training
-		self.hidden_train_feed = nnmodel.hidden_feed_dict.copy()
-		self.hidden_test_feed = nnmodel.hidden_feed_dict.copy()
-		for key in self.hidden_test_feed.keys():
-			if self.hidden_test_feed[key] != True:
-				self.hidden_test_feed[key] = 1.0
+		self.train_feed = nnmodel.hidden_feed_dict.copy()
+		self.test_feed = nnmodel.hidden_feed_dict.copy()
+		for key in self.test_feed.keys():
+			if self.test_feed[key] != True:
+				self.test_feed[key] = 1.0
 			else:
-				self.hidden_test_feed[key] = False
+				self.test_feed[key] = False
 
 		# default optimizer if none given
 		if not optimization:
@@ -200,11 +200,9 @@ class NeuralTrainer():
 
 		value = 0
 		for i in range(num_batches):
-			feed_dict = batch_generator.next_minibatch(feed_X)  
-			feed_dict.update(self.hidden_train_feed)
-			print(feed_dict)
-			results = self.sess.run([self.train_step, self.loss, self.predictions], feed_dict=feed_dict)           
-			value += self.train_metric(results[2], feed_dict[self.targets])
+			self.train_feed.update(batch_generator.next_minibatch(feed_X))
+			results = self.sess.run([self.train_step, self.loss, self.predictions], feed_dict=self.train_feed)           
+			value += self.train_metric(results[2], self.train_feed[self.targets])
 			performance.add_loss(results[1])
 			performance.progress_bar(i+1., num_batches, value/(i+1))
 		if verbose > 1:
@@ -247,12 +245,11 @@ class NeuralTrainer():
 		label = []
 		prediction = []
 		for i in range(batch_generator.get_num_batches()):
-			feed_dict = batch_generator.next_minibatch(feed_X)    
-			feed_dict.update(self.hidden_test_feed)
-			results = self.sess.run([self.loss, self.predictions], feed_dict=feed_dict)          
+			self.test_feed.update(batch_generator.next_minibatch(feed_X))
+			results = self.sess.run([self.loss, self.predictions], feed_dict=self.test_feed)          
 			performance.add_loss(results[0])
 			prediction.append(results[1])
-			label.append(feed_dict[self.targets])
+			label.append(self.test_feed[self.targets])
 		prediction = np.vstack(prediction)
 		label = np.vstack(label)
 		test_loss = performance.get_mean_loss()
@@ -337,7 +334,7 @@ class NeuralTrainer():
 	def get_activations(self, X, layer, batch_size=500):
 		"""get the real-valued feature maps of a given convolutional layer"""
 		
-		return self.nnmodel.get_activations(self.sess, X, layer, batch_size, self.hidden_test_feed)
+		return self.nnmodel.get_activations(self.sess, X, layer, batch_size, self.test_feed)
 
 
 	def start_sess(self):
@@ -346,10 +343,10 @@ class NeuralTrainer():
 		sess = tf.Session()
 
 		# initialize variables
-		if ('is_training' in self.placeholders) | ('is_training' in self.hidden_train_feed):
+		if ('is_training' in self.placeholders) | ('is_training' in self.train_feed):
 			sess.run(tf.global_variables_initializer(), feed_dict={self.placeholders['is_training']: True})
 		else:
-			sess.run(tf.global_variables_initializer(), feed_dict=self.hidden_test_feed)
+			sess.run(tf.global_variables_initializer(), feed_dict=self.test_feed)
 		#	sess.run(tf.global_variables_initializer())
 			#sess.run(tf.initialize_all_variables())
 

@@ -38,28 +38,30 @@ class BatchNormLayer(BaseLayer):
 			self.decay = kwargs['decay']
 
 		self.is_training = is_training
+		self.pop_mean = tf.train.ExponentialMovingAverage(decay=self.decay)
+		self.pop_var = tf.train.ExponentialMovingAverage(decay=self.decay)
+		self.pop_mean.apply([tf.Variable(0.0)])
+		self.pop_var.apply([tf.Variable(1.0)])
 
-		self.ema = tf.train.ExponentialMovingAverage(decay=self.decay)
-		self.pop_mean = tf.Variable(tf.zeros(bn_shape), trainable=False)
-		self.pop_var = tf.Variable(tf.ones(bn_shape), trainable=False)
-
-	
 	def get_output(self):
 		batch_mean, batch_var = tf.nn.moments(self.incoming.get_output(), self.bn_axes)
-
 		def update_mean_var():
-			ema_apply_op = self.ema.apply([batch_mean, batch_var])
-			with tf.control_dependencies([ema_apply_op]):
+			pop_mean_op = self.pop_mean.apply([batch_mean])
+			pop_var_op = self.pop_var.apply([batch_var])
+			with tf.control_dependencies([pop_mean_op, pop_var_op]):
 				return tf.identity(batch_mean), tf.identity(batch_var)
 
+		def population_mean_var():
+			return self.pop_mean.average(batch_mean), self.pop_var.average(batch_var)
+
 		mean, var = tf.cond(self.is_training, update_mean_var, 
-							lambda: (self.ema.average(batch_mean), self.ema.average(batch_var)))
+											  population_mean_var)
+
 		return tf.nn.batch_normalization(self.incoming.get_output(), mean, var, 
 		                                 self.beta.get_variable(), self.gamma.get_variable(), self.epsilon)
 
 	def get_output_shape(self):
 		return self.incoming.get_output_shape()
-
 
 	def get_variable(self):
 		return [self.gamma, self.beta]

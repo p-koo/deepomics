@@ -6,7 +6,6 @@ import tensorflow as tf
 
 
 def model(input_shape, num_labels=None):
-  # design a neural network model
 
   # create model
   layer1 = {'layer': 'input',
@@ -14,41 +13,64 @@ def model(input_shape, num_labels=None):
             'name': 'input'
             }
   layer2 = {'layer': 'conv2d', 
-            'num_filters': 18,
+            'num_filters': 32,
             'filter_size': (2, 5),
-            'norm': 'batch',
-            'activation': 'leaky_relu',
+            'activation': 'prelu',
+            'dropout': 0.2,
             'name': 'conv1'
             }
-  layer3 = {'layer': 'conv2d', 
-            'num_filters': 40,
+  layer3 = {'layer': 'residual-conv2d',
+            'function': 'prelu',
+            'filter_size': (2,5),
+            'dropout_block': 0.1,
+            'dropout': 0.2,
+            'norm': 'batch',
+            'name': 'resid1'
+           }
+  layer4 = {'layer': 'conv2d', 
+            'num_filters': 64,
             'filter_size': (2, 5),
             'norm': 'batch',
-            'activation': 'leaky_relu',
-            'pool_size': (1,10),
+            'activation': 'prelu',
+            'dropout': 0.2,
             'name': 'conv2'
             }
-  layer4 = {'layer': 'conv2d', 
-            'num_filters': 15,
+  layer5 = {'layer': 'residual-conv2d',
+            'function': 'prelu',
+            'filter_size': (1,5),
+            'dropout_block': 0.1,
+            'dropout': 0.2,
+            'pool_size': (1,10),
+            'name': 'resid2'
+           }
+  layer6 = {'layer': 'conv2d', 
+            'num_filters': 128,
             'filter_size': (1,1),
             'norm': 'batch',
-            'activation': 'leaky_relu',
+            'activation': 'prelu',
+            'dropout': 0.2,
             'name': 'conv3'
             }
-  layer5 = {'layer': 'dense', 
-            'num_units': 100,
-            'activation': 'leaky_relu',
+  layer7 = {'layer': 'dense', 
+            'num_units': 256,
+            'activation': 'prelu',
             'dropout': 0.5,
             'name': 'dense1'
-            }
-  layer6 = {'layer': 'dense', 
+            }  
+  layer8 = {'layer': 'residual-dense',
+            'function': 'prelu',
+            'dropout_block': 0.1,
+            'dropout': 0.5,
+            'name': 'resid3'
+           }
+  layer9 = {'layer': 'dense', 
             'num_units': num_labels,
             'activation': 'softmax',
             'name': 'dense2'
             }
 
   #from tfomics import build_network
-  model_layers = [layer1, layer2, layer3, layer4, layer5, layer6]
+  model_layers = [layer1, layer2, layer3, layer4, layer5, layer6, layer7, layer8, layer9]
 
   # optimization parameters
   optimization = {"objective": "categorical",
