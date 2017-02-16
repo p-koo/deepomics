@@ -36,11 +36,11 @@ def train_minibatch(nntrainer, data, batch_size=128, num_epochs=500,
 												verbose=verbose)
 
 			# save model
-			nntrainer.save_model(epoch)
+			nntrainer.save_model()
 
 			# check for early stopping
 			if patience:
-				status = nntrainer.early_stopping(valid_loss, epoch, patience)
+				status = nntrainer.early_stopping(valid_loss, patience)
 				if not status:
 					break
 
@@ -83,11 +83,11 @@ def train_anneal_batch_size(nntrainer, train, valid, batch_schedule,
 												verbose=verbose)
 
 			# save model
-			nntrainer.save_model(epoch)
+			nntrainer.save_model()
 
 			# check for early stopping
 			if patience:
-				status = nntrainer.early_stopping(valid_loss, epoch, patience)
+				status = nntrainer.early_stopping(valid_loss, patience)
 				if not status:
 					break
 
@@ -129,11 +129,11 @@ def train_anneal_learning_rate(nntrainer, train, valid, learning_rate_schedule,
 												verbose=verbose)
 
 			# save model
-			nntrainer.save_model(epoch)
+			nntrainer.save_model()
 
 			# check for early stopping
 			if patience:
-				status = nntrainer.early_stopping(valid_loss, epoch, patience)
+				status = nntrainer.early_stopping(valid_loss, patience)
 				if not status:
 					break
 

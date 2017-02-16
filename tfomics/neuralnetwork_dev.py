@@ -22,9 +22,10 @@ __all__ = [
 class NeuralNet:
 	"""Class to build a neural network and perform basic functions."""
 	
-	def __init__(self, network, placeholders):
+	def __init__(self, network, placeholders, hidden_feed_dict={}):
 		self.network = network
 		self.placeholders = placeholders
+		self.hidden_feed_dict = hidden_feed_dict
 		self.saver = tf.train.Saver()
 
 
@@ -61,10 +62,12 @@ class NeuralNet:
 						layer_params.append(sess.run(variables.get_variable()))
 		return layer_params
 
-	def get_activations(self, sess, feed_X, layer, batch_size=500):
+
+	def get_activations(self, sess, feed_X, layer, batch_size=500, hidden_feed_dict={}):
 		"""get the real-valued feature maps of a given convolutional layer"""
 		
-		batch_generator = BatchGenerator(feed_X['inputs'], self.placeholders, batch_size, shuffle=False)
+		batch_generator = BatchGenerator(feed_X['inputs'], self.placeholders, batch_size, 
+											shuffle=False, hidden_feed_dict=hidden_feed_dict)
 			
 		fmaps = []
 		for i in range(batch_generator.get_num_batches()):  
@@ -118,10 +121,19 @@ class NeuralTrainer():
 	""" class to train a neural network model """
 
 	def __init__(self, nnmodel, optimization=[], save='best', filepath='.', **kwargs):
+
 		self.nnmodel = nnmodel
 		self.placeholders = nnmodel.placeholders
-		self.targets = self.placeholders['targets']
-		
+
+		# setup hidden feed_dict for dropout and is_training
+		self.hidden_train_feed = nnmodel.hidden_feed_dict.copy()
+		self.hidden_test_feed = nnmodel.hidden_feed_dict.copy()
+		for key in self.hidden_test_feed.keys():
+			if self.hidden_test_feed[key] != True:
+				self.hidden_test_feed[key] = 1.0
+			else:
+				self.hidden_test_feed[key] = False
+
 		# default optimizer if none given
 		if not optimization:
 			optimization = {}
@@ -138,6 +150,7 @@ class NeuralTrainer():
 		
 		# get predictions
 		self.predictions = nnmodel.get_output_layer(layer='output')
+		self.targets = self.nnmodel.placeholders['targets']
 		self.loss = build_loss(nnmodel.network, self.predictions, self.targets, optimization)
 
 		# setup optimizer
@@ -159,6 +172,21 @@ class NeuralTrainer():
 			self.sess = self.start_sess()
 
 		
+	def _combine_hidden_feed_dict():
+		if self.hidden_feed_dict:
+			# add to training placeholders
+			self.train_placeholders.update()
+
+			# add to test placeholders, but convert dropout to 1.0 and is_training to False
+			test_dropout = self.hidden_feed_dict
+			for key in test_dropout.keys():
+				if test_hidden_feed_dict[key] != True:
+					test_dropout[key] = 1.0
+				else:
+					test_dropout[key] = False
+			self.test_placeholders.update(test_dropout)
+
+
 	def train_epoch(self, feed_X, batch_size=128, verbose=1, shuffle=True):        
 		"""Train a mini-batch --> single epoch"""
 
@@ -172,7 +200,9 @@ class NeuralTrainer():
 
 		value = 0
 		for i in range(num_batches):
-			feed_dict = batch_generator.next_minibatch(feed_X)     
+			feed_dict = batch_generator.next_minibatch(feed_X)  
+			feed_dict.update(self.hidden_train_feed)
+			print(feed_dict)
 			results = self.sess.run([self.train_step, self.loss, self.predictions], feed_dict=feed_dict)           
 			value += self.train_metric(results[2], feed_dict[self.targets])
 			performance.add_loss(results[1])
@@ -217,7 +247,8 @@ class NeuralTrainer():
 		label = []
 		prediction = []
 		for i in range(batch_generator.get_num_batches()):
-			feed_dict = batch_generator.next_minibatch(feed_X)         
+			feed_dict = batch_generator.next_minibatch(feed_X)    
+			feed_dict.update(self.hidden_test_feed)
 			results = self.sess.run([self.loss, self.predictions], feed_dict=feed_dict)          
 			performance.add_loss(results[0])
 			prediction.append(results[1])
@@ -262,7 +293,6 @@ class NeuralTrainer():
 				filepath = self.filepath + '_best.ckpt'
 				self.nnmodel.save_model_parameters(self.sess, filepath)
 		elif self.save == 'all':
-			epoch = len(self.valid_monitor.loss)
 			filepath = self.filepath + '_' + str(epoch) + '.ckpt'
 			self.nnmodel.save_model_parameters(self.sess, filepath)
 
@@ -307,7 +337,7 @@ class NeuralTrainer():
 	def get_activations(self, X, layer, batch_size=500):
 		"""get the real-valued feature maps of a given convolutional layer"""
 		
-		return self.nnmodel.get_activations(self.sess, X, layer, batch_size)
+		return self.nnmodel.get_activations(self.sess, X, layer, batch_size, self.hidden_test_feed)
 
 
 	def start_sess(self):
@@ -316,10 +346,11 @@ class NeuralTrainer():
 		sess = tf.Session()
 
 		# initialize variables
-		if 'is_training' in self.placeholders.keys():
+		if ('is_training' in self.placeholders) | ('is_training' in self.hidden_train_feed):
 			sess.run(tf.global_variables_initializer(), feed_dict={self.placeholders['is_training']: True})
 		else:
-			sess.run(tf.global_variables_initializer())
+			sess.run(tf.global_variables_initializer(), feed_dict=self.hidden_test_feed)
+		#	sess.run(tf.global_variables_initializer())
 			#sess.run(tf.initialize_all_variables())
 
 		return sess
@@ -447,7 +478,6 @@ class BatchGenerator():
 
 		self.placeholders = placeholders
 		self.current_batch = 0
-
 		self.generate_minibatches(batch_size, shuffle)
 
 	def generate_minibatches(self, batch_size=128, shuffle=False):
@@ -477,7 +507,7 @@ class BatchGenerator():
 		for key in self.placeholders.keys():
 			if isinstance(self.placeholders[key], list):
 				for i in range(len(self.placeholders[key])):
-					if X[key][i].shape[0] > 1:
+					if feed_X[key][i].shape[0] > 1:
 						feed_dict[self.placeholders[key][i]] = feed_X[key][i][self.indices[self.current_batch]]
 					else:
 						feed_dict[self.placeholders[key][i]] = feed_X[key][i]

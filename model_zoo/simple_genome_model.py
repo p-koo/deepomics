@@ -8,58 +8,48 @@ import tensorflow as tf
 def model(input_shape, num_labels=None):
 	# design a neural network model
 	
-	# placeholders
-	inputs = utils.placeholder(shape=input_shape, name='input')
-	is_training = tf.placeholder(tf.bool, name='is_training')
-	keep_prob = tf.placeholder(tf.float32, name='keep_prob')
-	targets = utils.placeholder(shape=(None,num_labels), name='output')
-	
-	# placeholder dictionary
-	placeholders = {'inputs': inputs, 
-					'targets': targets, 
-					'keep_prob': keep_prob, 
-					'is_training': is_training}
 
 	# create model
 	layer1 = {'layer': 'input',
 						'inputs': inputs,
 						'name': 'input'
 						}
-	layer2 = {'layer': 'conv1d', 
+	layer2 = {'layer': 'conv2d', 
 						'num_filters': 25,
-						'filter_size': 19,
-						'batch_norm': is_training,
+						'filter_size': (19,1),
+						'W': init.GlorotUniform(),
+						'b': init.Constant(0.1),
+						#'batch_norm': is_training,
 						'padding': 'SAME',
 						'activation': 'relu',
-						'pool_size': 10,
+						'pool_size': (40,1),
 						'name': 'conv1'
 						}
-	layer3 = {'layer': 'residual-conv1d',
-						'filter_size': 5,
-						'is_training': is_training,
+	layer3 = {'layer': 'residual-conv2d',
+						'filter_size': (5,1),
+						'batch_norm': is_training,
 						'dropout': keep_prob,
+						'pool_size': (40,1),
 						'name': 'resid1'
 					 }
-	layer4 = {'layer': 'conv1d', 
-						'num_filters': 50,
-						'filter_size': 6,
-						'batch_norm': is_training,
-						'padding': 'VALID',
-						'activation': 'relu',
-						'dropout': keep_prob,
-						'pool_size': 5,
-						'name': 'conv2'
-						}
-	layer5 = {'layer': 'dense', 
-				'W': init.HeNormal(),
-				'b': init.Constant(0.05),
-				'num_units': num_labels,
-				'activation': 'sigmoid',
+	layer4 = {'layer': 'dense', 
+				'num_units': 128,
+				'activation': 'relu',
+				'W': init.GlorotUniform(),
+				'b': init.Constant(0.1),
+				'dropout': keep_prob,
 				'name': 'dense1'
+				}
+	layer5 = {'layer': 'dense', 
+				'num_units': num_labels,
+				'W': init.GlorotUniform(),
+				'b': init.Constant(0.1),
+				'activation': 'sigmoid',
+				'name': 'dense2'
 				}
 
 	#from tfomics import build_network
-	model_layers = [layer1, layer2, layer3, layer4, layer5]
+	model_layers = [layer1, layer2, layer4, layer5]
 	net = build_network(model_layers)
 
 	# optimization parameters

@@ -29,28 +29,26 @@ def model(input_shape, num_labels=None):
             'num_filters': 32,
             'filter_size': (2, 5),
             'batch_norm': is_training,
-            'activation': 'relu',
+            'activation': 'leaky_relu',
             'dropout': keep_prob,
             'name': 'conv1'
             }
-  layer3 = {'layer': 'residual-conv',
+  layer3 = {'layer': 'residual-conv2d',
             'filter_size': (2,5),
-            'is_training': is_training,
-            'dropout': keep_prob,
+            'batch_norm': is_training,
             'name': 'resid1'
            }
   layer4 = {'layer': 'conv2d', 
             'num_filters': 64,
             'filter_size': (2, 5),
             'batch_norm': is_training,
-            'activation': 'relu',
+            'activation': 'leaky_relu',
             'dropout': keep_prob,
             'name': 'conv2'
             }
-  layer5 = {'layer': 'residual-conv',
+  layer5 = {'layer': 'residual-conv2d',
             'filter_size': (1,5),
-            'is_training': is_training,
-            'dropout': keep_prob,
+            'batch_norm': is_training,
             'pool_size': (1,10),
             'name': 'resid2'
            }
@@ -58,18 +56,19 @@ def model(input_shape, num_labels=None):
             'num_filters': 128,
             'filter_size': (1,1),
             'batch_norm': is_training,
-            'activation': 'relu',
+            'activation': 'leaky_relu',
             'dropout': keep_prob,
             'name': 'conv3'
             }
   layer7 = {'layer': 'dense', 
             'num_units': 256,
-            'activation': 'relu',
+            'batch_norm': is_training,
+            'activation': 'leaky_relu',
             'dropout': keep_prob,
             'name': 'dense1'
             }  
   layer8 = {'layer': 'residual-dense',
-            'is_training': is_training,
+            'batch_norm': is_training,
             'dropout': keep_prob,
             'name': 'resid3'
            }

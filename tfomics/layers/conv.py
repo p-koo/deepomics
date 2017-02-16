@@ -23,7 +23,7 @@ class Conv1DLayer(BaseLayer):
 		self.shape = shape
 
 		if not W:
-			self.W = Variable(var=init.HeNormal(), shape=shape, **kwargs)
+			self.W = Variable(var=init.HeUniform(), shape=shape, **kwargs)
 		else:
 			self.W = Variable(var=W, shape=shape, **kwargs)
 			

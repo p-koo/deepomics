@@ -33,57 +33,18 @@ def build_layers(model_layers, network=OrderedDict()):
 
 		else:
 			if layer == 'residual-conv1d':
-				if 'dropout' in model_layer:
-					dropout = model_layer['dropout']
-				else:
-					dropout = []
-				if 'function' in model_layer:
-					activation = model_layer['function']
-				else:
-					activation = 'relu'
 
-				network = conv1d_residual_block(network, lastlayer, 
-											model_layer['name'], 
-										 	model_layer['filter_size'], 
-										 	model_layer['is_training'], 
-										 	dropout=dropout, 
-										 	activation=activation)
+				network = conv1d_residual_block(network, lastlayer, model_layer)
 				lastlayer = name+'_resid'
 
 			elif layer == 'residual-conv2d':
-				if 'dropout' in model_layer:
-					dropout = model_layer['dropout']
-				else:
-					dropout = []
-				if 'function' in model_layer:
-					activation = model_layer['function']
-				else:
-					activation = 'relu'
 
-				network = conv2d_residual_block(network, lastlayer, 
-											model_layer['name'], 
-										 	model_layer['filter_size'], 
-										 	model_layer['is_training'], 
-										 	dropout=dropout, 
-										 	activation=activation)
+				network = conv2d_residual_block(network, lastlayer, model_layer)
 				lastlayer = name+'_resid'
 
 			elif layer == 'residual-dense':
-				if 'dropout' in model_layer:
-					dropout = model_layer['dropout']
-				else:
-					dropout = []
 
-				if 'function' in model_layer:
-					activation = model_layer['function']
-				else:
-					activation = 'relu'
-
-				network = dense_residual_block(network, lastlayer, 
-												model_layer['name'], 
-												model_layer['is_training'], 
-												dropout=dropout, 
-												activation=activation)
+				network = dense_residual_block(network, lastlayer, model_layer)
 				lastlayer = name+'_resid'
 
 			else:
@@ -150,7 +111,7 @@ def single_layer(model_layer, network_last):
 	# convolution layer
 	elif (model_layer['layer'] == 'conv2d'):
 		if 'W' not in model_layer.keys():
-			W = init.HeNormal()
+			W = init.HeUniform()
 		else:
 			W = model_layer['W']
 		if 'padding' not in model_layer.keys():
@@ -191,7 +152,15 @@ def single_layer(model_layer, network_last):
 	return network
 
 
-def conv1d_residual_block(network, lastlayer, name, filter_size, is_training, **kwargs):
+def conv1d_residual_block(network, lastlayer, model_layer):
+
+	name = model_layer['name']
+	filter_size = model_layer['filter_size']
+	is_training = model_layer['batch_norm']
+	if 'function' in model_layer:
+		activation = model_layer['function']
+	else:
+		activation = 'relu'
 
 	# original residual unit
 	shape = network[lastlayer].get_output_shape()
@@ -200,16 +169,46 @@ def conv1d_residual_block(network, lastlayer, name, filter_size, is_training, **
 	if not isinstance(filter_size, (list, tuple)):
 		filter_size = (filter_size, 1)
 
-	activation = 'relu'
-	if 'activation' in kwargs.keys():
-		activation = kwargs['activation']
+	network[name+'_1resid'] = layers.Conv2DLayer(network[lastlayer], num_filters=num_filters, filter_size=filter_size, padding='SAME')
+	network[name+'_1resid_norm'] = layers.BatchNormLayer(network[name+'_1resid'], is_training)
+	network[name+'_1resid_active'] = layers.ActivationLayer(network[name+'_1resid_norm'], function=activation)
+
+	if 'dropout_block' in model_layer:
+		network[name+'_dropout1'] = layers.DropoutLayer(network[name+'_1resid_active'], keep_prob=model_layer['dropout_block'])
+		lastname = name+'_dropout1'
+	else:
+		lastname = name+'_1resid_active'
+
+	network[name+'_2resid'] = layers.Conv2DLayer(network[lastname], num_filters=num_filters, filter_size=filter_size, padding='SAME')
+	network[name+'_2resid_norm'] = layers.BatchNormLayer(network[name+'_2resid'], is_training)
+	network[name+'_resid_sum'] = layers.ElementwiseSumLayer([network[lastlayer], network[name+'_2resid_norm']])
+	network[name+'_resid'] = layers.ActivationLayer(network[name+'_resid_sum'], function=activation)
+	return network
+
+
+def conv2d_residual_block(network, lastlayer, model_layer):
+
+	name = model_layer['name']
+	filter_size = model_layer['filter_size']
+	is_training = model_layer['batch_norm']
+	if 'function' in model_layer:
+		activation = model_layer['function']
+	else:
+		activation = 'relu'
+
+	# original residual unit
+	shape = network[lastlayer].get_output_shape()
+	num_filters = shape[-1].value
+
+	if not isinstance(filter_size, (list, tuple)):
+		filter_size = (filter_size, 1)
 
 	network[name+'_1resid'] = layers.Conv2DLayer(network[lastlayer], num_filters=num_filters, filter_size=filter_size, padding='SAME')
 	network[name+'_1resid_norm'] = layers.BatchNormLayer(network[name+'_1resid'], is_training)
 	network[name+'_1resid_active'] = layers.ActivationLayer(network[name+'_1resid_norm'], function=activation)
 
-	if 'dropout' in kwargs.keys():
-		network[name+'_dropout1'] = layers.DropoutLayer(network[name+'_1resid_active'], keep_prob=kwargs['dropout'])
+	if 'dropout_block' in model_layer:
+		network[name+'_dropout1'] = layers.DropoutLayer(network[name+'_1resid_active'], keep_prob=model_layer['dropout_block'])
 		lastname = name+'_dropout1'
 	else:
 		lastname = name+'_1resid_active'
@@ -222,54 +221,26 @@ def conv1d_residual_block(network, lastlayer, name, filter_size, is_training, **
 
 
 
-def conv2d_residual_block(network, lastlayer, name, filter_size, is_training, **kwargs):
+def dense_residual_block(network, lastlayer, model_layer):
 
-	# original residual unit
-	shape = network[lastlayer].get_output_shape()
-	num_filters = shape[-1].value
-
-	if not isinstance(filter_size, (list, tuple)):
-		filter_size = (filter_size, 1)
-
-	activation = 'relu'
-	if 'activation' in kwargs.keys():
-		activation = kwargs['activation']
-
-	network[name+'_1resid'] = layers.Conv2DLayer(network[lastlayer], num_filters=num_filters, filter_size=filter_size, padding='SAME')
-	network[name+'_1resid_norm'] = layers.BatchNormLayer(network[name+'_1resid'], is_training)
-	network[name+'_1resid_active'] = layers.ActivationLayer(network[name+'_1resid_norm'], function=activation)
-
-	if 'dropout' in kwargs.keys():
-		network[name+'_dropout1'] = layers.DropoutLayer(network[name+'_1resid_active'], keep_prob=kwargs['dropout'])
-		lastname = name+'_dropout1'
+	name = model_layer['name']
+	is_training = model_layer['batch_norm']
+	if 'function' in model_layer:
+		activation = model_layer['function']
 	else:
-		lastname = name+'_1resid_active'
-
-	network[name+'_2resid'] = layers.Conv2DLayer(network[lastname], num_filters=num_filters, filter_size=filter_size, padding='SAME')
-	network[name+'_2resid_norm'] = layers.BatchNormLayer(network[name+'_2resid'], is_training)
-	network[name+'_resid_sum'] = layers.ElementwiseSumLayer([network[lastlayer], network[name+'_2resid_norm']])
-	network[name+'_resid'] = layers.ActivationLayer(network[name+'_resid_sum'], function=activation)
-	return network
-
-
-
-def dense_residual_block(network, lastlayer, name, is_training, **kwargs):
+		activation = 'relu'
 
 	# original residual unit
 	shape = network[lastlayer].get_output_shape()
 	num_units = shape[-1].value
 
-	activation = 'relu'
-	if 'activation' in kwargs.keys():
-		activation = kwargs['activation']
-
 	network[name+'_1resid'] = layers.DenseLayer(network[lastlayer], num_units=num_units, b=None)
 	network[name+'_1resid_norm'] = layers.BatchNormLayer(network[name+'_1resid'], is_training)
 	network[name+'_1resid_active'] = layers.ActivationLayer(network[name+'_1resid_norm'], function=activation)
 
-	if 'dropout' in kwargs.keys():
-		network[name+'_dropout1'] = layers.DropoutLayer(network[name+'_1resid_active'], keep_prob=kwargs['dropout'])
-		lastname = name+'_dropout1'
+	
+	if 'dropout_block' in model_layer:
+		network[name+'_dropout1'] = layers.DropoutLayer(network[name+'_1resid_active'], keep_prob=model_layer['dropout_block'])
 	else:
 		lastname = name+'_1resid_active'
 

@@ -40,8 +40,8 @@ def model(input_shape, num_labels=None):
   layer3 = {'layer': 'residual-conv2d',
             'function': 'prelu',
             'filter_size': (2,5),
-            'is_training': is_training,
             'dropout': keep_prob_conv,
+            'batch_norm': is_training,
             'name': 'resid1'
            }
   layer4 = {'layer': 'conv2d', 
@@ -55,7 +55,7 @@ def model(input_shape, num_labels=None):
   layer5 = {'layer': 'residual-conv2d',
             'function': 'prelu',
             'filter_size': (1,5),
-            'is_training': is_training,
+            'batch_norm': is_training,
             'dropout': keep_prob_conv,
             'pool_size': (1,10),
             'name': 'resid2'
@@ -71,12 +71,12 @@ def model(input_shape, num_labels=None):
   layer7 = {'layer': 'dense', 
             'num_units': 256,
             'activation': 'prelu',
-            'dropout': keep_prob_conv,
+            'dropout': keep_prob_dense,
             'name': 'dense1'
             }  
   layer8 = {'layer': 'residual-dense',
             'function': 'prelu',
-            'is_training': is_training,
+            'batch_norm': is_training,
             'dropout': keep_prob_dense,
             'name': 'resid3'
            }

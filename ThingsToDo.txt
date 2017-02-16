@@ -1,4 +1,5 @@
 Things to do:
+- add stochastic depth
 - layer: add lstm
 - layer: add bidirectional lstm
 - add word embeddings

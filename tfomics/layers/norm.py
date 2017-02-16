@@ -35,7 +35,7 @@ class BatchNormLayer(BaseLayer):
 			self.epsilon = kwargs['epsilon']
 		self.decay = 0.95
 		if 'decay' in kwargs.keys():
-			self.epsilon = kwargs['decay']
+			self.decay = kwargs['decay']
 
 		self.is_training = is_training
 

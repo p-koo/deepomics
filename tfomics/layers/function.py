@@ -143,7 +143,7 @@ def activation(z, function='relu', **kwargs):
 		output = tf.nn.relu(z, **kwargs)
 
 	elif function == 'linear':
-		output = tf.mult(z, 1, **kwargs)
+		output = z
 
 	elif function == 'sigmoid':
 		output = tf.nn.sigmoid(z, **kwargs)
@@ -166,8 +166,7 @@ def activation(z, function='relu', **kwargs):
 		else:
 			leakiness = 0.1
 		output = tf.nn.relu(z) - leakiness*tf.nn.relu(-z)
-		print(output)
-
+		
 	elif function == 'prelu':
 		output = tf.nn.relu(z) - kwargs['alpha']*tf.nn.relu(-z)
 
