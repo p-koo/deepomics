@@ -8,6 +8,17 @@ import tensorflow as tf
 def model(input_shape, num_labels=None):
 	# design a neural network model
 	
+	inputs = utils.placeholder(shape=input_shape, name='input')
+	is_training = tf.placeholder(tf.bool, name='is_training')
+	keep_prob = tf.placeholder(tf.float32, name='keep_prob')
+	targets = utils.placeholder(shape=(None,num_labels), name='output')
+	
+	# placeholder dictionary
+	placeholders = {'inputs': inputs, 
+	              'targets': targets, 
+	              'keep_prob': keep_prob, 
+	              'is_training': is_training}
+
 
 	# create model
 	layer1 = {'layer': 'input',

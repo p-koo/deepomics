@@ -1,3 +1,7 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import tensorflow as tf
 from .base import BaseLayer
 from ..utils import Variable
@@ -12,7 +16,7 @@ __all__ = [
 class Conv1DLayer(BaseLayer):
 	"""1D convolutional layer"""
 
-	def __init__(self, incoming, filter_size, num_filters, W=[],
+	def __init__(self, incoming, filter_size, num_filters, W=[], b=None,
 				  strides=[], padding=[], **kwargs):
 
 		self.filter_size = filter_size
@@ -45,6 +49,16 @@ class Conv1DLayer(BaseLayer):
 									strides=self.strides, 
 									padding=self.padding, 
 									**kwargs)
+
+		if b is None:
+			self.b = []
+		else:
+			if not b:
+				self.b = Variable(var=init.Constant(0.05), shape=[num_units], **kwargs)
+			else:
+				self.b = Variable(var=b, shape=[num_units], **kwargs)
+			self.output = tf.nn.bias_add(self.output,self.b.get_variable())
+
 		# shape of the output
 		self.output_shape = self.output.get_shape()
 		

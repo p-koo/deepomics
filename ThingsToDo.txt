@@ -1,10 +1,17 @@
 Things to do:
+- AveragePool1DLayer
+- AveragePool2DLayer
+- TransposeConv1DLayer
+- TransposeConv2DLayer
+- LSTMLayer
+- BiLSTMLayer
+- EmbeddingLayer
+- backprop to any layer
+	tf.nn.conv2d_backprop_input(input_sizes, filter, out_backprop, strides, padding, 
+	use_cudnn_on_gpu=None, data_format=None, name=None)	
+- guided backdrop
+	https://gist.github.com/falcondai/561d5eec7fed9ebf48751d124a77b087
 - add stochastic depth
-- layer: add lstm
-- layer: add bidirectional lstm
-- add word embeddings
-- layer: add a mutliplicative gate layer
-- explore: make number of layers a free parameter
 
 examples:
 - add MNIST example w/ standard tensorflow tutorial network

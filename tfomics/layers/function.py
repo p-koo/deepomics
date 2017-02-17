@@ -1,3 +1,7 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import tensorflow as tf
 from .base import BaseLayer
 from ..utils import Variable
@@ -99,7 +103,7 @@ class BiasLayer(BaseLayer):
 			self.b = Variable(var=b, shape=[num_units], **kwargs)
 			
 		
-		self.output = incoming.get_output() + self.b.get_variable()
+		self.output = tf.nn.bias_add(incoming.get_output(), self.b.get_variable())
 		self.output_shape = self.output.get_shape()
 		
 	def get_input_shape(self):

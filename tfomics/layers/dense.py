@@ -1,3 +1,7 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import tensorflow as tf
 from .base import BaseLayer
 from ..utils import Variable
@@ -23,7 +27,8 @@ class DenseLayer(BaseLayer):
 		num_inputs = incoming.get_output_shape()[1].value
 		shape = [num_inputs, num_units]
 		self.shape = shape
-
+		self.incoming_shape = incoming.get_output_shape()
+		
 		
 		if not W:
 			self.W = Variable(var=init.HeUniform(), shape=shape, **kwargs)
@@ -38,11 +43,9 @@ class DenseLayer(BaseLayer):
 			else:
 				self.b = Variable(var=b, shape=[num_units], **kwargs)
 			
-		self.incoming_shape = incoming.get_output_shape()
-		
 		self.output = tf.matmul(incoming.get_output(), self.W.get_variable())
 		if self.b:
-			self.output += self.b.get_variable()
+			self.output = tf.nn.bias_add(self.output,self.b.get_variable())
 			
 		self.output_shape = self.output.get_shape()
 		
