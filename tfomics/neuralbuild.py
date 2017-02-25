@@ -12,7 +12,9 @@ __all__ = [
 class NeuralBuild():
 	def __init__(self, model_layers, supervised=True):
 		self.model_layers = model_layers
-		self.placeholders = {}
+		self.network = OrderedDict()	
+		self.placeholders = collections.OrderedDict()
+		self.name_gen = NameGenerator()
 		self.placeholders['inputs'] = []
 		self.lastlayer = ''
 		self.num_dropout = 0
@@ -21,13 +23,12 @@ class NeuralBuild():
 		self.is_training = tf.placeholder(tf.bool, name='is_training')
 		self.hidden_feed_dict[self.is_training] = True
 
-		self.network = OrderedDict()	
 		self.build_layers()
 
 		if supervised:
 			targets = utils.placeholder(shape=(None, model_layers[-1]['num_units']), name='output')
 			self.placeholders['targets'] = targets
-			self.network['output'] = self.network[self.lastlayer]
+			self.network['output'] = self.network.pop(self.last_layer)
 		else:
 			self.placeholders['targets'] = self.placeholders['inputs']
 			
@@ -39,7 +40,9 @@ class NeuralBuild():
 		# loop to build each layer of network
 		for model_layer in self.model_layers:
 			layer = model_layer['layer']
-			name = model_layer['name']	
+			name = name_gen.generate_name(layer)
+			if 'name' in model_layer:
+				name = model_layer['name']
 
 			if layer == "input":
 
@@ -171,6 +174,19 @@ class NeuralBuild():
 												  W=W,
 												  padding=padding,
 												  strides=strides)
+
+		# concat layer
+		elif model_layer['layer'] == 'concat':
+			self.network[name] = layers.ConcatLayer([self.network[self.lastlayer], model_layer['concat']])
+
+		# element-size sum layer
+		elif model_layer['layer'] == 'sum':
+			self.network[name] = layers.ElemwiseSumLayer([self.network[self.lastlayer], model_layer['sum']])
+
+		# reshape layer
+		elif model_layer['layer'] == 'reshape':
+			self.network[name] = layers.ReshapeLayer(self.network[self.lastlayer], model_layer['reshape'])
+
 		self.lastlayer = model_layer['name']
 
 
@@ -296,4 +312,101 @@ class NeuralBuild():
 		self.network[name+'_resid_sum'] = layers.ElementwiseSumLayer([self.network[lastlayer], self.network[name+'_2resid_norm']])
 		self.network[name+'_resid'] = layers.ActivationLayer(self.network[name+'_resid_sum'], function=activation)
 		
+
+#--------------------------------------------------------------------------------------------------------------------
+# help keep track of names for main layers
+
+class NameGenerator():
+	def __init__(self):
+		self.num_input = 0
+		self.num_conv1d = 0
+		self.num_conv2d = 0
+		self.num_dense = 0
+		self.num_conv1d_residual = 0
+		self.num_conv2d_residual = 0
+		self.num_dense_residual = 0 
+		self.num_transpose_conv1d = 0
+		self.num_transpose_conv2d = 0
+		self.num_concat = 0
+		self.num_sum = 0
+		self.num_reshape = 0
+		self.num_noise = 0
+		self.num_lstm = 0
+		self.num_bilstm = 0
+		self.num_highway = 0
+		self.num_variational = 0
+
+	def generate_name(self, layer):
+		if layer == 'input':
+			if self.num_input == 0:
+				name = 'inputs'
+			else:
+				name = 'inputs_' + str(self.num_input)
+			self.num_input += 1
+
+		elif layer == 'conv1d':
+			name = 'conv1d_' + str(self.num_conv1d)
+			self.num_conv1d += 1
+
+		elif (layer == 'conv2d') | (layer == 'convolution'):
+			name = 'conv2d_' + str(self.num_conv2d)
+			self.num_conv2d += 1
+
+		elif layer == 'dense':
+			name = 'dense_' + str(self.num_dense)
+			self.num_dense += 1
+
+		elif layer == 'conv1d_residual':
+			name = 'conv1d_residual_' + str(self.num_conv1d_residual)
+			self.num_conv1d_residual += 1
+
+		elif layer == 'conv2d_residual':
+			name = 'conv2d_residual_' + str(self.num_conv2d_residual)
+			self.num_conv1d_residual += 1
+
+		elif layer == 'dense_residual':
+			name = 'dense_residual_' + str(self.num_dense_residual)
+			self.num_dense_residual += 1
+
+		elif layer == 'transpose_conv1d':
+			name = 'transpose_conv1d_' + str(self.num_transpose_conv1d)
+			self.num_transpose_conv1d += 1
+
+		elif (layer == 'transpose_conv2d') | (layer == 'transpose_convolution'):
+			name = 'transpose_conv2d_' + str(self.num_transpose_conv2d)
+			self.num_transpose_conv2d += 1
+
+		elif layer == 'concat':
+			name = 'concat_' + str(self.num_concat)
+			self.num_concat += 1
+
+		elif layer == 'sum':
+			name = 'sum_' + str(self.num_sum)
+			self.num_sum += 1
+
+		elif layer == 'reshape':
+			name = 'reshape_' + str(self.num_reshape)
+			self.num_reshape += 1
+
+		elif layer == 'noise':
+			name = 'noise_' + str(self.num_noise)
+			self.num_noise += 1
+
+		elif layer == 'lstm':
+			name = 'lstm_' + str(self.num_lstm)
+			self.num_lstm += 1
+
+		elif layer == 'bilstm':
+			name = 'bilstm_' + str(self.num_bilstm)
+			self.num_bilstm += 1
+
+		elif layer == 'highway':
+			name = 'highway_' + str(self.num_highway)
+			self.num_highway += 1
+
+		elif layer == 'variational':
+			name = 'variational_' + str(self.num_variational)
+			self.num_variational += 1
+
+		return name
 
