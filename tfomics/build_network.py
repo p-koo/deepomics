@@ -13,7 +13,7 @@ def build_network(model_layers):
 	""" build all layers in the model """
 
 	network, lastlayer = build_layers(model_layers)
-	network['output'] = network[lastlayer]
+	network['output'] = network.pop(lastlayer)
 	return network
 
 

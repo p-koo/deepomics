@@ -18,15 +18,15 @@ __all__ = [
 class NeuralOptimizer:
 	"""Class to build a neural network and perform basic functions"""
 
-	def __init__(self, model_layers, placeholders, optimization, filepath):
+	def __init__(self, model_layers, placeholders, optimization):
 		self.model_layers = model_layers
 		self.placeholders = placeholders
 		self.optimization = optimization
 		
-		self.filepath = filepath
 		self.optimal_loss = 1e20
 		self.models = []
 		
+
 	def sample_network(self):
 		"""generate a network, sampling from the ranges provided by
 			hyperparameter search"""
@@ -44,20 +44,38 @@ class NeuralOptimizer:
 					MAX = settings['bounds'][1]
 					if 'scale' not in settings.keys():
 						settings['scale'] = (MAX-MIN)/4
-					if 'multiples' not in settings.keys():
-						settings['multiples'] = 1
-					if ('offset' in settings.keys()) & (settings['multiples'] == 1):
-						offset = settings['offset']
+					if 'odd' in settings:
+						odd = settings['odd']
 					else:
+						odd = False
+					if odd:
+						if 'multiples' in settings:
+							multiples = settings['multiples']
+						else:
+							multiples = 2
+						offset = 1
+					else:
+						if 'multiples' in settings:
+							multiples = settings['multiples']
+						else:
+							multiples = 1
 						offset = 0
 
 					good_sample = False
 					while not good_sample:
-						sample = start + np.round(settings['scale'] * np.random.normal(0, 1))
-
-						if (sample >= MIN) & (sample <= MAX) & (np.mod(sample, settings['multiples']) == offset):
-							good_sample = True
-					layers[key] = int(sample)
+						if isinstance(start, int):
+							sample = start + np.round(settings['scale'] * np.random.normal(0, 1))
+							if (sample >= MIN) & (sample <= MAX) & (np.mod(sample, multiples) == offset):
+								good_sample = True
+						else:
+							sample = start + settings['scale'] * np.random.normal(0,1)
+							if (sample >= MIN) & (sample <= MAX):
+								good_sample = True
+							
+					if isinstance(start, int):
+						layers[key] = int(sample)
+					else:
+						layers[key] = sample
 			new_model_layers.append(layers)
 		
 		return new_model_layers
@@ -118,7 +136,7 @@ class NeuralOptimizer:
 					
 					
 	def train_model(self, train, valid, new_model_layers, new_optimization,
-						num_epochs=10, batch_size=128, verbose=0, filepath='.'):
+						num_epochs=10, batch_size=128, verbose=0):
 		
 		# build neural network model
 		net = build_network(new_model_layers)
@@ -127,12 +145,12 @@ class NeuralOptimizer:
 		nnmodel = NeuralNet(net, self.placeholders)
 
 		# compile neural trainer
-		nntrainer = NeuralTrainer(nnmodel, new_optimization, save='best', filepath=filepath)
+		nntrainer = NeuralTrainer(nnmodel, new_optimization, save=None, filepath=None)
 
 		train_minibatch(nntrainer, {'train': train}, batch_size=batch_size, num_epochs=num_epochs, 
-								patience=[], verbose=0, shuffle=True)
+								patience=[], verbose=verbose, shuffle=True)
 
-		loss = nntrainer.test_model(valid, batch_size=batch_size, verbose=0)
+		loss = nntrainer.test_model(valid, batch_size=batch_size, verbose=1)
 		
 		nntrainer.close_sess()
 		
@@ -147,9 +165,8 @@ class NeuralOptimizer:
 		model_layers, optimization = self.get_optimal_model()	
 		self.print_model(model_layers, optimization)
 		print('')
-		filepath = self.filepath + '_0'    
 		loss = self.train_model(train, valid, model_layers, optimization, num_epochs=num_epochs, 
-									 batch_size=batch_size, verbose=verbose, filepath=filepath)
+									 batch_size=batch_size, verbose=verbose)
 		self.optimal_loss = loss
 		print("    loss = " + str(loss))
 		print('    took ' + str(time.time() - start_time) + ' seconds')
@@ -161,26 +178,29 @@ class NeuralOptimizer:
 			print('trial ' + str(trial_index+1) + ' out of ' + str(num_trials))
 			print('---------------------------------------------------------')
 
-			# sample network and optimization
-			new_model_layers = self.sample_network()
-			new_optimization = self.sample_optimization()
-			self.print_model(new_model_layers, new_optimization)
-			print('')
+			try:
+				# sample network and optimization
+				new_model_layers = self.sample_network()
+				new_optimization = self.sample_optimization()
+				self.print_model(new_model_layers, new_optimization)
+				print('')
 
-			# train over a set number of epochs to compare models
-			filepath = self.filepath + '_' + str(trial_index+1)    
-			loss = self.train_model(train, valid, new_model_layers, new_optimization, num_epochs=num_epochs, 
-										 batch_size=batch_size, verbose=verbose, filepath=filepath)
+				# train over a set number of epochs to compare models
+				loss = self.train_model(train, valid, new_model_layers, new_optimization, num_epochs=num_epochs, 
+											 batch_size=batch_size, verbose=verbose)
 
-			self.models.append([loss, new_model_layers, new_optimization])
-			print("Results:")
-			print("loss = " + str(loss))
-			print('took ' + str(time.time() - start_time) + ' seconds')
-			if loss < self.optimal_loss:
-				print("Lower loss found. Updating parameters")
-				self.optimal_loss = loss 
-				self.update_optimization(new_optimization)
-				self.update_model_layers(new_model_layers)
+				self.models.append([loss, new_model_layers, new_optimization])
+				print("Results:")
+				print("loss = " + str(loss))
+				print('took ' + str(time.time() - start_time) + ' seconds')
+				if loss < self.optimal_loss:
+					print("Lower loss found. Updating parameters")
+					self.optimal_loss = loss 
+					self.update_optimization(new_optimization)
+					self.update_model_layers(new_model_layers)
+			except:
+				print('failed trial -- negative network size sampled')
+
 			print('')
 		print('---------------------------------------------------------')
 
