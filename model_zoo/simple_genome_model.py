@@ -55,7 +55,7 @@ def model(input_shape, num_labels=None):
 				'num_units': num_labels,
 				'W': init.GlorotUniform(),
 				'b': init.Constant(0.1),
-				'activation': 'sigmoid',
+				'activation': 'softmax',
 				'name': 'dense2'
 				}
 
@@ -64,7 +64,7 @@ def model(input_shape, num_labels=None):
 	net = build_network(model_layers)
 
 	# optimization parameters
-	optimization = {"objective": "binary",
+	optimization = {"objective": "categorical",
 					"optimizer": "adam",
 					"learning_rate": 0.001,      
 					"l2": 1e-6,

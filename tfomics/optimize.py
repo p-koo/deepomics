@@ -177,13 +177,10 @@ def cost_function(predictions, targets, objective, **kwargs):
 			predictions = tf.clip_by_value(predictions,1e-7,1-1e-7)
 		
 	if objective == 'binary':   
-		predictions = tf.nn.sigmoid(predictions)
 		loss = -tf.reduce_mean(targets*tf.log(predictions) + (1-targets)*tf.log(1-predictions))
-		#loss = tf.nn.sigmoid_cross_entropy_with_logits(predictions, targets, name='binary_loss')
 
 	elif objective == 'categorical':
 		loss = -tf.reduce_mean(tf.reduce_sum(targets*tf.log(predictions), axis=1))
-		#loss = tf.nn.softmax_cross_entropy_with_logits(predictions, targets, name='softmax_loss')
 	
 	elif objective == 'squared_error':    
 		loss = tf.reduce_mean(tf.square(predictions - targets))

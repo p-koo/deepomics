@@ -17,8 +17,9 @@ def build_network(model_layers):
 	return network
 
 
-def build_layers(model_layers, network=OrderedDict()):
+def build_layers(model_layers):
 
+	network=OrderedDict()
 	# loop to build each layer of network
 	lastlayer = ''
 	for model_layer in model_layers:
@@ -53,18 +54,24 @@ def build_layers(model_layers, network=OrderedDict()):
 				network[newlayer] = single_layer(model_layer, network[lastlayer])
 				lastlayer = newlayer
 
-				# add bias layer
-				if 'b' in model_layer:
-					newlayer = name+'_bias'
-					network[newlayer] = layers.BiasLayer(network[lastlayer], b=model_layer['b'])
-					lastlayer = newlayer    
-
-
 		# add Batch normalization layer
 		if 'batch_norm' in model_layer:
 			newlayer = name + '_batch' #str(counter) + '_' + name + '_batch'
 			network[newlayer] = layers.BatchNormLayer(network[lastlayer], model_layer['batch_norm'])
 			lastlayer = newlayer
+		else:
+			if (model_layer['layer'] == 'dense') | (model_layer['layer'] == 'conv1d') | (model_layer['layer'] == 'conv2d'):		
+				if ('b' in model_layer):
+					if model_layer['b'] != None:
+						if 'b' in model_layer:		
+							b=model_layer['b']
+					else:	
+						b = init.Constant(0.05)		
+				else:	
+					b = init.Constant(0.05)		
+				newlayer = name+'_bias'
+				network[newlayer] = layers.BiasLayer(network[lastlayer], b=b)
+				lastlayer = newlayer    
 
 		# add activation layer
 		if 'activation' in model_layer:
@@ -101,7 +108,7 @@ def single_layer(model_layer, network_last):
 	# dense layer
 	elif model_layer['layer'] == 'dense':
 		if 'W' not in model_layer.keys():
-			model_layer['W'] = init.HeNormal()
+			model_layer['W'] = init.GlorotUniform()
 		if 'b' not in model_layer.keys():
 			model_layer['b'] = init.Constant(0.05)
 		network = layers.DenseLayer(network_last, num_units=model_layer['num_units'],
@@ -111,7 +118,7 @@ def single_layer(model_layer, network_last):
 	# convolution layer
 	elif (model_layer['layer'] == 'conv2d'):
 		if 'W' not in model_layer.keys():
-			W = init.HeUniform()
+			W = init.GlorotUniform()
 		else:
 			W = model_layer['W']
 		if 'padding' not in model_layer.keys():
@@ -130,7 +137,7 @@ def single_layer(model_layer, network_last):
 											  strides=strides)
 	elif model_layer['layer'] == 'conv1d':
 		if 'W' not in model_layer.keys():
-			W = init.HeNormal()
+			W = init.GlorotUniform()
 		else:
 			W = model_layer['W']
 		if 'padding' not in model_layer.keys():
