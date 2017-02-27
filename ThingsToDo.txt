@@ -7,11 +7,6 @@ Things to do:
 - LSTMLayer
 - BiLSTMLayer
 - EmbeddingLayer
-- backprop to any layer
-	tf.nn.conv2d_backprop_input(input_sizes, filter, out_backprop, strides, padding, 
-	use_cudnn_on_gpu=None, data_format=None, name=None)	
-- guided backdrop
-	https://gist.github.com/falcondai/561d5eec7fed9ebf48751d124a77b087
 - add stochastic depth
 
 examples:

@@ -55,13 +55,13 @@ class NeuralBuild():
 				self.single_layer(model_layer, name)
 
 			else:
-				if layer == 'residual-conv1d':
+				if layer == 'conv1d_residual':
 					self.conv1d_residual_block(model_layer, name)
 
-				elif layer == 'residual-conv2d':
+				elif layer == 'conv2d_residual':
 					self.conv2d_residual_block(model_layer, name)
 
-				elif layer == 'residual-dense':
+				elif layer == 'dense_residual':
 					self.dense_residual_block(model_layer, name)
 
 				else:

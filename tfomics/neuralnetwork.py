@@ -6,6 +6,10 @@ from .optimize import build_loss, build_updates
 from .metrics import calculate_metrics
 #from .utils import *
 
+from tensorflow.python.framework import ops
+from tensorflow.python.ops import gen_nn_ops
+
+
 
 __all__ = [
 	"NeuralNet",
@@ -15,6 +19,7 @@ __all__ = [
 ]
 
 
+
 #------------------------------------------------------------------------------------------
 # Neural Network model class
 #------------------------------------------------------------------------------------------
@@ -22,9 +27,10 @@ __all__ = [
 class NeuralNet:
 	"""Class to build a neural network and perform basic functions."""
 	
-	def __init__(self, network, placeholders):
+	def __init__(self, network, placeholders, hidden_feed_dict={}):
 		self.network = network
 		self.placeholders = placeholders
+		self.hidden_feed_dict = hidden_feed_dict
 		self.saver = tf.train.Saver()
 
 
@@ -61,17 +67,31 @@ class NeuralNet:
 						layer_params.append(sess.run(variables.get_variable()))
 		return layer_params
 
-	def get_activations(self, sess, feed_X, layer, batch_size=500):
+
+	def get_activations(self, sess, feed_X, layer='output'):
 		"""get the real-valued feature maps of a given convolutional layer"""
+
+		return sess.run(self.network[layer].get_output(), feed_dict=feed_X)
+
+
+	def get_saliency(self, sess, feed_dict, layer='output', method='guided', function=tf.reduce_max):
+		"""get the saliency map from a given activation"""
 		
-		batch_generator = BatchGenerator(feed_X['inputs'], self.placeholders, batch_size, shuffle=False)
-			
-		fmaps = []
-		for i in range(batch_generator.get_num_batches()):  
-			feed_dict = batch_generator.next_minibatch(feed_X) 
-			fmaps.append(sess.run(self.network[layer].get_output(), feed_dict=feed_dict))
-		fmaps = np.vstack(fmaps)
-		return fmaps
+		dy = function(self.network[layer].get_output(), axis=1)
+		dx = self.placeholders['inputs']
+
+		if method == 'backprop':
+			return sess.run([tf.gradients(dy, dx), dy], feed_dict=feed_dict)
+
+		elif method == 'deconv':
+			g = tf.get_default_graph()
+			with g.gradient_override_map({'Relu': 'ZeilerReluGrad'}):
+				return sess.run([tf.gradients(dy, dx), dy], feed_dict=feed_dict)			 
+
+		elif method == 'guided':
+			g = tf.get_default_graph()
+			with g.gradient_override_map({'Relu': 'GuidedReluGrad'}):
+				return sess.run([tf.gradients(dy, dx), dy], feed_dict=feed_dict)		    
 
 
 	def save_model_parameters(self, sess, filepath='model.ckpt'):
@@ -110,6 +130,7 @@ class NeuralNet:
 		return self.network[layer].get_output()
 
 
+
 #----------------------------------------------------------------------------------------------------
 # Train neural networks class
 #----------------------------------------------------------------------------------------------------
@@ -118,10 +139,19 @@ class NeuralTrainer():
 	""" class to train a neural network model """
 
 	def __init__(self, nnmodel, optimization=[], save='best', filepath='.', **kwargs):
+
 		self.nnmodel = nnmodel
 		self.placeholders = nnmodel.placeholders
-		self.targets = self.placeholders['targets']
-		
+
+		# setup hidden feed_dict for dropout and is_training
+		self.train_feed = nnmodel.hidden_feed_dict.copy()
+		self.test_feed = nnmodel.hidden_feed_dict.copy()
+		for key in self.test_feed.keys():
+			if self.test_feed[key] != True:
+				self.test_feed[key] = 1.0
+			else:
+				self.test_feed[key] = False
+
 		# default optimizer if none given
 		if not optimization:
 			optimization = {}
@@ -138,6 +168,7 @@ class NeuralTrainer():
 		
 		# get predictions
 		self.predictions = nnmodel.get_output_layer(layer='output')
+		self.targets = self.nnmodel.placeholders['targets']
 		self.loss = build_loss(nnmodel.network, self.predictions, self.targets, optimization)
 
 		# setup optimizer
@@ -159,6 +190,21 @@ class NeuralTrainer():
 			self.sess = self.start_sess()
 
 		
+	def _combine_hidden_feed_dict():
+		if self.hidden_feed_dict:
+			# add to training placeholders
+			self.train_placeholders.update()
+
+			# add to test placeholders, but convert dropout to 1.0 and is_training to False
+			test_dropout = self.hidden_feed_dict
+			for key in test_dropout.keys():
+				if test_hidden_feed_dict[key] != True:
+					test_dropout[key] = 1.0
+				else:
+					test_dropout[key] = False
+			self.test_placeholders.update(test_dropout)
+
+
 	def train_epoch(self, feed_X, batch_size=128, verbose=1, shuffle=True):        
 		"""Train a mini-batch --> single epoch"""
 
@@ -172,9 +218,9 @@ class NeuralTrainer():
 
 		value = 0
 		for i in range(num_batches):
-			feed_dict = batch_generator.next_minibatch(feed_X)     
-			results = self.sess.run([self.train_step, self.loss, self.predictions], feed_dict=feed_dict)           
-			value += self.train_metric(results[2], feed_dict[self.targets])
+			self.train_feed.update(batch_generator.next_minibatch(feed_X))
+			results = self.sess.run([self.train_step, self.loss, self.predictions], feed_dict=self.train_feed)           
+			value += self.train_metric(results[2], self.train_feed[self.targets])
 			performance.add_loss(results[1])
 			performance.progress_bar(i+1., num_batches, value/(i+1))
 		if verbose > 1:
@@ -206,6 +252,10 @@ class NeuralTrainer():
 				C += np.corrcoef(predictions[:,i],y[:,i])[0][1]
 			return C/num_dims
 
+		elif self.objective == 'lower_bound':
+			return np.mean((predictions - y)**2)
+
+
 		
 	def test_model(self, feed_X, batch_size=128, name='test', verbose=1):
 		"""perform a complete forward pass, store and print(results)"""
@@ -217,11 +267,11 @@ class NeuralTrainer():
 		label = []
 		prediction = []
 		for i in range(batch_generator.get_num_batches()):
-			feed_dict = batch_generator.next_minibatch(feed_X)         
-			results = self.sess.run([self.loss, self.predictions], feed_dict=feed_dict)          
+			self.test_feed.update(batch_generator.next_minibatch(feed_X))
+			results = self.sess.run([self.loss, self.predictions], feed_dict=self.test_feed)          
 			performance.add_loss(results[0])
 			prediction.append(results[1])
-			label.append(feed_dict[self.targets])
+			label.append(self.test_feed[self.targets])
 		prediction = np.vstack(prediction)
 		label = np.vstack(label)
 		test_loss = performance.get_mean_loss()
@@ -255,8 +305,8 @@ class NeuralTrainer():
 	def save_model(self):
 		"""save model parameters to file, according to filepath"""
 
-		min_loss, min_epoch, epoch = self.valid_monitor.get_min_loss()
 		if self.save == 'best':
+			min_loss, min_epoch, epoch = self.valid_monitor.get_min_loss()
 			if self.valid_monitor.loss[-1] <= min_loss:
 				print('  lower cross-validation found')
 				filepath = self.filepath + '_best.ckpt'
@@ -304,11 +354,54 @@ class NeuralTrainer():
 		return self.nnmodel.get_parameters(self.sess, layer)
 
 
-	def get_activations(self, X, layer, batch_size=500):
+	def get_activations(self, feed_X, layer='output', batch_size=500):
 		"""get the real-valued feature maps of a given convolutional layer"""
-		
-		return self.nnmodel.get_activations(self.sess, X, layer, batch_size)
 
+		batch_generator = BatchGenerator(feed_X['inputs'], self.placeholders, batch_size, shuffle=False)
+
+		activations = []
+		for i in range(batch_generator.get_num_batches()):
+			self.test_feed.update(batch_generator.next_minibatch(feed_X))
+			activations.append(self.nnmodel.get_activations(self.sess, self.test_feed, layer))
+		activations = np.vstack(activations)
+
+		return activations
+
+
+	def get_saliency(self, feed_X, layer='output', method='guided', function=tf.reduce_max, batch_size=500):
+		"""get the real-valued feature maps of a given convolutional layer"""
+
+		batch_generator = BatchGenerator(feed_X['inputs'], self.placeholders, batch_size, shuffle=False)
+
+		saliency = []
+		for i in range(batch_generator.get_num_batches()):
+			self.test_feed.update(batch_generator.next_minibatch(feed_X))
+			saliency.append(self.nnmodel.get_saliency(self.sess, self.test_feed, layer=layer, 
+															method=method, function=function)[0][0])
+		
+		return np.vstack(saliency)
+		
+
+	def get_average_saliency(self, feed_X, layer='output', method='guided', function=tf.reduce_max, 
+																	num_average=10, batch_size=100):
+		"""get the real-valued feature maps of a given convolutional layer"""
+
+		batch_generator = BatchGenerator(feed_X['inputs'], self.placeholders, batch_size, shuffle=False)
+
+		saliency = []
+		for i in range(batch_generator.get_num_batches()):
+			self.train_feed.update(batch_generator.next_minibatch(feed_X))
+
+			norm = 0
+			trial_saliency = 0
+			for j in range(num_average):
+				val = self.nnmodel.get_saliency(self.sess, self.train_feed, layer=layer, 
+															method=method, function=function)
+				trial_saliency = trial_saliency + val[0][0]*val[1][0]
+				norm += val[1][0]
+			saliency.append(trial_saliency/norm)
+		return np.vstack(saliency)
+		
 
 	def start_sess(self):
 		"""start tensorflow session"""
@@ -316,10 +409,11 @@ class NeuralTrainer():
 		sess = tf.Session()
 
 		# initialize variables
-		if 'is_training' in self.placeholders.keys():
+		if ('is_training' in self.placeholders) | ('is_training' in self.train_feed):
 			sess.run(tf.global_variables_initializer(), feed_dict={self.placeholders['is_training']: True})
 		else:
-			sess.run(tf.global_variables_initializer())
+			sess.run(tf.global_variables_initializer(), feed_dict=self.test_feed)
+		#	sess.run(tf.global_variables_initializer())
 			#sess.run(tf.initialize_all_variables())
 
 		return sess
@@ -447,7 +541,6 @@ class BatchGenerator():
 
 		self.placeholders = placeholders
 		self.current_batch = 0
-
 		self.generate_minibatches(batch_size, shuffle)
 
 	def generate_minibatches(self, batch_size=128, shuffle=False):
@@ -477,7 +570,7 @@ class BatchGenerator():
 		for key in self.placeholders.keys():
 			if isinstance(self.placeholders[key], list):
 				for i in range(len(self.placeholders[key])):
-					if X[key][i].shape[0] > 1:
+					if feed_X[key][i].shape[0] > 1:
 						feed_dict[self.placeholders[key][i]] = feed_X[key][i][self.indices[self.current_batch]]
 					else:
 						feed_dict[self.placeholders[key][i]] = feed_X[key][i]
@@ -508,3 +601,15 @@ class BatchGenerator():
 
 
 	
+@ops.RegisterGradient("ZeilerReluGrad")
+def _ZeilerReluGrad(op, grad):
+	# Springenberg et al. (2015): Guided Backpropagation
+	# (grd * (grd > 0).astype(inp.dtype),)
+	return tf.select(0. < grad, gen_nn_ops._relu_grad(grad, op.outputs[0]), tf.zeros_like(grad))
+
+@ops.RegisterGradient("GuidedReluGrad")
+def _GuidedReluGrad(op, grad):
+	# Springenberg et al. (2015): Guided Backpropagation
+	# (grd * (inp > 0).astype(dtype) * (grd > 0).astype(dtype),)
+	return tf.select((0. < grad) & (0. < op.inputs[0]), gen_nn_ops._relu_grad(grad, op.outputs[0]), tf.zeros_like(grad))
+

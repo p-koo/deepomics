@@ -314,7 +314,7 @@ def seq_logo(pwm, height=30, nt_width=10, norm=0, alphabet='dna'):
 
 	# get the alphabet images of each nucleotide
 	package_directory = os.path.dirname(os.path.abspath(__file__))
-	filepath = os.path.join(package_directory,'nt')
+	filepath = os.path.join(package_directory,'chars')
 	chars = load_alphabet(filepath, alphabet)
 
 	# get the heights of each nucleotide

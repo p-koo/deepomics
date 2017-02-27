@@ -6,8 +6,8 @@ from six.moves import cPickle
 import tensorflow as tf
 
 from .learn import train_minibatch
-from .build_network import build_network
 from .neuralnetwork import NeuralNet, NeuralTrainer
+from .neuralbuild import NeuralBuild 
 
  
 __all__ = [
@@ -18,11 +18,9 @@ __all__ = [
 class NeuralOptimizer:
 	"""Class to build a neural network and perform basic functions"""
 
-	def __init__(self, model_layers, placeholders, optimization):
+	def __init__(self, model_layers, optimization):
 		self.model_layers = model_layers
-		self.placeholders = placeholders
 		self.optimization = optimization
-		
 		self.optimal_loss = 1e20
 		self.models = []
 		
@@ -138,11 +136,13 @@ class NeuralOptimizer:
 	def train_model(self, train, valid, new_model_layers, new_optimization,
 						num_epochs=10, batch_size=128, verbose=0):
 		
-		# build neural network model
-		net = build_network(new_model_layers)
 
-		# compile neural network model
-		nnmodel = NeuralNet(net, self.placeholders)
+		# build neural network model
+		nnbuild = NeuralBuild(new_model_layers)
+		network, placeholders, hidden_feed_dict = nnbuild.get_network_build()
+
+		# build neural network class
+		nnmodel = NeuralNet(network, placeholders, hidden_feed_dict)
 
 		# compile neural trainer
 		nntrainer = NeuralTrainer(nnmodel, new_optimization, save=None, filepath=None)
