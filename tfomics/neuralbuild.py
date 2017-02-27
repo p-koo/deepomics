@@ -31,6 +31,7 @@ class NeuralBuild():
 			self.network['output'] = self.network.pop(self.last_layer)
 		else:
 			self.placeholders['targets'] = self.placeholders['inputs']
+			self.network['X'] = self.network.pop(self.last_layer)
 			
 	def get_network_build(self):
 		return self.network, self.placeholders, self.hidden_feed_dict

@@ -234,6 +234,10 @@ class NeuralTrainer():
 				C += np.corrcoef(predictions[:,i],y[:,i])[0][1]
 			return C/num_dims
 
+		elif self.objective == 'lower_bound':
+			return np.mean((predictions - y)**2)
+
+
 		
 	def test_model(self, feed_X, batch_size=128, name='test', verbose=1):
 		"""perform a complete forward pass, store and print(results)"""
@@ -283,13 +287,14 @@ class NeuralTrainer():
 	def save_model(self):
 		"""save model parameters to file, according to filepath"""
 
-		min_loss, min_epoch, epoch = self.valid_monitor.get_min_loss()
 		if self.save == 'best':
+			min_loss, min_epoch, epoch = self.valid_monitor.get_min_loss()
 			if self.valid_monitor.loss[-1] <= min_loss:
 				print('  lower cross-validation found')
 				filepath = self.filepath + '_best.ckpt'
 				self.nnmodel.save_model_parameters(self.sess, filepath)
 		elif self.save == 'all':
+			epoch = len(self.valid_monitor.loss)
 			filepath = self.filepath + '_' + str(epoch) + '.ckpt'
 			self.nnmodel.save_model_parameters(self.sess, filepath)
 

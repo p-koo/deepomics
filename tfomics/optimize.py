@@ -184,7 +184,6 @@ def cost_function(predictions, targets, objective, **kwargs):
 	
 	elif objective == 'squared_error':    
 		loss = tf.reduce_mean(tf.square(predictions - targets))
-		#loss = tf.nn.l2_loss(predictions-targets, name='squared_error')
 
 	elif objective == 'vae':
 		loss = []
