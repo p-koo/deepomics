@@ -9,7 +9,9 @@ from .. import init
 
 __all__ = [
 	"Conv1DLayer", 
-	"Conv2DLayer"
+	"Conv2DLayer",
+	"TransposeConv1DLayer",
+	"TransposeConv2DLayer"
 ]
 
 

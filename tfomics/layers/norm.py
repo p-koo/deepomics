@@ -51,9 +51,7 @@ class BatchNormLayer(BaseLayer):
 	
 	def get_output(self):
 		
-		batch_mean, batch_var = tf.nn.moments(self.incoming.get_output(), self.bn_axes)
-		batch_mean = tf.identity(batch_mean)
-		batch_var = tf.identity(batch_var)
+		"""
 		def train_normalization():
 			pop_mean_op = self.pop_mean.apply([batch_mean])
 			pop_var_op = self.pop_var.apply([batch_var])
@@ -73,6 +71,28 @@ class BatchNormLayer(BaseLayer):
 	                                      self.epsilon)
 
 		return tf.cond(self.is_training, train_normalization, test_normalization)
+		"""
+		def train_normalization():
+			batch_mean, batch_var = tf.nn.moments(self.incoming.get_output(), self.bn_axes)
+			batch_mean = tf.identity(batch_mean)
+			batch_var = tf.identity(batch_var)
+			pop_mean_op = self.pop_mean.apply([batch_mean])
+			pop_var_op = self.pop_var.apply([batch_var])
+			return tf.nn.fused_batch_norm(self.incoming.get_output(), self.beta.get_variable(), 
+									self.gamma.get_variable(), mean=None, variance=None, 
+									epsilon=0.001, is_training=self.is_training)
+
+		def test_normalization():
+			batch_mean, batch_var = tf.nn.moments(self.incoming.get_output(), self.bn_axes)
+			batch_mean = tf.identity(batch_mean)
+			batch_var = tf.identity(batch_var)
+			return tf.nn.fused_batch_norm(self.incoming.get_output(), self.beta.get_variable(), 
+									self.gamma.get_variable(), mean=self.pop_mean.average(batch_mean), 
+									variance=self.pop_var.average(batch_var), epsilon=0.001, 
+									is_training=self.is_training)
+
+		return tf.cond(self.is_training, train_normalization, test_normalization)
+
 
 	def get_output_shape(self):
 		return self.incoming.get_output_shape()

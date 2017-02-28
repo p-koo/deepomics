@@ -116,7 +116,7 @@ class GlorotNormal(Initializer):
 		fan_in, fan_out = get_fans(shape)
 		stddev = np.sqrt(2./(fan_in + fan_out))
 
-		return tf.random_normal(shape=shape, mean=self.mean, stddev=stddev, dtype=self.dtype)
+		return tf.truncated_normal(shape=shape, mean=self.mean, stddev=stddev, dtype=self.dtype)
 
 
 
@@ -154,9 +154,9 @@ class HeNormal(Initializer):
 		
 	def generate(self, shape):
 		fan_in, fan_out = get_fans(shape)
-		stddev = np.sqrt(6./fan_in)
+		stddev = np.sqrt(2./fan_in)
 
-		return tf.random_normal(shape=shape, mean=self.mean, stddev=stddev, dtype=self.dtype)
+		return tf.truncated_normal(shape=shape, mean=self.mean, stddev=stddev, dtype=self.dtype)
 
 
 class Orthogonal(Initializer):

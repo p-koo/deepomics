@@ -1,9 +1,4 @@
 Things to do:
-- AveragePool1DLayer
-- AveragePool2DLayer
-- TransposeConv1DLayer
-- TransposeConv2DLayer
-- NoiseLayer
 - LSTMLayer
 - BiLSTMLayer
 - EmbeddingLayer
