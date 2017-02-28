@@ -19,7 +19,7 @@ class DropoutLayer(BaseLayer):
 		self.incoming_shape = incoming.get_output_shape()
 		self.incoming = incoming
 		self.keep_prob = keep_prob
-		self.output_shape = self.output.get_shape()
+		self.output_shape = self.incoming_shape
 		
 	def get_input_shape(self):
 		return self.incoming_shape
@@ -46,7 +46,7 @@ class GaussianNoiseLayer(BaseLayer):
 	
 	def get_output(self):
 		noise = tf.random_normal(shape=self.incoming_shape, mean=self.mu, stddev=self.sigma, dtype=tf.float32) 
-	    return self.incoming.get_output() + noise
+		return self.incoming.get_output() + noise
 	
 	def get_output_shape(self):
 		return self.output_shape

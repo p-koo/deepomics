@@ -51,7 +51,10 @@ class BatchNormLayer(BaseLayer):
 	
 	def get_output(self):
 		
-		"""
+		#"""
+		batch_mean, batch_var = tf.nn.moments(self.incoming.get_output(), self.bn_axes)
+		batch_mean = tf.identity(batch_mean)
+		batch_var = tf.identity(batch_var)
 		def train_normalization():
 			pop_mean_op = self.pop_mean.apply([batch_mean])
 			pop_var_op = self.pop_var.apply([batch_var])
@@ -92,7 +95,7 @@ class BatchNormLayer(BaseLayer):
 									is_training=self.is_training)
 
 		return tf.cond(self.is_training, train_normalization, test_normalization)
-
+		"""
 
 	def get_output_shape(self):
 		return self.incoming.get_output_shape()
