@@ -28,7 +28,6 @@ class NeuralNet:
 		self.hidden_feed_dict = hidden_feed_dict
 		self.saver = tf.train.Saver()
 
-
 	def inspect_layers(self):
 		"""print(each layer type and parameters"""
 

@@ -30,7 +30,7 @@ class NeuralBuild():
 			self.placeholders['targets'] = targets
 			self.network['output'] = self.network.pop(self.last_layer)
 		else:
-			self.placeholders['targets'] = self.placeholders['inputs']
+			self.placeholders['targets'] = self.placeholders['inputs'][0]
 			self.network['X'] = self.network.pop(self.last_layer)
 			
 	def get_network_build(self):
@@ -56,13 +56,45 @@ class NeuralBuild():
 
 			else:
 				if layer == 'conv1d_residual':
-					self.conv1d_residual_block(model_layer, name)
+					if 'stochastic' in model_layer:
+						survival_rate = tf.placeholder(tf.float32, name="survival_rate")
+						self.hidden_feed_dict[survival_rate] = model_layer['stochastic']
+
+						filter_size = model_layer['filter_size']
+						new_layer = name+'_conv1d_resid_stochastic'
+						self.network[new_layer] = layers.Conv1DResidualLayer(self.network[self.last_layer], filter_size, survival_rate, self.is_training)
+						self.last_layer = new_layer
+					else:
+						self.conv1d_residual_block(model_layer, name)
 
 				elif layer == 'conv2d_residual':
-					self.conv2d_residual_block(model_layer, name)
+					if 'stochastic' in model_layer:
+						survival_rate = tf.placeholder(tf.float32, name="survival_rate")
+						self.hidden_feed_dict[survival_rate] = model_layer['stochastic']
+
+						filter_size = model_layer['filter_size']
+						new_layer = name+'_conv2d_resid_stochastic'
+						self.network[new_layer] = layers.Conv2DResidualLayer(self.network[self.last_layer], filter_size, survival_rate, self.is_training)
+						self.last_layer = new_layer
+					else:
+						self.conv2d_residual_block(model_layer, name)
 
 				elif layer == 'dense_residual':
-					self.dense_residual_block(model_layer, name)
+					if 'stochastic' in model_layer:
+						survival_rate = tf.placeholder(tf.float32, name="survival_rate")
+						self.hidden_feed_dict[survival_rate] = model_layer['stochastic']
+
+						new_layer = name+'_dense_resid_stochastic'
+						self.network[new_layer] = layers.DenseResidualLayer(self.network[self.last_layer], survival_rate, self.is_training)
+						self.last_layer = new_layer
+					else:
+						self.dense_residual_block(model_layer, name)
+
+				elif layer == 'variational':
+					self.network['encode_mu'] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'])
+					self.network['encode_logsigma'] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'])
+					self.network['Z'] = layers.VariationalSampleLayer(self.network['encode_mu'], self.network['encode_logsigma'])
+					self.last_layer = 'Z'
 
 				else:
 					# add core layer
@@ -300,8 +332,6 @@ class NeuralBuild():
 		self.network[name+'_1resid'] = layers.DenseLayer(self.network[last_layer], num_units=num_units, b=None)
 		self.network[name+'_1resid_norm'] = layers.BatchNormLayer(self.network[name+'_1resid'], self.is_training)
 		self.network[name+'_1resid_active'] = layers.ActivationLayer(self.network[name+'_1resid_norm'], function=activation)
-
-		
 
 		if 'dropout_block' in model_layer:
 			dropout = model_layer['dropout_block']

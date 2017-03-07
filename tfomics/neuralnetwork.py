@@ -147,8 +147,10 @@ class NeuralTrainer():
 		self.train_feed = nnmodel.hidden_feed_dict.copy()
 		self.test_feed = nnmodel.hidden_feed_dict.copy()
 		for key in self.test_feed.keys():
-			if self.test_feed[key] != True:
+			if 'prob' in key.name:
 				self.test_feed[key] = 1.0
+			elif 'rate' in key.name:
+				self.test_feed[key] = self.test_feed[key]
 			else:
 				self.test_feed[key] = False
 
@@ -408,9 +410,14 @@ class NeuralTrainer():
 		# run session
 		sess = tf.Session()
 
+		feed_dict = {}
+		for key in self.train_feed.keys():
+			if 'is_training' in key.name:
+				feed_dict[key] = self.train_feed[key]
+
 		# initialize variables
 		if ('is_training' in self.placeholders) | ('is_training' in self.train_feed):
-			sess.run(tf.global_variables_initializer(), feed_dict={self.placeholders['is_training']: True})
+			sess.run(tf.global_variables_initializer(), feed_dict=feed_dict)
 		else:
 			sess.run(tf.global_variables_initializer(), feed_dict=self.test_feed)
 		#	sess.run(tf.global_variables_initializer())

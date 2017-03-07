@@ -8,7 +8,7 @@ from matplotlib import rcParams
 rcParams.update({'figure.autolayout': True})
 from scipy.misc import imresize
 import pandas as pd
-import utils 
+from .utils import normalize_pwm
 
 
 
@@ -74,7 +74,7 @@ def plot_neg_logo(W, height=50, nt_width=20, alphabet='dna', figsize=(50,20)):
 	fig = plt.figure(figsize=figsize);
 
 	plt.subplot(grid[0])
-	pwm = utils.normalize_pwm(W, method=2)
+	pwm = normalize_pwm(W, method=2)
 	pos_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 	plt.imshow(pos_logo, interpolation='none')
 	plt.xticks([])
@@ -87,7 +87,7 @@ def plot_neg_logo(W, height=50, nt_width=20, alphabet='dna', figsize=(50,20)):
 
 
 	plt.subplot(grid[1]);
-	pwm = utils.normalize_pwm(-W, method=2)
+	pwm = normalize_pwm(-W, method=2)
 	neg_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 	plt.imshow(neg_logo[::-1,:,:], interpolation='none')
 	plt.xticks([])
@@ -132,7 +132,7 @@ def plot_neg_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=(100
 	fig = plt.figure(figsize=figsize);
 
 	plt.subplot(grid[0])
-	pwm = utils.normalize_pwm(W, method=2)
+	pwm = normalize_pwm(W, method=2)
 	pos_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 	plt.imshow(pos_logo, interpolation='none')
 	plt.xticks([])
@@ -149,7 +149,7 @@ def plot_neg_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=(100
 	plt.axis('off');
 
 	plt.subplot(grid[2]);
-	pwm = utils.normalize_pwm(-W, method=2)
+	pwm = normalize_pwm(-W, method=2)
 	neg_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 	plt.imshow(neg_logo[::-1,:,:], interpolation='none')
 	plt.xticks([])

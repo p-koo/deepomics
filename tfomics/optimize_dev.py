@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 
 
 __all__ = [
@@ -7,6 +8,7 @@ __all__ = [
 	"cost_function"
 ]
 
+PI = tf.cast(np.pi, tf.float32)
 
 def build_updates(optimization):
 
@@ -152,7 +154,11 @@ def build_loss(network, placeholders, optimization):
 		else:
 			binary = False
 
-		loss, predictions = variational_lower_bound(network, placeholders['inputs'], binary=binary)
+		if isinstance(placeholders['inputs'], (list, tuple)):
+			targets = placeholders['inputs'][0]
+		else:
+			targets = placeholders['inputs']
+		loss, predictions = variational_lower_bound(network, targets, binary=binary)
 
 	else:
 		predictions = network['output'].get_output()
@@ -187,16 +193,16 @@ def variational_lower_bound(network, targets, deterministic=False, binary=True):
 
 	z_mu = network['encode_mu'].get_output()
 	z_logsigma = network['encode_logsigma'].get_output()
-	kl_divergence = 0.5*tf.reduce_sum(1 + 2*z_logsigma - tf.sqr(z_mu) - tf.exp(2*z_logsigma), axis=1)
+	kl_divergence = 0.5*tf.reduce_sum(1 + 2*z_logsigma - tf.square(z_mu) - tf.exp(2*z_logsigma), axis=1)
 
 	x_mu = network['X'].get_output()
-
 	if binary:
 		x_mu = tf.clip_by_value(x_mu,1e-7,1-1e-7)
 		log_likelihood = tf.reduce_sum(targets*tf.log(x_mu) + (1.0-targets)*tf.log(1.0-x_mu), axis=1)
 	else:
+		
 		x_logsigma = tf.log(tf.sqrt(x_mu*(1-x_mu))) #layers.get_output(network['decode_logsigma'], deterministic=deterministic)
-		log_likelihood = tf.reduce_sum(-0.5*tf.log(2*np.float32(np.pi))- x_logsigma - 0.5*tf.sqr(targets-x_mu)/T.exp(2*x_logsigma),axis=1)
+		log_likelihood = tf.reduce_sum(-0.5*tf.log(2*PI)- x_logsigma - 0.5*tf.square(targets-x_mu)/tf.exp(2*x_logsigma),axis=1)
 
 	variational_lower_bound = -log_likelihood - kl_divergence
 	predictions = x_mu
