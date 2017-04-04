@@ -4,6 +4,6 @@ from .init import *
 from .metrics import *
 from .neuralnetwork import *
 from .optimize import *
-from .learn import *
+from .fit import *
 from .neuralbuild import *
 from .explore import *

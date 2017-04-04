@@ -51,8 +51,7 @@ class GaussianNoiseLayer(BaseLayer):
 	def get_output_shape(self):
 		return self.output_shape
 		
-
-
+		
 class VariationalSampleLayer(BaseLayer):
 	def __init__(self, incoming_mu, incoming_sigma, **kwargs):
 				
@@ -65,9 +64,9 @@ class VariationalSampleLayer(BaseLayer):
 		return self.incoming_shape
 	
 	def get_output(self):
-		z = tf.random_normal(shape=self.incoming_shape) 
-		std_encoder = tf.exp(0.5 * incoming_sigma.get_output())
-		return self.incoming_mu.get_output() + tf.mul(std_encoder, epsilon)
+		z = tf.random_normal(shape=tf.shape(self.incoming_mu.get_output()), mean=0.0, stddev=1.0, dtype=tf.float32) 
+		std_encoder = tf.exp(0.5 * self.incoming_sigma.get_output())
+		return self.incoming_mu.get_output() + tf.matmul(std_encoder, z)
 
 	def get_output_shape(self):
 		return self.output_shape

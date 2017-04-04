@@ -15,6 +15,23 @@ __all__ = [
 ]
 
 
+
+def initialize_session(placeholders=None):
+    # run session
+    sess = tf.Session()
+
+    # initialize variables
+    if placeholders is None:
+        sess.run(tf.global_variables_initializer()) 
+
+    else:
+        if 'is_training' in placeholders:
+            sess.run(tf.global_variables_initializer(), feed_dict={placeholders['is_training']: True}) 
+        else:
+            sess.run(tf.global_variables_initializer()) 
+    return sess
+
+
 def placeholder(shape, dtype=tf.float32, name=None):
 	return tf.placeholder(dtype=dtype, shape=shape, name=name)
 	

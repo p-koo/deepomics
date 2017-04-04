@@ -5,7 +5,7 @@ from six.moves import cPickle
 
 import tensorflow as tf
 
-from .learn import train_minibatch
+from .fit import train_minibatch
 from .neuralnetwork import NeuralNet, NeuralTrainer
 from .neuralbuild import NeuralBuild 
 

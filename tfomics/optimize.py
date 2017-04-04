@@ -154,9 +154,7 @@ def build_loss(network, predictions, targets, optimization):
 			clip_value = False
 
 	# build loss function
-	loss = cost_function(predictions=predictions, targets=targets, 
-						 objective=optimization['objective'], 
-						 clip_value=clip_value)
+	loss = cost_function(predictions=predictions, targets=targets, objective=optimization['objective'])
 
 	if 'l1' in optimization.keys():
 		l1 = get_l1_parameters(network)
@@ -169,25 +167,17 @@ def build_loss(network, predictions, targets, optimization):
 	return loss
 
 
-
-def cost_function(predictions, targets, objective, **kwargs):
-
-	if 'clip_value' in kwargs.keys():
-		if kwargs['clip_value']:
-			predictions = tf.clip_by_value(predictions,1e-7,1-1e-7)
-		
-	if objective == 'binary':   
+def cost_function(predictions, targets, objective='binary'):
+	if objective == 'binary':
+		predictions = tf.clip_by_value(predictions,1e-7,1-1e-7)
 		loss = -tf.reduce_mean(targets*tf.log(predictions) + (1-targets)*tf.log(1-predictions))
-
+		
 	elif objective == 'categorical':
 		loss = -tf.reduce_mean(tf.reduce_sum(targets*tf.log(predictions), axis=1))
-	
-	elif objective == 'squared_error':    
-		loss = tf.reduce_mean(tf.square(predictions - targets))
 
-	elif objective == 'vae':
-		loss = []
-		
+	elif objective == 'squared_error':
+		loss = tf.reduce_mean(tf.square(targets - predictions))
+
 	return loss
 
 

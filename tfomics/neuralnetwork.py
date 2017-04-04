@@ -2,13 +2,9 @@ from __future__ import print_function
 import os, sys, time
 import tensorflow as tf
 import numpy as np
-from .optimize import build_loss, build_updates
-from .metrics import calculate_metrics
-#from .utils import *
-
-from tensorflow.python.framework import ops
-from tensorflow.python.ops import gen_nn_ops
-
+from tfomics import optimize, metrics, utils
+from tfomics.neuralbuild import NeuralBuild
+from collections import OrderedDict
 
 
 __all__ = [
@@ -19,6 +15,11 @@ __all__ = [
 ]
 
 
+from tensorflow.python.framework import ops
+from tensorflow.python.ops import gen_nn_ops
+@ops.RegisterGradient("GuidedRelu")
+def _GuidedReluGrad(op, grad):
+	return tf.where(0. < grad, gen_nn_ops._relu_grad(grad, op.outputs[0]), tf.zeros_like(grad))
 
 #------------------------------------------------------------------------------------------
 # Neural Network model class
@@ -27,11 +28,73 @@ __all__ = [
 class NeuralNet:
 	"""Class to build a neural network and perform basic functions."""
 	
-	def __init__(self, network, placeholders, hidden_feed_dict={}):
+	def __init__(self, network=[], placeholders=[], feed_dict={}, optimization={}):
+
 		self.network = network
 		self.placeholders = placeholders
-		self.hidden_feed_dict = hidden_feed_dict
-		self.saver = tf.train.Saver()
+		self.feed_dict = feed_dict
+		self.optimization = optimization
+
+		self.predictions = []
+		self.targets = []
+		self.loss = []
+		self.updates = []
+		self.train_step = []
+		self.metric = []
+
+
+	def build_layers(self, model_layers, optimization=None, method=None):
+		tf.reset_default_graph()
+		nnbuild = NeuralBuild()
+
+		if method == 'guided':
+			g = tf.get_default_graph()
+			with g.gradient_override_map({'Relu': 'GuidedRelu'}):
+				self.network, self.placeholders, self.feed_dict = nnbuild.build_layers(model_layers)
+		else:
+			self.network, self.placeholders, self.feed_dict = nnbuild.build_layers(model_layers)
+		self.build_optimizer(optimization)
+		self.train_metric()
+
+
+	def build_optimizer(self, optimization=None):
+		if optimization is None:
+			optimization = self.optimization
+		else:
+			self.optimization = optimization
+		# get predictions
+		self.predictions = self.network['output'].get_output()
+		self.targets = self.placeholders['targets']
+		self.loss = optimize.build_loss(self.network, self.predictions, self.targets, optimization)
+
+		# setup optimizer
+		self.updates = optimize.build_updates(self.optimization)
+
+		# get list of trainable parameters (default is trainable)
+		trainable_params = self.get_trainable_parameters()
+		self.train_step = self.updates.minimize(self.loss, var_list=trainable_params)
+
+
+	def train_metric(self):
+		"""metric to monitor performance during training"""
+
+		if self.optimization['objective'] == 'categorical':
+			predictions = tf.argmax(self.predictions, axis=1)
+			if predictions.get_shape[1].value > 1:
+				targets = tf.argmax(self.placeholders['targets'], axis=1)
+				self.metric = tf.reduce_mean(tf.cast(tf.equal(predictions, targets), tf.float32))
+			else:
+				self.metric = tf.reduce_mean(tf.cast(tf.equal(predictions, self.placeholders['targets']), tf.float32))
+				
+		elif self.optimization['objective'] == 'binary':
+			predictions = tf.cast(tf.greater_equal(self.predictions, 0.5), tf.float32)
+			self.metric = tf.reduce_mean(tf.cast(tf.equal(predictions, self.placeholders['targets']), tf.float32))
+	
+		elif self.optimization['objective'] == 'squared_error':
+			self.metric = tf.reduce_mean(tf.square(self.predictions - self.placeholders['targets']))
+
+		elif self.optimization['objective'] == 'lower_bound':
+			self.metric = tf.reduce_mean(tf.square(self.predictions - self.placeholders['targets']))
 
 
 	def inspect_layers(self):
@@ -50,21 +113,78 @@ class NeuralNet:
 		print('----------------------------------------------------------------------------')
 
 
+	def calculate_saliency(self, sess, y, dx, feed_dict, class_index=None):
+		if class_index is None:
+			dy = tf.reduce_max(y, axis=1)
+		else:
+			dy =y[:,class_index] #  tf.sign(y[:,class_index])*tf.square(y[:,class_index])#
+		return sess.run([tf.gradients(dy, dx), dy], feed_dict=feed_dict) 
+
+
+	def stochastic_saliency(self, sess, X, y, dx, stochastic_feed, num_average=200, threshold=1.0, class_index=None):
+				
+		def choose_sign(x,y):
+			y2 = np.copy(y)
+			y2[y2<0] = 0
+			pos = np.sum(x*y2)
+
+			y2 = np.copy(y)
+			y2[y2>0] = 0
+			neg = np.sum(-x*y2)
+			if neg > pos:
+				return -1
+			else:
+				return 1
+
+		augment = np.multiply(np.ones((num_average,1,1,1)), X)
+		stochastic_feed.update({dx: augment})
+		val = self.calculate_saliency(sess, y, dx, stochastic_feed, class_index=class_index)
+		seq = val[0][0]
+		pred = val[1]
+
+		# average based on weights
+		saliency_ave = 0
+		norm = 0
+		counter = 0
+		for k in np.where(pred > threshold)[0]:
+			sign = choose_sign(X[0], seq[k])
+			weight = pred[k]
+			saliency_ave = saliency_ave + sign*seq[k]*weight
+			norm += weight
+			counter += 1
+		if norm > 0:
+			saliency_ave /= norm
+			
+		return saliency_ave, counter
+
+
+
 	def get_parameters(self, sess, layer=[]):
 		"""return all the parameters of the network"""
 
 		layer_params = []
-		for layer in self.network:
-			if hasattr(self.network[layer], 'is_trainable'):
-				if self.network[layer].is_trainable():
-					variables = self.network[layer].get_variable()
-					if isinstance(variables, list):
-						params = []
-						for var in variables:
-							params.append(sess.run(var.get_variable()))
-						layer_params.append(params)
-					else:
-						layer_params.append(sess.run(variables.get_variable()))
+		if layer:
+			variables = self.network[layer].get_variable()
+			if isinstance(variables, list):
+				params = []
+				for var in variables:
+					params.append(sess.run(var.get_variable()))
+				layer_params.append(params)
+			else:
+				layer_params.append(sess.run(variables.get_variable()))
+		else:
+
+			for layer in self.network:
+				if hasattr(self.network[layer], 'is_trainable'):
+					if self.network[layer].is_trainable():
+						variables = self.network[layer].get_variable()
+						if isinstance(variables, list):
+							params = []
+							for var in variables:
+								params.append(sess.run(var.get_variable()))
+							layer_params.append(params)
+						else:
+							layer_params.append(sess.run(variables.get_variable()))
 		return layer_params
 
 
@@ -74,38 +194,18 @@ class NeuralNet:
 		return sess.run(self.network[layer].get_output(), feed_dict=feed_X)
 
 
-	def get_saliency(self, sess, feed_dict, layer='output', method='guided', function=tf.reduce_max):
-		"""get the saliency map from a given activation"""
-		
-		dy = function(self.network[layer].get_output(), axis=1)
-		dx = self.placeholders['inputs']
-
-		if method == 'backprop':
-			return sess.run([tf.gradients(dy, dx), dy], feed_dict=feed_dict)
-
-		elif method == 'deconv':
-			g = tf.get_default_graph()
-			with g.gradient_override_map({'Relu': 'ZeilerReluGrad'}):
-				return sess.run([tf.gradients(dy, dx), dy], feed_dict=feed_dict)			 
-
-		elif method == 'guided':
-			g = tf.get_default_graph()
-			with g.gradient_override_map({'Relu': 'GuidedReluGrad'}):
-				return sess.run([tf.gradients(dy, dx), dy], feed_dict=feed_dict)		    
-
-
 	def save_model_parameters(self, sess, filepath='model.ckpt'):
 		"""save model parameters to a file"""
-
 		print("  saving model to: ", filepath)
-		self.saver.save(sess, save_path=filepath)
+		saver = tf.train.Saver()
+		saver.save(sess, save_path=filepath)
 		
 
 	def load_model_parameters(self, sess, filepath='model.ckpt'):
 		"""initialize network with all_param_values"""
-
 		print("loading model from: ", filepath)
-		self.saver.restore(sess, filepath)
+		saver = tf.train.Saver()
+		saver.restore(sess, filepath)
 
 
 	def get_trainable_parameters(self):   
@@ -124,13 +224,6 @@ class NeuralNet:
 		return params
 
 
-	def get_output_layer(self, layer='output'):
-		"""get tensor graph output node"""
-
-		return self.network[layer].get_output()
-
-
-
 #----------------------------------------------------------------------------------------------------
 # Train neural networks class
 #----------------------------------------------------------------------------------------------------
@@ -138,74 +231,52 @@ class NeuralNet:
 class NeuralTrainer():
 	""" class to train a neural network model """
 
-	def __init__(self, nnmodel, optimization=[], save='best', filepath='.', **kwargs):
-
-		self.nnmodel = nnmodel
-		self.placeholders = nnmodel.placeholders
-
-		# setup hidden feed_dict for dropout and is_training
-		self.train_feed = nnmodel.hidden_feed_dict.copy()
-		self.test_feed = nnmodel.hidden_feed_dict.copy()
-		for key in self.test_feed.keys():
-			if self.test_feed[key] != True:
-				self.test_feed[key] = 1.0
-			else:
-				self.test_feed[key] = False
-
+	def __init__(self, nnmodel, save='best', filepath='.', **kwargs):
+		
 		# default optimizer if none given
-		if not optimization:
-			optimization = {}
-			optimization['objective'] = 'adam'
-			optimization['learning_rate'] = 0.001
-		else:
-			if 'objective' not in optimization.keys():
-				optimization['objective'] = 'adam'
-				optimization['learning_rate'] = 0.001
-		self.optimization = optimization    
-		self.objective = optimization['objective']
+		self.nnmodel = nnmodel
+		self.network = nnmodel.network
+		self.placeholders = nnmodel.placeholders
+		self.objective = nnmodel.optimization['objective']
 		self.save = save
 		self.filepath = filepath
+
+
+		self.train_calc = [nnmodel.train_step, nnmodel.loss, nnmodel.metric]
+		self.test_calc = [nnmodel.loss, nnmodel.predictions]
+
+		self.update_feed_dict(nnmodel.placeholders, nnmodel.feed_dict)
 		
-		# get predictions
-		self.predictions = nnmodel.get_output_layer(layer='output')
-		self.targets = self.nnmodel.placeholders['targets']
-		self.loss = build_loss(nnmodel.network, self.predictions, self.targets, optimization)
-
-		# setup optimizer
-		self.updates = build_updates(optimization)
-
-		# get list of trainable parameters (default is trainable)
-		trainable_params = nnmodel.get_trainable_parameters()
-		self.train_step = self.updates.minimize(self.loss, var_list=trainable_params)
-
 		# instantiate monitor class to monitor performance
 		self.train_monitor = MonitorPerformance(name="train", objective=self.objective, verbose=1)
 		self.test_monitor = MonitorPerformance(name="test", objective=self.objective, verbose=1)
 		self.valid_monitor = MonitorPerformance(name="cross-validation", objective=self.objective, verbose=1)
 
-		# start tensorflow session
-		if 'sess' in kwargs.keys():
-			self.sess = kwargs['sess']
-		else:
-			self.sess = self.start_sess()
 
+	def update_feed_dict(self, placeholders, feed_dict, stochastic_val=None):
 		
-	def _combine_hidden_feed_dict():
-		if self.hidden_feed_dict:
-			# add to training placeholders
-			self.train_placeholders.update()
+		self.train_feed = {}
+		self.test_feed = {}
+		self.stochastic_feed = {}
+		for key in feed_dict.keys():
+			if key != 'targets':
+				self.train_feed[placeholders[key]] = feed_dict[key]
+				self.test_feed[placeholders[key]] = feed_dict[key]
+				self.stochastic_feed[placeholders[key]] = feed_dict[key]
 
-			# add to test placeholders, but convert dropout to 1.0 and is_training to False
-			test_dropout = self.hidden_feed_dict
-			for key in test_dropout.keys():
-				if test_hidden_feed_dict[key] != True:
-					test_dropout[key] = 1.0
+			if 'keep_prob' in key:
+				self.test_feed[placeholders[key]] = 1.0
+				if stochastic_val:
+					self.stochastic_feed[placeholders[key]] = stochastic_val
 				else:
-					test_dropout[key] = False
-			self.test_placeholders.update(test_dropout)
+					self.stochastic_feed[placeholders[key]] = self.train_feed[placeholders[key]]
+
+			if key == 'is_training':
+				self.test_feed[placeholders[key]] = False
+				self.stochastic_feed[placeholders[key]] = False
 
 
-	def train_epoch(self, feed_X, batch_size=128, verbose=1, shuffle=True):        
+	def train_epoch(self, sess, data, batch_size=128, verbose=1, shuffle=True):        
 		"""Train a mini-batch --> single epoch"""
 
 		# set timer for epoch run
@@ -213,82 +284,98 @@ class NeuralTrainer():
 		performance.set_start_time(start_time = time.time())
 
 		# instantiate batch generator
-		batch_generator = BatchGenerator(feed_X['inputs'], self.placeholders, batch_size, shuffle)
+		num_data = data['targets'].shape[0]
+		batch_generator = BatchGenerator(num_data, batch_size, shuffle)
 		num_batches = batch_generator.get_num_batches()
 
 		value = 0
+		metric = 0
 		for i in range(num_batches):
-			self.train_feed.update(batch_generator.next_minibatch(feed_X))
-			results = self.sess.run([self.train_step, self.loss, self.predictions], feed_dict=self.train_feed)           
-			value += self.train_metric(results[2], self.train_feed[self.targets])
+			self.train_feed = batch_generator.next_minibatch(data, self.train_feed, self.placeholders)
+			results = sess.run(self.train_calc, feed_dict=self.train_feed)    
+			metric += results[2]
 			performance.add_loss(results[1])
-			performance.progress_bar(i+1., num_batches, value/(i+1))
+			performance.progress_bar(i+1., num_batches, metric/(i+1))
 		if verbose > 1:
 			print(" ")
 
 		# calculate mean loss and store
 		loss = performance.get_mean_loss()
 		self.add_loss(loss, 'train')
-
 		return loss
 
 
-	def train_metric(self, predictions, y):
-		"""metric to monitor performance during training"""
-
-		if self.objective == 'categorical':
-			if y.shape[1] > 1:
-				return np.mean(np.argmax(predictions, axis=1) == np.argmax(y, axis=1))
-			else:
-				return np.mean(np.argmax(predictions, axis=1) == y)
-				
-		elif self.objective == 'binary':
-			return np.mean(np.round(predictions) == y)
-		
-		elif self.objective == 'squared_error':
-			num_dims = y.shape[1]
-			C = 0
-			for i in range(num_dims):
-				C += np.corrcoef(predictions[:,i],y[:,i])[0][1]
-			return C/num_dims
-
-		elif self.objective == 'lower_bound':
-			return np.mean((predictions - y)**2)
-
-
-		
-	def test_model(self, feed_X, batch_size=128, name='test', verbose=1):
+	def test_model(self, sess, data, batch_size=128, name='test', verbose=1):
 		"""perform a complete forward pass, store and print(results)"""
 
 		# instantiate monitor performance and batch generator
-		performance = MonitorPerformance('test',self.objective, verbose)
-		batch_generator = BatchGenerator(feed_X['inputs'], self.placeholders, batch_size, shuffle=False)
+		performance = MonitorPerformance('test', self.objective, verbose)
+
+		num_data = data['targets'].shape[0]
+		batch_generator = BatchGenerator(num_data, batch_size, shuffle=False)
 
 		label = []
 		prediction = []
 		for i in range(batch_generator.get_num_batches()):
-			self.test_feed.update(batch_generator.next_minibatch(feed_X))
-			results = self.sess.run([self.loss, self.predictions], feed_dict=self.test_feed)          
+			self.test_feed = batch_generator.next_minibatch(data, self.test_feed, self.placeholders)
+			results = sess.run(self.test_calc, feed_dict=self.test_feed)          
 			performance.add_loss(results[0])
 			prediction.append(results[1])
-			label.append(self.test_feed[self.targets])
+			label.append(self.test_feed[self.placeholders['targets']])
 		prediction = np.vstack(prediction)
 		label = np.vstack(label)
 		test_loss = performance.get_mean_loss()
 
 		if name == "train":
 			self.train_monitor.update(test_loss, prediction, label)
+			mean, std = self.train_monitor.get_metric_values()
 			if verbose >= 1:
 				self.train_monitor.print_results(name)
 		elif name == "valid":
 			self.valid_monitor.update(test_loss, prediction, label)
+			mean, std = self.valid_monitor.get_metric_values()
 			if verbose >= 1:
 				self.valid_monitor.print_results(name)
 		elif name == "test":
 			self.test_monitor.update(test_loss, prediction, label)
+			mean, std = self.test_monitor.get_metric_values()
 			if verbose >= 1:
 				self.test_monitor.print_results(name)
-		return test_loss
+		return test_loss, mean, std
+
+
+
+	def get_saliency(self, sess, X, layer, class_index=None, batch_size=500):
+
+		num_data = X.shape[0]
+		batch_generator = BatchGenerator(num_data, batch_size, shuffle=False)
+		data = {'inputs': X}
+		y = layer.get_output()
+
+		saliency = []
+		for i in range(batch_generator.get_num_batches()):
+			self.test_feed = batch_generator.next_minibatch(data, self.test_feed, self.placeholders)
+			val = self.nnmodel.calculate_saliency(sess, y, self.placeholders['inputs'], self.test_feed, class_index=class_index)
+			saliency.append(val[0])
+		return np.vstack(saliency)
+		  
+
+
+	def get_stochastic_saliency(self, sess, X, layer, class_index=None, num_average=200, threshold=1.0):
+		y = layer.get_output()
+
+		saliency = []
+		counts = []
+		for i in range(X.shape[0]):
+			x = np.expand_dims(X[i], axis=0)
+			saliency_ave, counter = self.nnmodel.stochastic_saliency(sess, x, y, self.placeholders['inputs'], 
+														self.stochastic_feed, num_average, threshold, class_index)
+			saliency.append(np.expand_dims(saliency_ave, axis=0))
+			counts.append(counter)    
+
+		#saliency = np.vstack(saliency)
+		counts = np.vstack(counts)
+		return saliency, counts
 
 
 	def add_loss(self, loss, name):
@@ -302,19 +389,23 @@ class NeuralTrainer():
 			self.test_monitor.add_loss(loss)
 
 
-	def save_model(self):
+	def save_model(self, sess, addon=None):
 		"""save model parameters to file, according to filepath"""
 
-		if self.save == 'best':
-			min_loss, min_epoch, epoch = self.valid_monitor.get_min_loss()
-			if self.valid_monitor.loss[-1] <= min_loss:
-				print('  lower cross-validation found')
-				filepath = self.filepath + '_best.ckpt'
-				self.nnmodel.save_model_parameters(self.sess, filepath)
-		elif self.save == 'all':
-			epoch = len(self.valid_monitor.loss)
-			filepath = self.filepath + '_' + str(epoch) + '.ckpt'
-			self.nnmodel.save_model_parameters(self.sess, filepath)
+		if addon is not None:
+			filepath = self.filepath + '_' + addon + '.ckpt'
+			self.nnmodel.save_model_parameters(sess, filepath)
+		else:
+			if self.save == 'best':
+				min_loss, min_epoch, epoch = self.valid_monitor.get_min_loss()
+				if self.valid_monitor.loss[-1] <= min_loss:
+					print('  lower cross-validation found')
+					filepath = self.filepath + '_best.ckpt'
+					self.nnmodel.save_model_parameters(sess, filepath)
+			elif self.save == 'all':
+				epoch = len(self.valid_monitor.loss)
+				filepath = self.filepath + '_' + str(epoch) + '.ckpt'
+				self.nnmodel.save_model_parameters(sess, filepath)
 
 
 	def save_all_metrics(self, filepath):
@@ -339,91 +430,35 @@ class NeuralTrainer():
 		return status
 
 
-	def set_best_parameters(self, filepath=[]):
+	def set_best_parameters(self, sess, filepath=[]):
 		""" set the best parameters from file"""
 		
 		if not filepath:
 			filepath = self.filepath + '_best.ckpt'
 
-		self.nnmodel.load_model_parameters(self.sess, filepath)
+		self.nnmodel.load_model_parameters(sess, filepath)
 
 
-	def get_parameters(self, layer=[]):
+	def get_parameters(self, sess, layer=[]):
 		"""return all the parameters of the network"""
 
-		return self.nnmodel.get_parameters(self.sess, layer)
+		return self.nnmodel.get_parameters(sess, layer)
 
 
-	def get_activations(self, feed_X, layer='output', batch_size=500):
+	def get_activations(self, sess, data, layer='output', batch_size=500):
 		"""get the real-valued feature maps of a given convolutional layer"""
 
-		batch_generator = BatchGenerator(feed_X['inputs'], self.placeholders, batch_size, shuffle=False)
+		num_data = data['inputs'].shape[0]
+		batch_generator = BatchGenerator(num_data, batch_size, shuffle=False)
 
 		activations = []
 		for i in range(batch_generator.get_num_batches()):
-			self.test_feed.update(batch_generator.next_minibatch(feed_X))
-			activations.append(self.nnmodel.get_activations(self.sess, self.test_feed, layer))
+			self.test_feed = batch_generator.next_minibatch(data, self.test_feed, self.placeholders)
+			activations.append(self.nnmodel.get_activations(sess, self.test_feed, layer))
 		activations = np.vstack(activations)
 
 		return activations
-
-
-	def get_saliency(self, feed_X, layer='output', method='guided', function=tf.reduce_max, batch_size=500):
-		"""get the real-valued feature maps of a given convolutional layer"""
-
-		batch_generator = BatchGenerator(feed_X['inputs'], self.placeholders, batch_size, shuffle=False)
-
-		saliency = []
-		for i in range(batch_generator.get_num_batches()):
-			self.test_feed.update(batch_generator.next_minibatch(feed_X))
-			saliency.append(self.nnmodel.get_saliency(self.sess, self.test_feed, layer=layer, 
-															method=method, function=function)[0][0])
 		
-		return np.vstack(saliency)
-		
-
-	def get_average_saliency(self, feed_X, layer='output', method='guided', function=tf.reduce_max, 
-																	num_average=10, batch_size=100):
-		"""get the real-valued feature maps of a given convolutional layer"""
-
-		batch_generator = BatchGenerator(feed_X['inputs'], self.placeholders, batch_size, shuffle=False)
-
-		saliency = []
-		for i in range(batch_generator.get_num_batches()):
-			self.train_feed.update(batch_generator.next_minibatch(feed_X))
-
-			norm = 0
-			trial_saliency = 0
-			for j in range(num_average):
-				val = self.nnmodel.get_saliency(self.sess, self.train_feed, layer=layer, 
-															method=method, function=function)
-				trial_saliency = trial_saliency + val[0][0]*val[1][0]
-				norm += val[1][0]
-			saliency.append(trial_saliency/norm)
-		return np.vstack(saliency)
-		
-
-	def start_sess(self):
-		"""start tensorflow session"""
-		# run session
-		sess = tf.Session()
-
-		# initialize variables
-		if ('is_training' in self.placeholders) | ('is_training' in self.train_feed):
-			sess.run(tf.global_variables_initializer(), feed_dict={self.placeholders['is_training']: True})
-		else:
-			sess.run(tf.global_variables_initializer(), feed_dict=self.test_feed)
-		#	sess.run(tf.global_variables_initializer())
-			#sess.run(tf.initialize_all_variables())
-
-		return sess
-
-
-	def close_sess(self):
-		"""close tensorflow session"""
-		self.sess.close()
-		
-
 
 #----------------------------------------------------------------------------------------------------
 # Monitor performance metrics class
@@ -456,7 +491,7 @@ class MonitorPerformance():
 
 
 	def update(self, loss, prediction, label):
-		scores = calculate_metrics(label, prediction, self.objective)
+		scores = metrics.calculate_metrics(label, prediction, self.objective)
 		self.add_loss(loss)
 		self.add_metrics(scores)
 
@@ -532,20 +567,22 @@ class MonitorPerformance():
 class BatchGenerator():
 	""" helper class to generate mini-batches """
 
-	def __init__(self, X, placeholders, batch_size=128, shuffle=False):
+	def __init__(self, num_data, batch_size=128, shuffle=False):
 
-		if isinstance(X, list):
-			self.num_data = X[0].shape[0]
-		else:
-			self.num_data = X.shape[0]
-
-		self.placeholders = placeholders
+		self.num_data = num_data
+		self.batch_size = batch_size
+		self.shuffle = shuffle
 		self.current_batch = 0
 		self.generate_minibatches(batch_size, shuffle)
 
-	def generate_minibatches(self, batch_size=128, shuffle=False):
+	def generate_minibatches(self, batch_size=None, shuffle=None):
 
-		if shuffle:
+		if shuffle is None:
+			shuffle = self.shuffle
+		if batch_size is None:
+			batch_size = self.batch_size
+
+		if shuffle == True:
 			index = np.random.permutation(self.num_data)
 		else:
 			index = range(self.num_data)
@@ -565,22 +602,12 @@ class BatchGenerator():
 
 		self.current_batch = 0
 
-	def next_minibatch(self, feed_X):
-		feed_dict = {}
-		for key in self.placeholders.keys():
-			if isinstance(self.placeholders[key], list):
-				for i in range(len(self.placeholders[key])):
-					if feed_X[key][i].shape[0] > 1:
-						feed_dict[self.placeholders[key][i]] = feed_X[key][i][self.indices[self.current_batch]]
-					else:
-						feed_dict[self.placeholders[key][i]] = feed_X[key][i]
-			else:
-				if key in feed_X.keys():
-					if hasattr(feed_X[key], "__len__"):
-						feed_dict[self.placeholders[key]] = feed_X[key][self.indices[self.current_batch]]
-					else:
-						feed_dict[self.placeholders[key]] = feed_X[key]
+	def next_minibatch(self, data, feed_dict, placeholders):
+		indices = np.sort(self.indices[self.current_batch])
 
+		for key in data.keys():
+			feed_dict.update({placeholders[key]: data[key][indices]}) 
+	
 		self.current_batch += 1
 		if self.current_batch == self.num_batches:
 			self.current_batch = 0
@@ -594,22 +621,4 @@ class BatchGenerator():
 		return self.num_batches
 
 
-
-
-
-
-
-
-	
-@ops.RegisterGradient("ZeilerReluGrad")
-def _ZeilerReluGrad(op, grad):
-	# Springenberg et al. (2015): Guided Backpropagation
-	# (grd * (grd > 0).astype(inp.dtype),)
-	return tf.select(0. < grad, gen_nn_ops._relu_grad(grad, op.outputs[0]), tf.zeros_like(grad))
-
-@ops.RegisterGradient("GuidedReluGrad")
-def _GuidedReluGrad(op, grad):
-	# Springenberg et al. (2015): Guided Backpropagation
-	# (grd * (inp > 0).astype(dtype) * (grd > 0).astype(dtype),)
-	return tf.select((0. < grad) & (0. < op.inputs[0]), gen_nn_ops._relu_grad(grad, op.outputs[0]), tf.zeros_like(grad))
 

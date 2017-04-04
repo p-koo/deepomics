@@ -10,43 +10,34 @@ __all__ = [
 ]
 
 class NeuralBuild():
-	def __init__(self, model_layers, supervised=True):
-		self.model_layers = model_layers
-		self.network = OrderedDict()	
+	def __init__(self):
+
+		self.feed_dict = OrderedDict()
+		self.feed_dict['is_training'] = True
+		self.feed_dict['learning_rate'] = 0.001
+
 		self.placeholders = OrderedDict()
-		self.name_gen = NameGenerator()
-		self.placeholders['inputs'] = []
-		self.last_layer = ''
+		self.placeholders['is_training'] = tf.placeholder(tf.bool, name='is_training')
+		self.placeholders['learning_rate'] = tf.placeholder(tf.float32)
+
+
+	def build_layers(self, model_layers, supervised=True):
+
+		self.network = OrderedDict()	
+		name_gen = NameGenerator()
 		self.num_dropout = 0
-
-		self.hidden_feed_dict = {}
-		self.is_training = tf.placeholder(tf.bool, name='is_training')
-		self.hidden_feed_dict[self.is_training] = True
-
-		self.build_layers()
-
-		if supervised:
-			targets = utils.placeholder(shape=(None, model_layers[-1]['num_units']), name='output')
-			self.placeholders['targets'] = targets
-			self.network['output'] = self.network.pop(self.last_layer)
-		else:
-			self.placeholders['targets'] = self.placeholders['inputs']
-			self.network['X'] = self.network.pop(self.last_layer)
-			
-	def get_network_build(self):
-		return self.network, self.placeholders, self.hidden_feed_dict
-
-	def build_layers(self):
+		self.num_inputs = 0
+		self.last_layer = ''
 
 		# loop to build each layer of network
-		for model_layer in self.model_layers:
+		for model_layer in model_layers:
 			layer = model_layer['layer']
 
 			# name of layer
 			if 'name' in model_layer:
 				name = model_layer['name']
 			else:
-				name = self.name_gen.generate_name(layer)
+				name = name_gen.generate_name(layer)
 
 
 			if layer == "input":
@@ -64,6 +55,12 @@ class NeuralBuild():
 				elif layer == 'dense_residual':
 					self.dense_residual_block(model_layer, name)
 
+				elif layer == 'variational':
+					self.network['encode_mu'] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'])
+					self.network['encode_logsigma'] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'])
+					self.network['Z'] = layers.VariationalSampleLayer(self.network['encode_mu'], self.network['encode_logsigma'])
+					self.last_layer = 'Z'
+
 				else:
 					# add core layer
 					self.single_layer(model_layer, name)
@@ -72,7 +69,7 @@ class NeuralBuild():
 			if 'norm' in model_layer:
 				if 'batch' in model_layer['norm']:
 					new_layer = name + '_batch' #str(counter) + '_' + name + '_batch'
-					self.network[new_layer] = layers.BatchNormLayer(self.network[self.last_layer], self.is_training)
+					self.network[new_layer] = layers.BatchNormLayer(self.network[self.last_layer], self.placeholders['is_training'])
 					self.last_layer = new_layer
 					
 			else:
@@ -107,17 +104,24 @@ class NeuralBuild():
 			# add dropout layer
 			if 'dropout' in model_layer:
 				new_layer = name+'_dropout' # str(counter) + '_' + name+'_dropout'
-
-				if model_layer['dropout']:
-					keep_prob = 1-model_layer['dropout']
-					placeholder_name = 'keep_prob'+str(self.num_dropout)
-					exec(placeholder_name+" = tf.placeholder(tf.float32, name='"+placeholder_name+"')")
-					#exec("self.placeholders["+placeholder_name+"] = " + placeholder_name)				
-					exec("self.hidden_feed_dict[" + placeholder_name+"] = " + str(keep_prob))
-					self.num_dropout += 1
-
-				self.network[new_layer] = layers.DropoutLayer(self.network[self.last_layer], keep_prob=keep_prob)
+				placeholder_name = 'keep_prob_'+str(self.num_dropout)
+				self.placeholders[placeholder_name] = tf.placeholder(tf.float32, name=placeholder_name)
+				self.feed_dict[placeholder_name] = 1-model_layer['dropout']
+				self.num_dropout += 1
+				self.network[new_layer] = layers.DropoutLayer(self.network[self.last_layer], keep_prob=self.placeholders[placeholder_name])
 				self.last_layer = new_layer
+
+		if supervised:
+			targets = utils.placeholder(shape=(None, model_layers[-1]['num_units']), name='output')
+			self.network['output'] = self.network.pop(self.last_layer)
+			self.placeholders['targets'] = targets
+			self.feed_dict['targets'] = []
+		else:
+			self.network['X'] = self.network.pop(self.last_layer)
+			self.placeholders['targets'] = self.placeholders['inputs'][0]
+			self.feed_dict['targets'] = []
+			
+		return self.network, self.placeholders, self.feed_dict
 
 
 	def single_layer(self, model_layer, name):
@@ -126,27 +130,25 @@ class NeuralBuild():
 		# input layer
 		if model_layer['layer'] == 'input':
 
-			input_shape = str(model_layer['input_shape'])
-			exec(name+"=utils.placeholder(shape="+input_shape+", name='"+name+"')")	
-			exec("self.network['"+name+"'] = layers.InputLayer("+name+")")
-			exec("self.placeholders['inputs'].append(" + name + ")")
-
+				input_shape = str(model_layer['input_shape'])
+				inputs = utils.placeholder(shape=model_layer['input_shape'], name=name)
+				self.network[name] = layers.InputLayer(inputs)
+				self.placeholders[name] = inputs
+				self.feed_dict[name] = []
 
 		# dense layer
 		elif model_layer['layer'] == 'dense':
 			if 'W' not in model_layer.keys():
-				model_layer['W'] = init.GlorotUniform()
-			if 'b' not in model_layer.keys():
-				model_layer['b'] = init.Constant(0.05)
+				model_layer['W'] = init.HeUniform()
 			self.network[name] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'],
 												 W=model_layer['W'],
-												 b=model_layer['b'])
+												 b=None)
 
 		# convolution layer
 		elif (model_layer['layer'] == 'conv2d'):
 
 			if 'W' not in model_layer.keys():
-				W = init.GlorotUniform()
+				W = init.HeUniform()
 			else:
 				W = model_layer['W']
 			if 'padding' not in model_layer.keys():
@@ -166,7 +168,7 @@ class NeuralBuild():
 			
 		elif model_layer['layer'] == 'conv1d':
 			if 'W' not in model_layer.keys():
-				W = init.GlorotUniform()
+				W = init.HeUniform()
 			else:
 				W = model_layer['W']
 			if 'padding' not in model_layer.keys():
@@ -218,23 +220,20 @@ class NeuralBuild():
 			filter_size = (filter_size, 1)
 
 		self.network[name+'_1resid'] = layers.Conv2DLayer(self.network[last_layer], num_filters=num_filters, filter_size=filter_size, padding='SAME')
-		self.network[name+'_1resid_norm'] = layers.BatchNormLayer(self.network[name+'_1resid'], self.is_training)
+		self.network[name+'_1resid_norm'] = layers.BatchNormLayer(self.network[name+'_1resid'], self.placeholders['is_training'])
 		self.network[name+'_1resid_active'] = layers.ActivationLayer(self.network[name+'_1resid_norm'], function=activation)
 
 		if 'dropout_block' in model_layer:
-			dropout = model_layer['dropout_block']
-			placeholder_name = 'keep_prob'+str(self.num_dropout)
-			exec(placeholder_name+" = tf.placeholder(tf.float32, name='"+placeholder_name+"')")
-			#exec("self.placeholders["+placeholder_name+"] = " + placeholder_name)			
-			exec("self.network[name+'_dropout1'] = layers.DropoutLayer(self.network[name+'_1resid_active'], keep_prob="+placeholder_name+")")				
-			exec("self.hidden_feed_dict["+placeholder_name+"] ="+str(dropout))
+			self.placeholders[placeholder_name] = tf.placeholder(tf.float32, name=placeholder_name)
+			self.feed_dict[placeholder_name] = 1-model_layer['dropout_block']
 			self.num_dropout += 1
+			self.network[name+'_dropout1'] = layers.DropoutLayer(self.network[name+'_1resid_active'], keep_prob=self.placeholders[placeholder_name])
 			lastname = name+'_dropout1'
 		else:
 			lastname = name+'_1resid_active'
 
 		self.network[name+'_2resid'] = layers.Conv2DLayer(self.network[lastname], num_filters=num_filters, filter_size=filter_size, padding='SAME')
-		self.network[name+'_2resid_norm'] = layers.BatchNormLayer(self.network[name+'_2resid'], self.is_training)
+		self.network[name+'_2resid_norm'] = layers.BatchNormLayer(self.network[name+'_2resid'], self.placeholders['is_training'])
 		self.network[name+'_resid_sum'] = layers.ElementwiseSumLayer([self.network[last_layer], self.network[name+'_2resid_norm']])
 		self.network[name+'_resid'] = layers.ActivationLayer(self.network[name+'_resid_sum'], function=activation)
 
@@ -259,24 +258,21 @@ class NeuralBuild():
 			filter_size = (filter_size, 1)
 
 		self.network[name+'_1resid'] = layers.Conv2DLayer(self.network[last_layer], num_filters=num_filters, filter_size=filter_size, padding='SAME')
-		self.network[name+'_1resid_norm'] = layers.BatchNormLayer(self.network[name+'_1resid'], self.is_training)
+		self.network[name+'_1resid_norm'] = layers.BatchNormLayer(self.network[name+'_1resid'], self.placeholders['is_training'])
 		self.network[name+'_1resid_active'] = layers.ActivationLayer(self.network[name+'_1resid_norm'], function=activation)
 
 
 		if 'dropout_block' in model_layer:
-			dropout = model_layer['dropout_block']
-			placeholder_name = 'keep_prob'+str(self.num_dropout)
-			exec(placeholder_name+" = tf.placeholder(tf.float32, name='"+placeholder_name+"')")
-			#exec("self.placeholders["+placeholder_name+"] = " + placeholder_name)			
-			exec("self.network[name+'_dropout1'] = layers.DropoutLayer(self.network[name+'_1resid_active'], keep_prob="+placeholder_name+")")				
-			exec("self.hidden_feed_dict["+placeholder_name+"] ="+str(dropout))
-			lastname = name+'_dropout1'
+			self.placeholders[placeholder_name] = tf.placeholder(tf.float32, name=placeholder_name)
+			self.feed_dict[placeholder_name] = 1-model_layer['dropout_block']
 			self.num_dropout += 1
+			self.network[name+'_dropout1'] = layers.DropoutLayer(self.network[name+'_1resid_active'], keep_prob=self.placeholders[placeholder_name])
+			lastname = name+'_dropout1'
 		else:
 			lastname = name+'_1resid_active'
 
 		self.network[name+'_2resid'] = layers.Conv2DLayer(self.network[lastname], num_filters=num_filters, filter_size=filter_size, padding='SAME')
-		self.network[name+'_2resid_norm'] = layers.BatchNormLayer(self.network[name+'_2resid'], self.is_training)
+		self.network[name+'_2resid_norm'] = layers.BatchNormLayer(self.network[name+'_2resid'], self.placeholders['is_training'])
 		self.network[name+'_resid_sum'] = layers.ElementwiseSumLayer([self.network[last_layer], self.network[name+'_2resid_norm']])
 		self.network[name+'_resid'] = layers.ActivationLayer(self.network[name+'_resid_sum'], function=activation)
 		self.last_layer = name+'_resid'
@@ -298,25 +294,20 @@ class NeuralBuild():
 		num_units = shape[-1].value
 
 		self.network[name+'_1resid'] = layers.DenseLayer(self.network[last_layer], num_units=num_units, b=None)
-		self.network[name+'_1resid_norm'] = layers.BatchNormLayer(self.network[name+'_1resid'], self.is_training)
+		self.network[name+'_1resid_norm'] = layers.BatchNormLayer(self.network[name+'_1resid'], self.placeholders['is_training'])
 		self.network[name+'_1resid_active'] = layers.ActivationLayer(self.network[name+'_1resid_norm'], function=activation)
 
-		
-
 		if 'dropout_block' in model_layer:
-			dropout = model_layer['dropout_block']
-			placeholder_name = 'keep_prob'+str(self.num_dropout)
-			exec(placeholder_name+" = tf.placeholder(tf.float32, name='"+placeholder_name+"')")
-			#exec("self.placeholders["+placeholder_name+"] = " + placeholder_name)			
-			exec("self.network[name+'_dropout1'] = layers.DropoutLayer(self.network[name+'_1resid_active'], keep_prob="+placeholder_name+")")				
-			exec("self.hidden_feed_dict["+placeholder_name+"] ="+str(dropout))
-			lastname = name+'_dropout1'
+			self.placeholders[placeholder_name] = tf.placeholder(tf.float32, name=placeholder_name)
+			self.feed_dict[placeholder_name] = 1-model_layer['dropout_block']
 			self.num_dropout += 1
+			self.network[name+'_dropout1'] = layers.DropoutLayer(self.network[name+'_1resid_active'], keep_prob=self.placeholders[placeholder_name])
+			lastname = name+'_dropout1'
 		else:
 			lastname = name+'_1resid_active'
 
 		self.network[name+'_2resid'] = layers.DenseLayer(self.network[lastname], num_units=num_units, b=None)
-		self.network[name+'_2resid_norm'] = layers.BatchNormLayer(self.network[name+'_2resid'], self.is_training)
+		self.network[name+'_2resid_norm'] = layers.BatchNormLayer(self.network[name+'_2resid'], self.placeholders['is_training'])
 		self.network[name+'_resid_sum'] = layers.ElementwiseSumLayer([self.network[last_layer], self.network[name+'_2resid_norm']])
 		self.network[name+'_resid'] = layers.ActivationLayer(self.network[name+'_resid_sum'], function=activation)
 		self.last_layer = name+'_resid'
@@ -347,11 +338,11 @@ class NameGenerator():
 
 	def generate_name(self, layer):
 		if layer == 'input':
-			if self.num_input == 0:
+			self.num_input += 1
+			if self.num_input == 1:
 				name = 'inputs'
 			else:
 				name = 'inputs_' + str(self.num_input)
-			self.num_input += 1
 
 		elif layer == 'conv1d':
 			name = 'conv1d_' + str(self.num_conv1d)

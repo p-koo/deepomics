@@ -8,7 +8,7 @@ from matplotlib import rcParams
 rcParams.update({'figure.autolayout': True})
 from scipy.misc import imresize
 import pandas as pd
-import utils 
+from .utils import normalize_pwm
 
 
 
@@ -74,7 +74,7 @@ def plot_neg_logo(W, height=50, nt_width=20, alphabet='dna', figsize=(50,20)):
 	fig = plt.figure(figsize=figsize);
 
 	plt.subplot(grid[0])
-	pwm = utils.normalize_pwm(W, method=2)
+	pwm = normalize_pwm(W, method=2)
 	pos_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 	plt.imshow(pos_logo, interpolation='none')
 	plt.xticks([])
@@ -87,7 +87,7 @@ def plot_neg_logo(W, height=50, nt_width=20, alphabet='dna', figsize=(50,20)):
 
 
 	plt.subplot(grid[1]);
-	pwm = utils.normalize_pwm(-W, method=2)
+	pwm = normalize_pwm(-W, method=2)
 	neg_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 	plt.imshow(neg_logo[::-1,:,:], interpolation='none')
 	plt.xticks([])
@@ -132,7 +132,7 @@ def plot_neg_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=(100
 	fig = plt.figure(figsize=figsize);
 
 	plt.subplot(grid[0])
-	pwm = utils.normalize_pwm(W, method=2)
+	pwm = normalize_pwm(W, method=2)
 	pos_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 	plt.imshow(pos_logo, interpolation='none')
 	plt.xticks([])
@@ -149,7 +149,7 @@ def plot_neg_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=(100
 	plt.axis('off');
 
 	plt.subplot(grid[2]);
-	pwm = utils.normalize_pwm(-W, method=2)
+	pwm = normalize_pwm(-W, method=2)
 	neg_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 	plt.imshow(neg_logo[::-1,:,:], interpolation='none')
 	plt.xticks([])
@@ -237,7 +237,7 @@ def subplot_grid(nrows, ncols):
 
 
 def load_alphabet(filepath, alphabet):
-	if (alphabet < 2) | (alphabet == 'dna') | (alphabet == 'rna'): # dna or rna
+	if (alphabet == 'dna') | (alphabet == 'rna'): # dna or rna
 		"""load images of nucleotide alphabet """
 		df = pd.read_table(os.path.join(filepath, 'A.txt'), header=None);
 		A_img = df.as_matrix()
@@ -261,7 +261,7 @@ def load_alphabet(filepath, alphabet):
 			T_img = np.reshape(T_img, [72, 59, 3], order="F").astype(np.uint8)
 		chars = [A_img, C_img, G_img, T_img]
 
-	elif (alphabet == 2) | (alphabet == 'structure'): # structural profile
+	elif (alphabet == 'structure'): # structural profile
 		df = pd.read_table(os.path.join(filepath, 'P.txt'), header=None);
 		P_img = df.as_matrix()
 		P_img =np. reshape(P_img, [64, 41, 3], order="F").astype(np.uint8)
@@ -279,7 +279,7 @@ def load_alphabet(filepath, alphabet):
 		M_img = np.reshape(M_img, [64, 42, 3], order="F").astype(np.uint8)
 		chars = [P_img, H_img, I_img, M_img, E_img]
 
-	elif (alphabet == 3) | (alphabet == 'pu'): # structural profile
+	elif (alphabet == 'pu'): # structural profile
 		df = pd.read_table(os.path.join(filepath, 'P.txt'), header=None);
 		P_img = df.as_matrix()
 		P_img =np. reshape(P_img, [64, 41, 3], order="F").astype(np.uint8)

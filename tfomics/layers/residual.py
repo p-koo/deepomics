@@ -7,6 +7,7 @@ import tensorflow as tf
 from .base import BaseLayer
 from ..utils import Variable
 from .. import init
+from .. import layers
 
 __all__ = [
 	"Conv1DResidualLayer", 
@@ -15,20 +16,18 @@ __all__ = [
 ]
 
 
-
-
-
 class Conv1DResidualLayer(BaseLayer):
 	"""1D convolutional layer"""
 
 	def __init__(self, incoming, filter_size, survival_rate, is_training, activation='relu', **kwargs):
 
-		self.survival_rate = self.survival_rate
+		self.survival_rate = survival_rate
 		self.filter_size = filter_size
 		self.is_training = is_training
 		self.activation = activation
 		self.incoming_shape = incoming.get_output_shape()
 		self.num_filters = self.incoming_shape[-1].value
+		self.incoming = incoming
 
 
 		if 'name' in kwargs:
@@ -41,7 +40,7 @@ class Conv1DResidualLayer(BaseLayer):
 		else:
 			self.keep_prob=None
 
-		self.outgoing, self.name = self.conv1d_residual_block()
+		self.conv1d_residual_block()
 			
 		# shape of the output
 		self.output_shape = self.incoming_shape
@@ -54,11 +53,11 @@ class Conv1DResidualLayer(BaseLayer):
 		num_filters = shape[-1].value
 
 		self.outgoing = OrderedDict()
-		self.outgoing[self.name+'1resid'] = layers.Conv1DLayer(incoming, num_filters=self.num_filters, filter_size=self.filter_size, padding='SAME')
+		self.outgoing[self.name+'1resid'] = layers.Conv1DLayer(self.incoming, num_filters=self.num_filters, filter_size=self.filter_size, padding='SAME')
 		self.outgoing[self.name+'1resid_norm'] = layers.BatchNormLayer(self.outgoing[self.name+'1resid'], self.is_training)
 		self.outgoing[self.name+'1resid_active'] = layers.ActivationLayer(self.outgoing[self.name+'1resid_norm'], function=self.activation)
 
-		if 'dropout_block' in model_layer:
+		if self.keep_prob:
 			self.outgoing[self.name+'dropout1'] = layers.DropoutLayer(self.outgoing[self.name+'1resid_active'], keep_prob=self.keep_prob)
 			lastname = self.name+'dropout1'
 		else:
@@ -66,28 +65,49 @@ class Conv1DResidualLayer(BaseLayer):
 
 		self.outgoing[self.name+'2resid'] = layers.Conv1DLayer(self.outgoing[lastname], num_filters=self.num_filters, filter_size=self.filter_size, padding='SAME')
 		self.outgoing[self.name+'2resid_norm'] = layers.BatchNormLayer(self.outgoing[self.name+'2resid'], self.is_training)
-	
+
 	
 	def get_output(self):
 
-			def not_dropped():
-					add = tf.add(self.incoming.get_output(), self.outgoing[self.name+'resid'].get_output())
-					return tf.nn.relu(add)
+		def not_dropped():
+				self.conv1d_residual_block()
+				return self.outgoing[self.name+'2resid_norm'].get_output()
 
-			def dropped():
-					return tf.nn.relu(self.incoming.get_output())
+		def dropped():
+				return self.incoming.get_output() #tf.nn.relu(self.incoming.get_output())
 
-			def train():
-					Z = tf.random_uniform(shape=[], minval=0.0, maxval=1.0, name='survival')
-					survive = tf.less(Z, self.survival_rate)
-					return tf.cond(survive, not_dropped, dropped)
+		def train():
+			Z = tf.random_uniform(shape=[], minval=0.0, maxval=1.0, name='survival')
+			survive = tf.less(Z, self.survival_rate)
+			return tf.cond(survive, not_dropped, dropped)
 
-			def test():
-					mul = tf.mul(outgoing.get_output(), self.survival_rate)
-					add = tf.add(res, mul)
-					return tf.nn.relu(add)
+			"""
+			placeholder_name = 'survival_'+str(self.num_survival)
+			print(placeholder_name+" = tf.placeholder(tf.float32, name='"+placeholder_name+"')")
+			print("self.hidden_feed_dict[" + placeholder_name+"] = " + str(model_layer['stochastic']))
 
-			return tf.cond(self.is_training, train, test)
+			exec(placeholder_name+" = tf.placeholder(tf.float32, name='"+placeholder_name+"')")
+			exec("self.hidden_feed_dict[" + placeholder_name+"] = " + str(model_layer['stochastic']))
+			self.num_survival += 1
+
+			Z = tf.random_uniform(shape=[], minval=0.0, maxval=1.0, name='survival')
+			print("survive = tf.less(Z, self.hidden_feed_dict[" + placeholder_name+"])")
+			survive = exec("survive = tf.less(Z, self.hidden_feed_dict[" + placeholder_name+"])")
+			return tf.cond(survive, not_dropped, dropped)
+			"""
+
+		def test():
+			mul = tf.multiply(self.outgoing[self.name+'2resid_norm'].get_output(), self.survival_rate)
+			add = tf.add(self.incoming.get_output(), mul)
+			return tf.nn.relu(add)
+
+			"""
+				exec("mul = tf.multiply(self.model_layer[self.last_layer].get_output(), self.hidden_feed_dict[" + placeholder_name+"])")
+				Z = tf.constant(0.0)
+				survive = exec("tf.less(Z, self.hidden_feed_dict[" + placeholder_name+"])")
+				return tf.cond(survive, not_dropped, dropped)
+			"""
+		return tf.cond(self.is_training, train, test)
 
 	def get_input_shape(self):
 		return self.incoming_shape
@@ -97,17 +117,15 @@ class Conv1DResidualLayer(BaseLayer):
 		return self.output_shape
 	
 	def get_variable(self):
-
 		params = []
 		for layer in self.outgoing:
-			if hasattr(self.outgoing[layer], 'is_trainable'):
-				if self.outgoing[layer].is_trainable():
-					variables = self.outgoing[layer].get_variable()
-					if isinstance(variables, list):
-						for var in variables:
-							params.append(var.get_variable())
-					else:
-						params.append(variables.get_variable())
+			if self.outgoing[layer].is_trainable():
+				variables = self.outgoing[layer].get_variable()
+				if isinstance(variables, list):
+					for var in variables:
+						params.append(var)
+				else:
+					params.append(variables)
 		return params
 	
 	def set_trainable(self, status):
@@ -143,10 +161,11 @@ class Conv2DResidualLayer(BaseLayer):
 
 	def __init__(self, incoming, filter_size, survival_rate, is_training, activation='relu', **kwargs):
 
-		self.survival_rate = self.survival_rate
+		self.survival_rate = survival_rate
 		self.filter_size = filter_size
 		self.is_training = is_training
 		self.activation = activation
+		self.incoming = incoming
 
 		self.incoming_shape = incoming.get_output_shape()
 		self.num_filters = self.incoming_shape[-1].value
@@ -162,7 +181,7 @@ class Conv2DResidualLayer(BaseLayer):
 		else:
 			self.keep_prob=None
 
-		self.outgoing, self.name = self.conv2d_residual_block()
+		self.conv2d_residual_block()
 
 			
 		# shape of the output
@@ -176,11 +195,11 @@ class Conv2DResidualLayer(BaseLayer):
 		num_filters = shape[-1].value
 
 		self.outgoing = OrderedDict()
-		self.outgoing[self.name+'1resid'] = layers.Conv2DLayer(incoming, num_filters=self.num_filters, filter_size=self.filter_size, padding='SAME')
+		self.outgoing[self.name+'1resid'] = layers.Conv2DLayer(self.incoming, num_filters=self.num_filters, filter_size=self.filter_size, padding='SAME')
 		self.outgoing[self.name+'1resid_norm'] = layers.BatchNormLayer(self.outgoing[self.name+'1resid'], self.is_training)
 		self.outgoing[self.name+'1resid_active'] = layers.ActivationLayer(self.outgoing[self.name+'1resid_norm'], function=self.activation)
 
-		if 'dropout_block' in model_layer:
+		if self.keep_prob:
 			self.outgoing[self.name+'dropout1'] = layers.DropoutLayer(self.outgoing[self.name+'1resid_active'], keep_prob=self.keep_prob)
 			lastname = self.name+'dropout1'
 		else:
@@ -193,11 +212,11 @@ class Conv2DResidualLayer(BaseLayer):
 	def get_output(self):
 
 			def not_dropped():
-					add = tf.add(self.incoming.get_output(), self.outgoing[self.name+'resid'].get_output())
+					add = tf.add(self.incoming.get_output(), self.outgoing[self.name+'2resid_norm'].get_output())
 					return tf.nn.relu(add)
 
 			def dropped():
-					return tf.nn.relu(self.incoming.get_output())
+					return self.incoming.get_output() #tf.nn.relu(self.incoming.get_output())
 
 			def train():
 					Z = tf.random_uniform(shape=[], minval=0.0, maxval=1.0, name='survival')
@@ -205,8 +224,8 @@ class Conv2DResidualLayer(BaseLayer):
 					return tf.cond(survive, not_dropped, dropped)
 
 			def test():
-					mul = tf.mul(outgoing.get_output(), self.survival_rate)
-					add = tf.add(res, mul)
+					mul = tf.multiply(self.outgoing[self.name+'2resid_norm'].get_output(), self.survival_rate)
+					add = tf.add(self.incoming.get_output(), mul)
 					return tf.nn.relu(add)
 
 			return tf.cond(self.is_training, train, test)
@@ -222,14 +241,13 @@ class Conv2DResidualLayer(BaseLayer):
 
 		params = []
 		for layer in self.outgoing:
-			if hasattr(self.outgoing[layer], 'is_trainable'):
-				if self.outgoing[layer].is_trainable():
-					variables = self.outgoing[layer].get_variable()
-					if isinstance(variables, list):
-						for var in variables:
-							params.append(var.get_variable())
-					else:
-						params.append(variables.get_variable())
+			if self.outgoing[layer].is_trainable():
+				variables = self.outgoing[layer].get_variable()
+				if isinstance(variables, list):
+					for var in variables:
+						params.append(var)
+				else:
+					params.append(variables)
 		return params
 	
 	def set_trainable(self, status):
@@ -263,9 +281,10 @@ class DenseResidualLayer(BaseLayer):
 
 	def __init__(self, incoming, survival_rate, is_training, activation='relu', **kwargs):
 
-		self.survival_rate = self.survival_rate
+		self.survival_rate = survival_rate
 		self.is_training = is_training
 		self.activation = activation
+		self.incoming = incoming
 
 		if 'name' in kwargs:
 			self.name = kwargs['name'] + '_'
@@ -281,7 +300,7 @@ class DenseResidualLayer(BaseLayer):
 		self.incoming_shape = incoming.get_output_shape()
 		self.num_units = self.incoming_shape[-1].value
 
-		self.outgoing, self.name = self.dense_residual_block()
+		self.dense_residual_block()
 
 		# shape of the output
 		self.output_shape = self.incoming_shape
@@ -290,11 +309,11 @@ class DenseResidualLayer(BaseLayer):
 	def dense_residual_block(self):
 
 		self.outgoing = OrderedDict()
-		self.outgoing[self.name+'1resid'] = layers.DenseLayer(incoming, num_units=self.num_units, b=None)
+		self.outgoing[self.name+'1resid'] = layers.DenseLayer(self.incoming, num_units=self.num_units, b=None)
 		self.outgoing[self.name+'1resid_norm'] = layers.BatchNormLayer(self.outgoing[self.name+'1resid'], self.is_training)
 		self.outgoing[self.name+'1resid_active'] = layers.ActivationLayer(self.outgoing[self.name+'1resid_norm'], function=self.activation)
 
-		if 'dropout_block' in model_layer:
+		if self.keep_prob:
 			self.outgoing[self.name+'dropout1'] = layers.DropoutLayer(self.outgoing[self.name+'1resid_active'], keep_prob=self.keep_prob)
 			lastname = self.name+'dropout1'
 		else:
@@ -307,11 +326,11 @@ class DenseResidualLayer(BaseLayer):
 	def get_output(self):
 
 			def not_dropped():
-					add = tf.add(self.incoming.get_output(), self.outgoing[self.name+'resid'].get_output())
+					add = tf.add(self.incoming.get_output(), self.outgoing[self.name+'2resid_norm'].get_output())
 					return tf.nn.relu(add)
 
 			def dropped():
-					return tf.nn.relu(self.incoming.get_output())
+					return self.incoming.get_output() #tf.nn.relu(self.incoming.get_output())
 
 			def train():
 					Z = tf.random_uniform(shape=[], minval=0.0, maxval=1.0, name='survival')
@@ -319,8 +338,8 @@ class DenseResidualLayer(BaseLayer):
 					return tf.cond(survive, not_dropped, dropped)
 
 			def test():
-					mul = tf.mul(outgoing.get_output(), self.survival_rate)
-					add = tf.add(res, mul)
+					mul = tf.multiply(self.outgoing[self.name+'2resid_norm'].get_output(), self.survival_rate)
+					add = tf.add(self.incoming.get_output(), mul)
 					return tf.nn.relu(add)
 
 			return tf.cond(self.is_training, train, test)
@@ -333,18 +352,17 @@ class DenseResidualLayer(BaseLayer):
 		return self.output_shape
 	
 	def get_variable(self):
-
 		params = []
 		for layer in self.outgoing:
-			if hasattr(self.outgoing[layer], 'is_trainable'):
-				if self.outgoing[layer].is_trainable():
-					variables = self.outgoing[layer].get_variable()
-					if isinstance(variables, list):
-						for var in variables:
-							params.append(var.get_variable())
-					else:
-						params.append(variables.get_variable())
+			if self.outgoing[layer].is_trainable():
+				variables = self.outgoing[layer].get_variable()
+				if isinstance(variables, list):
+					for var in variables:
+						params.append(var)
+				else:
+					params.append(variables)
 		return params
+
 	
 	def set_trainable(self, status):
 		for layer in self.outgoing:
