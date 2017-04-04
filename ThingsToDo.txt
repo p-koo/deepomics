@@ -1,12 +1,11 @@
 Things to do:
+- VAE
 - LSTMLayer
 - BiLSTMLayer
 - EmbeddingLayer
-- add stochastic depth
 
 examples:
 - add MNIST example w/ standard tensorflow tutorial network
-- add Genome motif example
 - add vae example for image analysis
 - add highway network example
 - add style transfer example
@@ -17,5 +16,3 @@ examples:
 
 other things:
 - more flexibility to regularize each layer with different strengths
-- more flexibility with dropout to use different strengths for different layers
-- more integrated variable storage with tensorflow graph w/ flags, i.e. regularize
