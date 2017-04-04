@@ -5,9 +5,7 @@ from six.moves import cPickle
 
 import tensorflow as tf
 
-from .fit import train_minibatch
-from .neuralnetwork import NeuralNet, NeuralTrainer
-from .neuralbuild import NeuralBuild 
+import tfomics
 
  
 __all__ = [
@@ -136,24 +134,22 @@ class NeuralOptimizer:
 	def train_model(self, train, valid, new_model_layers, new_optimization,
 						num_epochs=10, batch_size=128, verbose=0):
 		
-
 		# build neural network model
-		nnbuild = NeuralBuild(new_model_layers)
-		network, placeholders, hidden_feed_dict = nnbuild.get_network_build()
-
-		# build neural network class
-		nnmodel = NeuralNet(network, placeholders, hidden_feed_dict)
+		nnmodel = tfomics.neuralnetwork.NeuralNet()
+		nnmodel.build_layers(new_model_layers, new_optimization)
 
 		# compile neural trainer
-		nntrainer = NeuralTrainer(nnmodel, new_optimization, save=None, filepath=None)
+		nntrainer = tfomics.neuralnetwork.NeuralTrainer(nnmodel, save=None, filepath=None)
 
-		train_minibatch(nntrainer, {'train': train}, batch_size=batch_size, num_epochs=num_epochs, 
-								patience=[], verbose=verbose, shuffle=True)
+		# start session
+		sess = tfomics.utils.initialize_session(nnmodel.placeholders)
 
-		loss = nntrainer.test_model(valid, batch_size=batch_size, verbose=1)
-		
-		nntrainer.close_sess()
-		
+		tfomics.fit.train_minibatch(sess, nntrainer, {'train': train}, batch_size=batch_size, num_epochs=num_epochs, 
+								patience=None, verbose=verbose, shuffle=True, save_all=False)
+
+		loss = nntrainer.test_model(valid, name="valid", batch_size=batch_size, verbose=1)
+		sess.close()
+
 		return loss
 	
 

@@ -110,6 +110,74 @@ class NeuralNet:
 		print('----------------------------------------------------------------------------')
 
 
+
+	def get_activations(self, sess, feed_X, layer='output'):
+		"""get the real-valued feature maps of a given convolutional layer"""
+
+		return sess.run(self.network[layer].get_output(), feed_dict=feed_X)
+
+
+	def save_model_parameters(self, sess, filepath='model.ckpt', verbose=1):
+		"""save model parameters to a file"""
+		if verbose:
+			print("  saving model to: ", filepath)
+		saver = tf.train.Saver()
+		saver.save(sess, save_path=filepath)
+		
+
+	def load_model_parameters(self, sess, filepath='model.ckpt', verbose=1):
+		"""initialize network with all_param_values"""
+		if verbose:
+			print("loading model from: ", filepath)
+		saver = tf.train.Saver()
+		saver.restore(sess, filepath)
+
+
+	def get_trainable_parameters(self):   
+		"""get all trainable parameters (tensorflow variables) in network""" 
+
+		params = []
+		for layer in self.network:
+			if hasattr(self.network[layer], 'is_trainable'):
+				if self.network[layer].is_trainable():
+					variables = self.network[layer].get_variable()
+					if isinstance(variables, list):
+						for var in variables:
+							params.append(var.get_variable())
+					else:
+						params.append(variables.get_variable())
+		return params
+
+
+	def get_parameters(self, sess, layer=[]):
+		"""return all the parameters of the network"""
+
+		layer_params = []
+		if layer:
+			variables = self.network[layer].get_variable()
+			if isinstance(variables, list):
+				params = []
+				for var in variables:
+					params.append(sess.run(var.get_variable()))
+				layer_params.append(params)
+			else:
+				layer_params.append(sess.run(variables.get_variable()))
+		else:
+
+			for layer in self.network:
+				if hasattr(self.network[layer], 'is_trainable'):
+					if self.network[layer].is_trainable():
+						variables = self.network[layer].get_variable()
+						if isinstance(variables, list):
+							params = []
+							for var in variables:
+								params.append(sess.run(var.get_variable()))
+							layer_params.append(params)
+						else:
+							layer_params.append(sess.run(variables.get_variable()))
+		return layer_params
+
+
 	def calculate_saliency(self, sess, y, dx, feed_dict, class_index=None):
 		if class_index is None:
 			dy = tf.reduce_max(y, axis=1)
@@ -154,71 +222,6 @@ class NeuralNet:
 			
 		return saliency_ave, counter
 
-
-
-	def get_parameters(self, sess, layer=[]):
-		"""return all the parameters of the network"""
-
-		layer_params = []
-		if layer:
-			variables = self.network[layer].get_variable()
-			if isinstance(variables, list):
-				params = []
-				for var in variables:
-					params.append(sess.run(var.get_variable()))
-				layer_params.append(params)
-			else:
-				layer_params.append(sess.run(variables.get_variable()))
-		else:
-
-			for layer in self.network:
-				if hasattr(self.network[layer], 'is_trainable'):
-					if self.network[layer].is_trainable():
-						variables = self.network[layer].get_variable()
-						if isinstance(variables, list):
-							params = []
-							for var in variables:
-								params.append(sess.run(var.get_variable()))
-							layer_params.append(params)
-						else:
-							layer_params.append(sess.run(variables.get_variable()))
-		return layer_params
-
-
-	def get_activations(self, sess, feed_X, layer='output'):
-		"""get the real-valued feature maps of a given convolutional layer"""
-
-		return sess.run(self.network[layer].get_output(), feed_dict=feed_X)
-
-
-	def save_model_parameters(self, sess, filepath='model.ckpt'):
-		"""save model parameters to a file"""
-		print("  saving model to: ", filepath)
-		saver = tf.train.Saver()
-		saver.save(sess, save_path=filepath)
-		
-
-	def load_model_parameters(self, sess, filepath='model.ckpt'):
-		"""initialize network with all_param_values"""
-		print("loading model from: ", filepath)
-		saver = tf.train.Saver()
-		saver.restore(sess, filepath)
-
-
-	def get_trainable_parameters(self):   
-		"""get all trainable parameters (tensorflow variables) in network""" 
-
-		params = []
-		for layer in self.network:
-			if hasattr(self.network[layer], 'is_trainable'):
-				if self.network[layer].is_trainable():
-					variables = self.network[layer].get_variable()
-					if isinstance(variables, list):
-						for var in variables:
-							params.append(var.get_variable())
-					else:
-						params.append(variables.get_variable())
-		return params
 
 
 #----------------------------------------------------------------------------------------------------
@@ -389,20 +392,23 @@ class NeuralTrainer():
 	def save_model(self, sess, addon=None):
 		"""save model parameters to file, according to filepath"""
 
+
 		if addon is not None:
-			filepath = self.filepath + '_' + addon + '.ckpt'
-			self.nnmodel.save_model_parameters(sess, filepath)
-		else:
-			if self.save == 'best':
-				min_loss, min_epoch, epoch = self.valid_monitor.get_min_loss()
-				if self.valid_monitor.loss[-1] <= min_loss:
-					print('  lower cross-validation found')
-					filepath = self.filepath + '_best.ckpt'
-					self.nnmodel.save_model_parameters(sess, filepath)
-			elif self.save == 'all':
-				epoch = len(self.valid_monitor.loss)
-				filepath = self.filepath + '_' + str(epoch) + '.ckpt'
+			if self.filepath:
+				filepath = self.filepath + '_' + addon + '.ckpt'
 				self.nnmodel.save_model_parameters(sess, filepath)
+		else:
+			if self.filepath:
+				if self.save == 'best':
+					min_loss, min_epoch, epoch = self.valid_monitor.get_min_loss()
+					if self.valid_monitor.loss[-1] <= min_loss:
+						print('  lower cross-validation found')
+						filepath = self.filepath + '_best.ckpt'
+						self.nnmodel.save_model_parameters(sess, filepath)
+				elif self.save == 'all':
+					epoch = len(self.valid_monitor.loss)
+					filepath = self.filepath + '_' + str(epoch) + '.ckpt'
+					self.nnmodel.save_model_parameters(sess, filepath)
 
 
 	def save_all_metrics(self, filepath):
@@ -427,13 +433,13 @@ class NeuralTrainer():
 		return status
 
 
-	def set_best_parameters(self, sess, filepath=[]):
+	def set_best_parameters(self, sess, filepath=[], verbose=1):
 		""" set the best parameters from file"""
 		
 		if not filepath:
 			filepath = self.filepath + '_best.ckpt'
 
-		self.nnmodel.load_model_parameters(sess, filepath)
+		self.nnmodel.load_model_parameters(sess, filepath, verbose=verbose)
 
 
 	def get_parameters(self, sess, layer=[]):

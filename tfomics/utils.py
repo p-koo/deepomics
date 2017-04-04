@@ -90,6 +90,8 @@ class Variable():
 		
 	def is_trainable(self):
 		return self.trainable
+
+
 def make_directory(path, foldername, verbose=1):
 	"""make a directory"""
 
@@ -105,19 +107,25 @@ def make_directory(path, foldername, verbose=1):
 
 
 
+def normalize_pwm(pwm, MAX=None, factor=4):
 
-def normalize_pwm(pwm, method=2):
-	if method == 1:
-		pwm = pwm/np.max(np.abs(pwm))
-		pwm += .25
-		pwm[pwm<0] = 0
-	elif method == 2:
-		MAX = np.max(np.abs(pwm))
-		pwm = pwm/MAX*4
-		pwm = np.exp(pwm)
-
-	norm = np.outer(np.ones(pwm.shape[0]), np.sum(np.abs(pwm), axis=0))
-	return pwm/norm
+	if len(pwm.shape) > 2:
+		pwm_norm = []
+		for p in range(pwm.shape[0]):
+			if MAX is None:
+					MAX = np.max(np.abs(pwm[p]))
+			pwm[p] = pwm[p]/MAX*factor
+			pwm[p] = np.exp(pwm[p])
+			norm = np.outer(np.ones(pwm[p].shape[0]), np.sum(np.abs(pwm[p]), axis=0))
+			pwm_norm.append([pwm[p]/norm]) 
+		return np.vstack(pwm_norm)
+	else:
+		if MAX is None:
+				MAX = np.max(np.abs(pwm))
+		pwm = pwm/MAX*factor
+		pwm= np.exp(pwm)
+		norm = np.outer(np.ones(pwm.shape[0]), np.sum(np.abs(pwm), axis=0))
+		return pwm/norm
 
 
 def meme_generate(W, output_file='meme.txt', prefix='filter'):

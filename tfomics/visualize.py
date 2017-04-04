@@ -49,54 +49,23 @@ def plot_pr_all(final_pr):
 	return fig, plt
 
 
-def plot_filter_logos(W, figsize=(2,10), height=25, nt_width=10, norm=0, alphabet='dna'):
-	W =  np.squeeze(W)
+def plot_filter_logos(W, normalize=True, figsize=(2,10), height=25, nt_width=10, norm=0, alphabet='dna', MAX=None):
+
 	num_filters = W.shape[0]
 	num_rows = int(np.ceil(np.sqrt(num_filters)))    
 	grid = mpl.gridspec.GridSpec(num_rows, num_rows)
 	grid.update(wspace=0.2, hspace=0.2, left=0.1, right=0.2, bottom=0.1, top=0.2) 
 	fig = plt.figure(figsize=figsize);
 	for i in range(num_filters):
-		logo = seq_logo(W[i], height=height, nt_width=nt_width, norm=norm, alphabet=alphabet)
 		plt.subplot(grid[i]);
+		if normalize:
+			W_norm = normalize_pwm(W[i], MAX=MAX)
+		else:
+			W_norm = W[i]
+		logo = seq_logo(W_norm, height=height, nt_width=nt_width, norm=norm, alphabet=alphabet)
 		plot_seq_logo(logo, nt_width=nt_width, step_multiple=None)
-		if np.mod(i, num_rows) != 0:
-			plt.yticks([])
-	return fig, plt
-
-
-def plot_neg_logo(W, height=50, nt_width=20, alphabet='dna', figsize=(50,20)):
-
-	num_rows = 2
-	grid = mpl.gridspec.GridSpec(num_rows, 1)
-	grid.update(wspace=0.2, hspace=0.0, left=0.1, right=0.2, bottom=0.1, top=0.2) 
-
-	fig = plt.figure(figsize=figsize);
-
-	plt.subplot(grid[0])
-	pwm = normalize_pwm(W, method=2)
-	pos_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
-	plt.imshow(pos_logo, interpolation='none')
-	plt.xticks([])
-	plt.yticks([0, 100], ['2.0','0.0'])
-	ax = plt.gca()
-	ax.spines['right'].set_visible(False)
-	ax.spines['top'].set_visible(False)
-	ax.yaxis.set_ticks_position('none')
-	ax.xaxis.set_ticks_position('none')
-
-
-	plt.subplot(grid[1]);
-	pwm = normalize_pwm(-W, method=2)
-	neg_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
-	plt.imshow(neg_logo[::-1,:,:], interpolation='none')
-	plt.xticks([])
-	plt.yticks([0, 100], ['0.0','2.0'])
-	ax = plt.gca()
-	ax.spines['right'].set_visible(False)
-	ax.spines['bottom'].set_visible(False)
-	ax.yaxis.set_ticks_position('none')
-	ax.xaxis.set_ticks_position('none')
+		#if np.mod(i, num_rows) != 0:
+		plt.yticks([])
 	return fig, plt
 
 
@@ -105,13 +74,13 @@ def plot_seq_logo(logo, nt_width=None, step_multiple=None):
 	if nt_width:
 		num_nt = logo.shape[1]/nt_width
 		if step_multiple:
-			step_size = num_nt/(step_multiple+1)
+			step_size = int(num_nt/(step_multiple+1))
 			nt_range = range(step_size, step_size*step_multiple)              
 			plt.xticks([step_size*nt_width, step_size*2*nt_width, step_size*3*nt_width, step_size*4*nt_width], 
 						[str(step_size), str(step_size*2), str(step_size*3), str(step_size*4)])
 		else:
 			plt.xticks([])
-		plt.yticks([0, 100], ['2.0','0.0'])
+		plt.yticks([0, 50], ['2.0','0.0'])
 		ax = plt.gca()
 		ax.spines['right'].set_visible(False)
 		ax.spines['top'].set_visible(False)
@@ -123,16 +92,62 @@ def plot_seq_logo(logo, nt_width=None, step_multiple=None):
 	return plt
 
 
-def plot_neg_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=(100,8)):
+def plot_pos_saliency(W, height=50, nt_width=20, alphabet='dna', MAX=None):
 
-	num_rows = 3
+	pwm = normalize_pwm(W, MAX=MAX)
+	pos_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
+	plt.imshow(pos_logo, interpolation='none')
+	plt.xticks([])
+	plt.yticks([])
+	ax = plt.gca()
+	ax.spines['right'].set_visible(False)
+	ax.spines['top'].set_visible(False)
+	ax.yaxis.set_ticks_position('none')
+	ax.xaxis.set_ticks_position('none')
+
+
+def plot_seq_pos_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=(100,8), title=None, MAX=None):
+
+	num_rows = 2
 	grid = mpl.gridspec.GridSpec(num_rows, 1)
 	grid.update(wspace=0.2, hspace=0.2, left=0.1, right=0.2, bottom=0.1, top=0.2) 
 
 	fig = plt.figure(figsize=figsize);
 
 	plt.subplot(grid[0])
-	pwm = normalize_pwm(W, method=2)
+	pwm = normalize_pwm(W, MAX=MAX)
+	pos_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
+	plt.imshow(pos_logo, interpolation='none')
+	plt.xticks([])
+	plt.yticks([])
+	#plt.yticks([0, 100], ['2.0','0.0'])
+	ax = plt.gca()
+	ax.spines['right'].set_visible(False)
+	ax.spines['top'].set_visible(False)
+	ax.yaxis.set_ticks_position('none')
+	ax.xaxis.set_ticks_position('none')
+	if title:
+		plt.title(title)
+
+	plt.subplot(grid[1])
+	logo = seq_logo(np.squeeze(X), height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
+	plt.imshow(logo, interpolation='none');
+	plt.axis('off');
+
+	return fig, plt
+
+
+
+def plot_neg_logo(W, height=50, nt_width=20, alphabet='dna', figsize=(50,20), title=None, MAX=None):
+
+	num_rows = 2
+	grid = mpl.gridspec.GridSpec(num_rows, 1)
+	grid.update(wspace=0.2, hspace=0.0, left=0.1, right=0.2, bottom=0.1, top=0.2) 
+
+	fig = plt.figure(figsize=figsize);
+
+	plt.subplot(grid[0])
+	pwm = normalize_pwm(W, MAX=MAX)
 	pos_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 	plt.imshow(pos_logo, interpolation='none')
 	plt.xticks([])
@@ -142,6 +157,87 @@ def plot_neg_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=(100
 	ax.spines['top'].set_visible(False)
 	ax.yaxis.set_ticks_position('none')
 	ax.xaxis.set_ticks_position('none')
+	if title:
+		plt.title(title)
+
+
+	plt.subplot(grid[1]);
+	pwm = normalize_pwm(-W, MAX=MAX)
+	neg_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
+	plt.imshow(neg_logo[::-1,:,:], interpolation='none')
+	plt.xticks([])
+	plt.yticks([0, 100], ['0.0','2.0'])
+	ax = plt.gca()
+	ax.spines['right'].set_visible(False)
+	ax.spines['bottom'].set_visible(False)
+	ax.yaxis.set_ticks_position('none')
+	ax.xaxis.set_ticks_position('none')
+	return fig, plt
+
+	
+
+def plot_neg_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=(100,8), title=None, MAX=None):
+
+	num_rows = 2
+	grid = mpl.gridspec.GridSpec(num_rows, 1)
+	grid.update(wspace=0.2, hspace=0.00, left=0.1, right=0.2, bottom=0.0, top=0.05) 
+
+	fig = plt.figure(figsize=figsize);
+
+	plt.subplot(grid[0])
+	pwm = normalize_pwm(W, MAX=MAX)
+	pos_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
+	plt.imshow(pos_logo, interpolation='none')
+	plt.xticks([])	
+	plt.yticks([])
+	#plt.yticks([0, 100], ['2.0','0.0'])
+	ax = plt.gca()
+	ax.spines['right'].set_visible(False)
+	ax.spines['top'].set_visible(False)
+	ax.yaxis.set_ticks_position('none')
+	ax.xaxis.set_ticks_position('none')
+	if title:
+	    plt.title(title)
+
+	plt.subplot(grid[1]);
+	pwm = normalize_pwm(-W, MAX=MAX)
+	neg_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
+	plt.imshow(neg_logo[::-1,:,:], interpolation='none')
+	plt.xticks([])	
+	plt.yticks([])
+	#plt.yticks([0, 100], ['2.0','0.0'])
+	ax = plt.gca()
+	ax.spines['right'].set_visible(False)
+	ax.spines['bottom'].set_visible(False)
+	ax.yaxis.set_ticks_position('none')
+	ax.xaxis.set_ticks_position('none')
+
+	fig.set_size_inches(150, 14)
+	return fig, plt
+
+
+def plot_seq_neg_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=(100,8), title=None, MAX=None):
+
+	num_rows = 3
+	grid = mpl.gridspec.GridSpec(num_rows, 1)
+	grid.update(wspace=0.2, hspace=0.2, left=0.1, right=0.2, bottom=0.1, top=0.2) 
+
+	fig = plt.figure(figsize=figsize);
+
+	plt.subplot(grid[0])
+	pwm = normalize_pwm(W, MAX=MAX)
+	pos_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
+	plt.imshow(pos_logo, interpolation='none')
+	plt.xticks([])
+	plt.yticks([])
+	#plt.yticks([0, 100], ['2.0','0.0'])
+	ax = plt.gca()
+	ax.spines['right'].set_visible(False)
+	ax.spines['top'].set_visible(False)
+	ax.yaxis.set_ticks_position('none')
+	ax.xaxis.set_ticks_position('none')
+	if title:
+		plt.title(title)
 
 	plt.subplot(grid[1])
 	logo = seq_logo(np.squeeze(X), height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
@@ -149,11 +245,13 @@ def plot_neg_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=(100
 	plt.axis('off');
 
 	plt.subplot(grid[2]);
-	pwm = normalize_pwm(-W, method=2)
+	pwm = normalize_pwm(-W, MAX=MAX)
 	neg_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 	plt.imshow(neg_logo[::-1,:,:], interpolation='none')
-	plt.xticks([])
-	plt.yticks([0, 100], ['0.0','2.0'])
+	plt.xticks([])	
+	plt.yticks([])
+	#plt.yticks([0, 100], ['2.0','0.0'])
+	#plt.yticks([0, 100], ['0.0','2.0'])
 	ax = plt.gca()
 	ax.spines['right'].set_visible(False)
 	ax.spines['bottom'].set_visible(False)

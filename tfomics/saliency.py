@@ -21,7 +21,7 @@ def backprop(X, layer='output', class_index=None, params=None):
 
 	# setup session and restore optimal parameters
 	sess = utils.initialize_session(nnmodel.placeholders)
-	nntrainer.set_best_parameters(sess, params['model_path'])
+	nntrainer.set_best_parameters(sess, params['model_path'], verbose=0)
 
 	# backprop saliency
 	if layer == 'output':
@@ -59,7 +59,7 @@ def guided_backprop(X, layer='output', class_index=None, params=None):
 
 	# setup session and restore optimal parameters
 	sess = utils.initialize_session(nnmodel.placeholders)
-	nntrainer.set_best_parameters(sess, params['model_path'])
+	nntrainer.set_best_parameters(sess, params['model_path'], verbose=0)
 
 	# backprop saliency
 	if layer == 'output':
@@ -99,7 +99,7 @@ def stochastic_backprop(X, layer='output', class_index=None, params=None,
 
 	# setup session and restore optimal parameters
 	sess = utils.initialize_session(nnmodel.placeholders)
-	nntrainer.set_best_parameters(sess, params['model_path'])
+	nntrainer.set_best_parameters(sess, params['model_path'], verbose=0)
 
 	# stochastic backprop saliency
 	if layer == 'output':
@@ -143,7 +143,7 @@ def stochastic_guided_backprop(X, layer='output', class_index=None, params=None,
 
 	# setup session and restore optimal parameters
 	sess = utils.initialize_session(nnmodel.placeholders)
-	nntrainer.set_best_parameters(sess, params['model_path'])
+	nntrainer.set_best_parameters(sess, params['model_path'], verbose=0)
 
 	# stochastic guided saliency
 	if layer == 'output':
