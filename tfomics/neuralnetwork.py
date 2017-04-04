@@ -80,11 +80,8 @@ class NeuralNet:
 
 		if self.optimization['objective'] == 'categorical':
 			predictions = tf.argmax(self.predictions, axis=1)
-			if predictions.get_shape[1].value > 1:
-				targets = tf.argmax(self.placeholders['targets'], axis=1)
-				self.metric = tf.reduce_mean(tf.cast(tf.equal(predictions, targets), tf.float32))
-			else:
-				self.metric = tf.reduce_mean(tf.cast(tf.equal(predictions, self.placeholders['targets']), tf.float32))
+			targets = tf.argmax(self.placeholders['targets'], axis=1)
+			self.metric = tf.reduce_mean(tf.cast(tf.equal(predictions, targets), tf.float32))
 				
 		elif self.optimization['objective'] == 'binary':
 			predictions = tf.cast(tf.greater_equal(self.predictions, 0.5), tf.float32)
@@ -259,8 +256,8 @@ class NeuralTrainer():
 		self.test_feed = {}
 		self.stochastic_feed = {}
 		for key in feed_dict.keys():
+			self.train_feed[placeholders[key]] = feed_dict[key]
 			if key != 'targets':
-				self.train_feed[placeholders[key]] = feed_dict[key]
 				self.test_feed[placeholders[key]] = feed_dict[key]
 				self.stochastic_feed[placeholders[key]] = feed_dict[key]
 

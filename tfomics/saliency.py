@@ -103,18 +103,18 @@ def stochastic_backprop(X, layer='output', class_index=None, params=None,
 
 	# stochastic backprop saliency
 	if layer == 'output':
-		layer = list(network.keys())[-2]
-		saliency, counts = nntrainer.get_stochastic_saliency(sess, X, network[layer], class_index=class_index, 
+		layer = list(nnmodel.network.keys())[-2]
+		saliency, counts = nntrainer.get_stochastic_saliency(sess, X, nnmodel.network[layer], class_index=class_index, 
 													num_average=num_average, threshold=threshold)
 	else:
-		layer_activations = utils.get_activations(sess, network[layer], X, placeholders, test_feed, batch_size=100)
+		layer_activations = utils.get_activations(sess, nnmodel.network[layer], X, placeholders, test_feed, batch_size=100)
 		max_activations = np.squeeze(np.max(layer_activations, axis=1))
 		active_indices = np.where(max_activations > 0)[0]
 		active_indices = active_indices[np.argsort(max_activations[active_indices])[::-1]]
 		saliency = []
 		counts = []
 		for neuron_index in active_indices:
-			val, counts = nntrainer.get_stochastic_saliency(sess, X, network[layer][:,:,:,neuron_index], class_index=class_index, 
+			val, counts = nntrainer.get_stochastic_saliency(sess, X, nnmodel.network[layer][:,:,:,neuron_index], class_index=class_index, 
 													num_average=num_average, threshold=threshold)
 			saliency.append(val)        
 			counts.append(counts)
@@ -147,18 +147,18 @@ def stochastic_guided_backprop(X, layer='output', class_index=None, params=None,
 
 	# stochastic guided saliency
 	if layer == 'output':
-		layer = list(network.keys())[-2]
-		saliency, counts = nntrainer.get_stochastic_saliency(sess, X, network[layer], class_index=class_index, 
+		layer = list(nnmodel.network.keys())[-2]
+		saliency, counts = nntrainer.get_stochastic_saliency(sess, X,nnmodel. network[layer], class_index=class_index, 
 													num_average=num_average, threshold=threshold)
 	else:
-		layer_activations = utils.get_activations(sess, network[layer], X, placeholders, test_feed, batch_size=100)
+		layer_activations = utils.get_activations(sess, nnmodel.network[layer], X, placeholders, test_feed, batch_size=100)
 		max_activations = np.squeeze(np.max(layer_activations, axis=1))
 		active_indices = np.where(max_activations > 0)[0]
 		active_indices = active_indices[np.argsort(max_activations[active_indices])[::-1]]
 		saliency = []
 		counts = []
 		for neuron_index in active_indices:
-			val, counts = nntrainer.get_stochastic_saliency(sess, X, network[layer][:,:,:,neuron_index], class_index=class_index, 
+			val, counts = nntrainer.get_stochastic_saliency(sess, X, nnmodel.network[layer][:,:,:,neuron_index], class_index=class_index, 
 													num_average=num_average, threshold=threshold)
 			saliency.append(val)        
 			counts.append(counts)
