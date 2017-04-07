@@ -91,7 +91,7 @@ class NeuralBuild():
 				new_layer = name+'_active'
 				self.network[new_layer] = layers.ActivationLayer(self.network[self.last_layer], function=model_layer['activation']) 
 				self.last_layer = new_layer
-
+			'''
 			# add max-pooling layer
 			if 'pool_size' in model_layer:  
 				new_layer = name+'_pool'  # str(counter) + '_' + name+'_pool' 
@@ -99,7 +99,25 @@ class NeuralBuild():
 					self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=model_layer['pool_size'])
 				else:
 					self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=(model_layer['pool_size'], 1))
-				self.last_layer = new_layer       
+				self.last_layer = new_layer
+                        '''
+			# add max-pooling layer ### Modified this from the older pool_size
+			if 'maxpool_size' in model_layer:  
+                                new_layer = name+'_maxpool'  # str(counter) + '_' + name+'_pool' 
+                                if isinstance(model_layer['maxpool_size'], (tuple, list)):
+                                        self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=model_layer['maxpool_size'])
+                                else:
+                                        self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=(model_layer['maxpool_size'], 1))
+                                self.last_layer = new_layer
+
+                        # add mean-pooling layer ### Praveen modified this
+                        if 'meanpool_size' in model_layer:
+                                new_layer = name+'_meanpool'  # str(counter) + '_' + name+'_pool' 
+                                if isinstance(model_layer['meanpool_size'], (tuple, list)):
+                                        self.network[new_layer] = layers.MeanPool2DLayer(self.network[self.last_layer], pool_size=model_layer['meanpool_size'])
+                                else:
+                                        self.network[new_layer] = layers.MeanPool2DLayer(self.network[self.last_layer], pool_size=(model_layer['meanpool_size'], 1))
+                                self.last_layer = new_layer
 
 			# add dropout layer
 			if 'dropout' in model_layer:
@@ -224,6 +242,7 @@ class NeuralBuild():
 		self.network[name+'_1resid_active'] = layers.ActivationLayer(self.network[name+'_1resid_norm'], function=activation)
 
 		if 'dropout_block' in model_layer:
+			placeholder_name = 'keep_prob_'+str(self.num_dropout)
 			self.placeholders[placeholder_name] = tf.placeholder(tf.float32, name=placeholder_name)
 			self.feed_dict[placeholder_name] = 1-model_layer['dropout_block']
 			self.num_dropout += 1

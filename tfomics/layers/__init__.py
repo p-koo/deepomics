@@ -6,4 +6,3 @@ from .pool import *
 from .shape import *
 from .noise import *
 from .norm import *
-from .residual import *
