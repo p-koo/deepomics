@@ -29,7 +29,7 @@ class Conv1DLayer(BaseLayer):
 		self.shape = shape
 
 		if not W:
-			self.W = Variable(var=init.HeUniform(), shape=shape, **kwargs)
+			self.W = Variable(var=init.HeUniform(**kwargs), shape=shape)
 		else:
 			self.W = Variable(var=W, shape=shape, **kwargs)
 			
@@ -49,14 +49,13 @@ class Conv1DLayer(BaseLayer):
 		self.output = tf.nn.conv2d( input=incoming.get_output(), 
 									filter=self.W.get_variable(), 
 									strides=self.strides, 
-									padding=self.padding, 
-									**kwargs)
+									padding=self.padding)
 
 		if b is None:
 			self.b = []
 		else:
 			if not b:
-				self.b = Variable(var=init.Constant(0.05), shape=[num_units], **kwargs)
+				self.b = Variable(var=init.Constant(0.05, kwargs), shape=[num_units])
 			else:
 				self.b = Variable(var=b, shape=[num_units], **kwargs)
 			self.output = tf.nn.bias_add(self.output,self.b.get_variable())
@@ -113,7 +112,7 @@ class Conv2DLayer(BaseLayer):
 			self.shape = [filter_size[0], filter_size[1], dim, num_filters]
 
 		if not W:
-			self.W = Variable(var=init.HeUniform(), shape=self.shape, **kwargs)
+			self.W = Variable(var=init.HeUniform(**kwargs), shape=self.shape, **kwargs)
 		else:
 			self.W = Variable(var=W, shape=self.shape, **kwargs)
 			
@@ -137,8 +136,7 @@ class Conv2DLayer(BaseLayer):
 		self.output = tf.nn.conv2d( input=incoming.get_output(), 
 									filter=self.W.get_variable(), 
 									strides=self.strides, 
-									padding=self.padding, 
-									**kwargs)
+									padding=self.padding)
 		# shape of the output
 		self.output_shape = self.output.get_shape()
 		
@@ -193,7 +191,7 @@ class TransposeConv1DLayer(BaseLayer):
 		self.shape = shape
 
 		if not W:
-			self.W = Variable(var=init.HeUniform(), shape=shape, **kwargs)
+			self.W = Variable(var=init.HeUniform(**kwargs), shape=shape, **kwargs)
 		else:
 			self.W = Variable(var=W, shape=shape, **kwargs)
 			
@@ -221,8 +219,7 @@ class TransposeConv1DLayer(BaseLayer):
 									filter=self.W.get_variable(), 
 									output_shape=self.output_shape,
 									strides=self.strides, 
-									padding=self.padding, 
-									**kwargs)
+									padding=self.padding)
 		
 	def get_input_shape(self):
 		return self.incoming_shape
@@ -272,7 +269,7 @@ class TransposeConv2DLayer(BaseLayer):
 			self.shape = [filter_size[0], filter_size[1], num_filters, dim]
 
 		if not W:
-			self.W = Variable(var=init.HeUniform(), shape=self.shape, **kwargs)
+			self.W = Variable(var=init.HeUniform(**kwargs), shape=self.shape, **kwargs)
 		else:
 			self.W = Variable(var=W, shape=self.shape, **kwargs)
 			
@@ -300,8 +297,7 @@ class TransposeConv2DLayer(BaseLayer):
 											filter=self.W.get_variable(), 
 											output_shape=self.output_shape,
 											strides=self.strides, 
-											padding=self.padding, 
-											**kwargs)
+											padding=self.padding)
 		
 	def get_input_shape(self):
 		return self.incoming_shape

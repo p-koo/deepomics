@@ -45,7 +45,7 @@ class ConcatLayer(BaseLayer):
 		
 
 		self.incoming_shape = incomings[0].get_output_shape()
-		self.output = tf.concat([incomings[0].get_output(), incomings[1].get_output()], axis=0)
+		self.output = tf.concat([incomings[0].get_output(), incomings[1].get_output()], axis=-1)
 		self.output_shape = self.output.get_shape()
 		
 	def get_input_shape(self):

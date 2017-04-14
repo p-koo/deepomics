@@ -35,7 +35,7 @@ def train_minibatch(sess, nntrainer, data, batch_size=128, num_epochs=500,
 																	batch_size=batch_size,
 																	verbose=verbose)
 		
-			if 'X_test' in data.keys():
+			if 'test' in data.keys():
 				loss, mean_vals, error_vals = nntrainer.test_model(sess, data['test'], 
 																		name="test", 
 																		batch_size=batch_size,
@@ -88,7 +88,7 @@ def train_decay_learning_rate(sess, nntrainer, data, learning_rate=0.01, decay_r
 																	batch_size=batch_size,
 																	verbose=verbose)
 		
-			if 'X_test' in data.keys():
+			if 'test' in data.keys():
 				loss, mean_vals, error_vals = nntrainer.test_model(sess, data['test'], 
 																		name="test", 
 																		batch_size=batch_size,
@@ -111,8 +111,6 @@ def train_decay_learning_rate(sess, nntrainer, data, learning_rate=0.01, decay_r
 					break
 
 	nntrainer.save_model(sess, 'last')
-
-	return results
 
 
 
@@ -151,7 +149,7 @@ def train_anneal_batch_size(sess, nntrainer, train, valid, batch_schedule,
 																	batch_size=batch_size,
 																	verbose=verbose)
 		
-			if 'X_test' in data.keys():
+			if 'test' in data.keys():
 				loss, mean_vals, error_vals = nntrainer.test_model(sess, data['test'], 
 																		name="test", 
 																		batch_size=batch_size,
@@ -207,7 +205,7 @@ def train_anneal_learning_rate(nntrainer, train, valid, learning_rate_schedule,
 																	batch_size=batch_size,
 																	verbose=verbose)
 		
-			if 'X_test' in data.keys():
+			if 'test' in data.keys():
 				loss, mean_vals, error_vals = nntrainer.test_model(sess, data['test'], 
 																		name="test", 
 																		batch_size=batch_size,

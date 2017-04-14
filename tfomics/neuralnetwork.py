@@ -1,10 +1,10 @@
 from __future__ import print_function 
 import os, sys, time
-import tensorflow as tf
 import numpy as np
+from six.moves import cPickle
+import tensorflow as tf
 from tfomics import optimize, metrics, utils
 from tfomics.neuralbuild import NeuralBuild
-from collections import OrderedDict
 
 
 __all__ = [
@@ -28,7 +28,7 @@ def _GuidedReluGrad(op, grad):
 class NeuralNet:
 	"""Class to build a neural network and perform basic functions."""
 	
-	def __init__(self, network=[], placeholders=[], feed_dict={}, optimization={}):
+	def __init__(self, seed=None, network=[], placeholders=[], feed_dict={}, optimization={}):
 
 		self.network = network
 		self.placeholders = placeholders
@@ -41,11 +41,12 @@ class NeuralNet:
 		self.updates = []
 		self.train_step = []
 		self.metric = []
+		self.seed = seed
 
 
 	def build_layers(self, model_layers, optimization=None, method=None):
 		tf.reset_default_graph()
-		nnbuild = NeuralBuild()
+		nnbuild = NeuralBuild(self.seed)
 
 		if method == 'guided':
 			g = tf.get_default_graph()
@@ -117,20 +118,20 @@ class NeuralNet:
 		return sess.run(self.network[layer].get_output(), feed_dict=feed_X)
 
 
-	def save_model_parameters(self, sess, filepath='model.ckpt', verbose=1):
+	def save_model_parameters(self, sess, file_path='model.ckpt', verbose=1):
 		"""save model parameters to a file"""
 		if verbose:
-			print("  saving model to: ", filepath)
+			print("  saving model to: ", file_path)
 		saver = tf.train.Saver()
-		saver.save(sess, save_path=filepath)
+		saver.save(sess, save_path=file_path)
 		
 
-	def load_model_parameters(self, sess, filepath='model.ckpt', verbose=1):
+	def load_model_parameters(self, sess, file_path='model.ckpt', verbose=1):
 		"""initialize network with all_param_values"""
 		if verbose:
-			print("loading model from: ", filepath)
+			print("loading model from: ", file_path)
 		saver = tf.train.Saver()
-		saver.restore(sess, filepath)
+		saver.restore(sess, file_path)
 
 
 	def get_trainable_parameters(self):   
@@ -231,7 +232,7 @@ class NeuralNet:
 class NeuralTrainer():
 	""" class to train a neural network model """
 
-	def __init__(self, nnmodel, save='best', filepath='.', **kwargs):
+	def __init__(self, nnmodel, save='best', file_path='.', **kwargs):
 		
 		# default optimizer if none given
 		self.nnmodel = nnmodel
@@ -239,7 +240,7 @@ class NeuralTrainer():
 		self.placeholders = nnmodel.placeholders
 		self.objective = nnmodel.optimization['objective']
 		self.save = save
-		self.filepath = filepath
+		self.file_path = file_path
 
 
 		self.train_calc = [nnmodel.train_step, nnmodel.loss, nnmodel.metric]
@@ -390,33 +391,33 @@ class NeuralTrainer():
 
 
 	def save_model(self, sess, addon=None):
-		"""save model parameters to file, according to filepath"""
+		"""save model parameters to file, according to file_path"""
 
 
 		if addon is not None:
-			if self.filepath:
-				filepath = self.filepath + '_' + addon + '.ckpt'
-				self.nnmodel.save_model_parameters(sess, filepath)
+			if self.file_path:
+				file_path = self.file_path + '_' + addon + '.ckpt'
+				self.nnmodel.save_model_parameters(sess, file_path)
 		else:
-			if self.filepath:
+			if self.file_path:
 				if self.save == 'best':
 					min_loss, min_epoch, epoch = self.valid_monitor.get_min_loss()
 					if self.valid_monitor.loss[-1] <= min_loss:
 						print('  lower cross-validation found')
-						filepath = self.filepath + '_best.ckpt'
-						self.nnmodel.save_model_parameters(sess, filepath)
+						file_path = self.file_path + '_best.ckpt'
+						self.nnmodel.save_model_parameters(sess, file_path)
 				elif self.save == 'all':
 					epoch = len(self.valid_monitor.loss)
-					filepath = self.filepath + '_' + str(epoch) + '.ckpt'
-					self.nnmodel.save_model_parameters(sess, filepath)
+					file_path = self.file_path + '_' + str(epoch) + '.ckpt'
+					self.nnmodel.save_model_parameters(sess, file_path)
 
 
-	def save_all_metrics(self, filepath):
+	def save_all_metrics(self, file_path):
 		"""save all performance metrics"""
 
-		self.train_monitor.save_metrics(filepath)
-		self.test_monitor.save_metrics(filepath)
-		self.valid_monitor.save_metrics(filepath)
+		self.train_monitor.save_metrics(file_path)
+		self.test_monitor.save_metrics(file_path)
+		self.valid_monitor.save_metrics(file_path)
 
 
 	def early_stopping(self, current_loss, patience):
@@ -433,13 +434,13 @@ class NeuralTrainer():
 		return status
 
 
-	def set_best_parameters(self, sess, filepath=[], verbose=1):
+	def set_best_parameters(self, sess, file_path=[], verbose=1):
 		""" set the best parameters from file"""
 		
-		if not filepath:
-			filepath = self.filepath + '_best.ckpt'
+		if not file_path:
+			file_path = self.file_path + '_best.ckpt'
 
-		self.nnmodel.load_model_parameters(sess, filepath, verbose=verbose)
+		self.nnmodel.load_model_parameters(sess, file_path, verbose=verbose)
 
 
 	def get_parameters(self, sess, layer=[]):
@@ -550,8 +551,8 @@ class MonitorPerformance():
 			sys.stdout.flush()
 
 
-	def save_metrics(self, filepath):
-		savepath = filepath + "_" + self.name +"_performance.pickle"
+	def save_metrics(self, file_path):
+		savepath = file_path + "_" + self.name +"_performance.pickle"
 		print("  saving metrics to " + savepath)
 
 		f = open(savepath, 'wb')

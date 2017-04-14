@@ -10,7 +10,7 @@ __all__ = [
 ]
 
 class NeuralBuild():
-	def __init__(self):
+	def __init__(self, seed=None):
 
 		self.feed_dict = OrderedDict()
 		self.feed_dict['is_training'] = True
@@ -19,7 +19,7 @@ class NeuralBuild():
 		self.placeholders = OrderedDict()
 		self.placeholders['is_training'] = tf.placeholder(tf.bool, name='is_training')
 		self.placeholders['learning_rate'] = tf.placeholder(tf.float32)
-
+		self.seed = {'seed': tf.set_random_seed(seed)}
 
 	def build_layers(self, model_layers, supervised=True):
 
@@ -56,8 +56,8 @@ class NeuralBuild():
 					self.dense_residual_block(model_layer, name)
 
 				elif layer == 'variational':
-					self.network['encode_mu'] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'])
-					self.network['encode_logsigma'] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'])
+					self.network['encode_mu'] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'], **self.seed)
+					self.network['encode_logsigma'] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'], **self.seed)
 					self.network['Z'] = layers.VariationalSampleLayer(self.network['encode_mu'], self.network['encode_logsigma'])
 					self.last_layer = 'Z'
 
@@ -100,24 +100,24 @@ class NeuralBuild():
 				else:
 					self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=(model_layer['pool_size'], 1))
 				self.last_layer = new_layer
-                        '''
+						'''
 			# add max-pooling layer ### Modified this from the older pool_size
-			if 'maxpool_size' in model_layer:  
-                                new_layer = name+'_maxpool'  # str(counter) + '_' + name+'_pool' 
-                                if isinstance(model_layer['maxpool_size'], (tuple, list)):
-                                        self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=model_layer['maxpool_size'])
-                                else:
-                                        self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=(model_layer['maxpool_size'], 1))
-                                self.last_layer = new_layer
+			if 'max_pool' in model_layer:  
+								new_layer = name+'_maxpool'  # str(counter) + '_' + name+'_pool' 
+								if isinstance(model_layer['max_pool'], (tuple, list)):
+										self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=model_layer['max_pool'])
+								else:
+										self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=(model_layer['max_pool'], 1))
+								self.last_layer = new_layer
 
-                        # add mean-pooling layer ### Praveen modified this
-                        if 'meanpool_size' in model_layer:
-                                new_layer = name+'_meanpool'  # str(counter) + '_' + name+'_pool' 
-                                if isinstance(model_layer['meanpool_size'], (tuple, list)):
-                                        self.network[new_layer] = layers.MeanPool2DLayer(self.network[self.last_layer], pool_size=model_layer['meanpool_size'])
-                                else:
-                                        self.network[new_layer] = layers.MeanPool2DLayer(self.network[self.last_layer], pool_size=(model_layer['meanpool_size'], 1))
-                                self.last_layer = new_layer
+			# add mean-pooling layer ### Praveen modified this
+			if 'mean_pool' in model_layer:
+					new_layer = name+'_meanpool'  # str(counter) + '_' + name+'_pool' 
+					if isinstance(model_layer['mean_pool'], (tuple, list)):
+							self.network[new_layer] = layers.MeanPool2DLayer(self.network[self.last_layer], pool_size=model_layer['mean_pool'])
+					else:
+							self.network[new_layer] = layers.MeanPool2DLayer(self.network[self.last_layer], pool_size=(model_layer['mean_pool'], 1))
+					self.last_layer = new_layer
 
 			# add dropout layer
 			if 'dropout' in model_layer:
@@ -157,7 +157,7 @@ class NeuralBuild():
 		# dense layer
 		elif model_layer['layer'] == 'dense':
 			if 'W' not in model_layer.keys():
-				model_layer['W'] = init.HeUniform()
+				model_layer['W'] = init.HeUniform(**self.seed)
 			self.network[name] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'],
 												 W=model_layer['W'],
 												 b=None)
@@ -166,7 +166,7 @@ class NeuralBuild():
 		elif (model_layer['layer'] == 'conv2d'):
 
 			if 'W' not in model_layer.keys():
-				W = init.HeUniform()
+				W = init.HeUniform(**self.seed)
 			else:
 				W = model_layer['W']
 			if 'padding' not in model_layer.keys():
@@ -186,7 +186,7 @@ class NeuralBuild():
 			
 		elif model_layer['layer'] == 'conv1d':
 			if 'W' not in model_layer.keys():
-				W = init.HeUniform()
+				W = init.HeUniform(**self.seed)
 			else:
 				W = model_layer['W']
 			if 'padding' not in model_layer.keys():
@@ -207,7 +207,7 @@ class NeuralBuild():
 
 		# concat layer
 		elif model_layer['layer'] == 'concat':
-			self.network[name] = layers.ConcatLayer([self.network[self.last_layer], model_layer['concat']])
+			self.network[name] = layers.ConcatLayer([self.network[self.last_layer], self.network[model_layer['concat']]])
 
 		# element-size sum layer
 		elif model_layer['layer'] == 'sum':
@@ -237,7 +237,7 @@ class NeuralBuild():
 		if not isinstance(filter_size, (list, tuple)):
 			filter_size = (filter_size, 1)
 
-		self.network[name+'_1resid'] = layers.Conv2DLayer(self.network[last_layer], num_filters=num_filters, filter_size=filter_size, padding='SAME')
+		self.network[name+'_1resid'] = layers.Conv2DLayer(self.network[last_layer], num_filters=num_filters, filter_size=filter_size, padding='SAME', **self.seed)
 		self.network[name+'_1resid_norm'] = layers.BatchNormLayer(self.network[name+'_1resid'], self.placeholders['is_training'])
 		self.network[name+'_1resid_active'] = layers.ActivationLayer(self.network[name+'_1resid_norm'], function=activation)
 
@@ -251,7 +251,7 @@ class NeuralBuild():
 		else:
 			lastname = name+'_1resid_active'
 
-		self.network[name+'_2resid'] = layers.Conv2DLayer(self.network[lastname], num_filters=num_filters, filter_size=filter_size, padding='SAME')
+		self.network[name+'_2resid'] = layers.Conv2DLayer(self.network[lastname], num_filters=num_filters, filter_size=filter_size, padding='SAME', **self.seed)
 		self.network[name+'_2resid_norm'] = layers.BatchNormLayer(self.network[name+'_2resid'], self.placeholders['is_training'])
 		self.network[name+'_resid_sum'] = layers.ElementwiseSumLayer([self.network[last_layer], self.network[name+'_2resid_norm']])
 		self.network[name+'_resid'] = layers.ActivationLayer(self.network[name+'_resid_sum'], function=activation)
@@ -276,12 +276,13 @@ class NeuralBuild():
 		if not isinstance(filter_size, (list, tuple)):
 			filter_size = (filter_size, 1)
 
-		self.network[name+'_1resid'] = layers.Conv2DLayer(self.network[last_layer], num_filters=num_filters, filter_size=filter_size, padding='SAME')
+		self.network[name+'_1resid'] = layers.Conv2DLayer(self.network[last_layer], num_filters=num_filters, filter_size=filter_size, padding='SAME', **self.seed)
 		self.network[name+'_1resid_norm'] = layers.BatchNormLayer(self.network[name+'_1resid'], self.placeholders['is_training'])
 		self.network[name+'_1resid_active'] = layers.ActivationLayer(self.network[name+'_1resid_norm'], function=activation)
 
 
 		if 'dropout_block' in model_layer:
+			placeholder_name = 'keep_prob_'+str(self.num_dropout)
 			self.placeholders[placeholder_name] = tf.placeholder(tf.float32, name=placeholder_name)
 			self.feed_dict[placeholder_name] = 1-model_layer['dropout_block']
 			self.num_dropout += 1
@@ -290,7 +291,7 @@ class NeuralBuild():
 		else:
 			lastname = name+'_1resid_active'
 
-		self.network[name+'_2resid'] = layers.Conv2DLayer(self.network[lastname], num_filters=num_filters, filter_size=filter_size, padding='SAME')
+		self.network[name+'_2resid'] = layers.Conv2DLayer(self.network[lastname], num_filters=num_filters, filter_size=filter_size, padding='SAME', **self.seed)
 		self.network[name+'_2resid_norm'] = layers.BatchNormLayer(self.network[name+'_2resid'], self.placeholders['is_training'])
 		self.network[name+'_resid_sum'] = layers.ElementwiseSumLayer([self.network[last_layer], self.network[name+'_2resid_norm']])
 		self.network[name+'_resid'] = layers.ActivationLayer(self.network[name+'_resid_sum'], function=activation)
@@ -312,11 +313,12 @@ class NeuralBuild():
 		shape = self.network[last_layer].get_output_shape()
 		num_units = shape[-1].value
 
-		self.network[name+'_1resid'] = layers.DenseLayer(self.network[last_layer], num_units=num_units, b=None)
+		self.network[name+'_1resid'] = layers.DenseLayer(self.network[last_layer], num_units=num_units, b=None, **self.seed)
 		self.network[name+'_1resid_norm'] = layers.BatchNormLayer(self.network[name+'_1resid'], self.placeholders['is_training'])
 		self.network[name+'_1resid_active'] = layers.ActivationLayer(self.network[name+'_1resid_norm'], function=activation)
 
 		if 'dropout_block' in model_layer:
+			placeholder_name = 'keep_prob_'+str(self.num_dropout)
 			self.placeholders[placeholder_name] = tf.placeholder(tf.float32, name=placeholder_name)
 			self.feed_dict[placeholder_name] = 1-model_layer['dropout_block']
 			self.num_dropout += 1
@@ -325,7 +327,7 @@ class NeuralBuild():
 		else:
 			lastname = name+'_1resid_active'
 
-		self.network[name+'_2resid'] = layers.DenseLayer(self.network[lastname], num_units=num_units, b=None)
+		self.network[name+'_2resid'] = layers.DenseLayer(self.network[lastname], num_units=num_units, b=None, **self.seed)
 		self.network[name+'_2resid_norm'] = layers.BatchNormLayer(self.network[name+'_2resid'], self.placeholders['is_training'])
 		self.network[name+'_resid_sum'] = layers.ElementwiseSumLayer([self.network[last_layer], self.network[name+'_2resid_norm']])
 		self.network[name+'_resid'] = layers.ActivationLayer(self.network[name+'_resid_sum'], function=activation)

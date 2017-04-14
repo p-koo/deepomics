@@ -31,7 +31,7 @@ class DenseLayer(BaseLayer):
 		
 		
 		if not W:
-			self.W = Variable(var=init.HeUniform(), shape=shape, **kwargs)
+			self.W = Variable(var=init.HeUniform(**kwargs), shape=shape, **kwargs)
 		else:
 			self.W = Variable(var=W, shape=shape, **kwargs)
 			

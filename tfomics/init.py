@@ -28,9 +28,10 @@ class Constant(Initializer):
 	def __init__(self, value=0.05, dtype=tf.float32, **kwargs):
 		self.value = value
 		self.dtype = dtype
+		self.kwargs = kwargs
 		
 	def generate(self, shape):
-		return tf.constant(shape=shape, value=self.value, dtype=self.dtype)
+		return tf.constant(shape=shape, value=self.value, dtype=self.dtype, **self.kwargs)
 
 
 class Uniform(Initializer):
@@ -38,9 +39,10 @@ class Uniform(Initializer):
 		self.minval = minval
 		self.maxval = maxval
 		self.dtype = dtype
+		self.kwargs = kwargs
 		
 	def generate(self, shape):
-		return tf.random_uniform(shape=shape, minval=self.minval, maxval=self.maxval, dtype=self.dtype)
+		return tf.random_uniform(shape=shape, minval=self.minval, maxval=self.maxval, dtype=self.dtype, **self.kwargs)
 
 
 class Normal(Initializer):
@@ -48,9 +50,10 @@ class Normal(Initializer):
 		self.mean = mean
 		self.stddev = stddev
 		self.dtype = dtype
+		self.kwargs = kwargs
 		
 	def generate(self, shape):
-		return tf.random_normal(shape=shape, mean=self.mean, stddev=self.stddev, dtype=self.dtype)
+		return tf.random_normal(shape=shape, mean=self.mean, stddev=self.stddev, dtype=self.dtype, **self.kwargs)
 
 
 class TruncatedNormal(Initializer):
@@ -58,9 +61,10 @@ class TruncatedNormal(Initializer):
 		self.mean = mean
 		self.stddev = stddev
 		self.dtype = dtype
+		self.kwargs = kwargs
 		
 	def generate(self, shape):
-		return tf.truncated_normal(shape=shape, mean=self.mean, stddev=self.stddev, dtype=self.dtype)
+		return tf.truncated_normal(shape=shape, mean=self.mean, stddev=self.stddev, dtype=self.dtype, **self.kwargs)
 
 
 def get_fans(shape):
@@ -91,12 +95,13 @@ class GlorotUniform(Initializer):
 	"""
 	def __init__(self, dtype=tf.float32, **kwargs):
 		self.dtype = dtype
+		self.kwargs = kwargs
 		
 	def generate(self, shape):
 		fan_in, fan_out = get_fans(shape)
 		stddev = np.sqrt(6./(fan_in + fan_out))
 
-		return tf.random_uniform(shape=shape, minval=-stddev, maxval=stddev, dtype=self.dtype)
+		return tf.random_uniform(shape=shape, minval=-stddev, maxval=stddev, dtype=self.dtype, **self.kwargs)
 
 
 class GlorotNormal(Initializer):
@@ -111,12 +116,13 @@ class GlorotNormal(Initializer):
 	def __init__(self, mean=0.0, dtype=tf.float32, **kwargs):
 		self.mean = mean
 		self.dtype = dtype
+		self.kwargs = kwargs
 		
 	def generate(self, shape):
 		fan_in, fan_out = get_fans(shape)
 		stddev = np.sqrt(2./(fan_in + fan_out))
 
-		return tf.truncated_normal(shape=shape, mean=self.mean, stddev=stddev, dtype=self.dtype)
+		return tf.truncated_normal(shape=shape, mean=self.mean, stddev=stddev, dtype=self.dtype, **self.kwargs)
 
 
 
@@ -131,12 +137,13 @@ class HeUniform(Initializer):
 	"""
 	def __init__(self, dtype=tf.float32, **kwargs):
 		self.dtype = dtype
+		self.kwargs = kwargs
 
 	def generate(self, shape):
 		fan_in, fan_out = get_fans(shape)
 		stddev =  np.sqrt(6./fan_in)
 
-		return tf.random_uniform(shape=shape, minval=-stddev, maxval=stddev, dtype=self.dtype)
+		return tf.random_uniform(shape=shape, minval=-stddev, maxval=stddev, dtype=self.dtype, **self.kwargs)
 
 
 class HeNormal(Initializer):
@@ -151,18 +158,20 @@ class HeNormal(Initializer):
 	def __init__(self, mean=0.0, dtype=tf.float32, **kwargs):
 		self.mean = mean
 		self.dtype = dtype
+		self.kwargs = kwargs
 		
 	def generate(self, shape):
 		fan_in, fan_out = get_fans(shape)
 		stddev = np.sqrt(2./fan_in)
 
-		return tf.truncated_normal(shape=shape, mean=self.mean, stddev=stddev, dtype=self.dtype)
+		return tf.truncated_normal(shape=shape, mean=self.mean, stddev=stddev, dtype=self.dtype, **self.kwargs)
 
 
 class Orthogonal(Initializer):
 	def __init__(self, gain=1.1, dtype=tf.float32, **kwargs):
 		self.gain = gain
 		self.dtype = dtype
+		self.kwargs = kwargs
 		
 	def generate(self, shape):
 		flat_shape = (shape[0], np.prod(shape[1:]))
