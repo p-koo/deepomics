@@ -154,7 +154,11 @@ def build_loss(network, predictions, targets, optimization):
 			clip_value = False
 
 	# build loss function
-	loss = cost_function(predictions=predictions, targets=targets, objective=optimization['objective'])
+	if 'label_smoothing' not in optimization.keys():
+		optimization['label_smoothing'] = 0
+	loss = cost_function(predictions=predictions, targets=targets, 
+						 objective=optimization['objective'], 
+						 label_smoothing=optimization['label_smoothing'])
 
 	if 'l1' in optimization.keys():
 		l1 = get_l1_parameters(network)
@@ -167,12 +171,19 @@ def build_loss(network, predictions, targets, optimization):
 	return loss
 
 
-def cost_function(predictions, targets, objective='binary'):
+def cost_function(predictions, targets, objective='binary', label_smoothing=0):
 	if objective == 'binary':
+		if label_smoothing > 0:
+		      targets = (targets*(1-label_smoothing) + 0.5*label_smoothing)
 		predictions = tf.clip_by_value(predictions,1e-7,1-1e-7)
 		loss = -tf.reduce_mean(targets*tf.log(predictions) + (1-targets)*tf.log(1-predictions))
 		
 	elif objective == 'categorical':
+		if label_smoothing > 0:
+		    num_classes = targets.get_shape([-1])
+		    smooth_positives = 1.0 - label_smoothing
+			smooth_negatives = label_smoothing/num_classes
+			targets = targets*smooth_positives + smooth_negatives
 		loss = -tf.reduce_mean(tf.reduce_sum(targets*tf.log(predictions), axis=1))
 
 	elif objective == 'squared_error':
