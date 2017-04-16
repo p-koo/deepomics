@@ -2,29 +2,29 @@
 def model(input_shape, num_labels=None):
 
 	# create model
-	layer1 = { 'layer': 'input',
+	layer1 = {  'layer': 'input',
 				'input_shape': input_shape
 			 }
-	layer2 = {  'layer': 'conv2d', 
+	layer2 = {  'layer': 'conv1d', 
 				'num_filters': 25,
-				'filter_size': (19,1),
-				#'norm': 'batch',
+				'filter_size': 19,
+				'norm': 'batch',
 				'padding': 'SAME',
 				'activation': 'relu',
 				'dropout': 0.1
-				}
-	layer3 = { 'layer': 'residual-conv2d',
-				'filter_size': (5,1),
-				'dropout': 0.1,
-				'pool_size': (40,1)
 			 }
-	layer4 = {'layer': 'dense', 
+	layer3 = {  'layer': 'conv1d_residual',
+				'filter_size': 5,
+				'dropout': 0.1,
+				'pool_size': 40
+			 }
+	layer4 = {  'layer': 'dense', 
 				'num_units': 128,
-				#'norm': 'batch',
+				'norm': 'batch',
 				'activation': 'relu',
 				'dropout': 0.5
 				}
-	layer5 = {'layer': 'dense', 
+	layer5 = {  'layer': 'dense', 
 				'num_units': num_labels,
 				'activation': 'sigmoid'
 				}

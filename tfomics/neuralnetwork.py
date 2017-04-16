@@ -232,7 +232,7 @@ class NeuralNet:
 class NeuralTrainer():
 	""" class to train a neural network model """
 
-	def __init__(self, nnmodel, save='best', file_path='.', **kwargs):
+	def __init__(self, nnmodel, save='best', file_path=None, **kwargs):
 		
 		# default optimizer if none given
 		self.nnmodel = nnmodel
@@ -412,13 +412,17 @@ class NeuralTrainer():
 					self.nnmodel.save_model_parameters(sess, file_path)
 
 
-	def save_all_metrics(self, file_path):
+	def save_all_metrics(self, file_path=None):
 		"""save all performance metrics"""
+		if not file_path:
+			file_path = self.file_path
 
-		self.train_monitor.save_metrics(file_path)
-		self.test_monitor.save_metrics(file_path)
-		self.valid_monitor.save_metrics(file_path)
-
+		if not self.file_path:
+			self.train_monitor.save_metrics(file_path)
+			self.test_monitor.save_metrics(file_path)
+			self.valid_monitor.save_metrics(file_path)
+		else:
+			print('No file_path provided.')
 
 	def early_stopping(self, current_loss, patience):
 		"""check if validation loss is not improving and stop after patience

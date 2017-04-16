@@ -139,7 +139,7 @@ class NeuralOptimizer:
 		nnmodel.build_layers(new_model_layers, new_optimization)
 
 		# compile neural trainer
-		nntrainer = tfomics.neuralnetwork.NeuralTrainer(nnmodel, save=None, filepath=None)
+		nntrainer = tfomics.neuralnetwork.NeuralTrainer(nnmodel, save=None, file_path=None)
 
 		# start session
 		sess = tfomics.utils.initialize_session(nnmodel.placeholders)
