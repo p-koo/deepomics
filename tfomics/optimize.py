@@ -174,14 +174,14 @@ def build_loss(network, predictions, targets, optimization):
 def cost_function(predictions, targets, objective='binary', label_smoothing=0):
 	if objective == 'binary':
 		if label_smoothing > 0:
-		      targets = (targets*(1-label_smoothing) + 0.5*label_smoothing)
+			  targets = (targets*(1-label_smoothing) + 0.5*label_smoothing)
 		predictions = tf.clip_by_value(predictions,1e-7,1-1e-7)
 		loss = -tf.reduce_mean(targets*tf.log(predictions) + (1-targets)*tf.log(1-predictions))
 		
 	elif objective == 'categorical':
 		if label_smoothing > 0:
-		    num_classes = targets.get_shape([-1])
-		    smooth_positives = 1.0 - label_smoothing
+			num_classes = targets.get_shape([-1])
+			smooth_positives = 1.0 - label_smoothing
 			smooth_negatives = label_smoothing/num_classes
 			targets = targets*smooth_positives + smooth_negatives
 		loss = -tf.reduce_mean(tf.reduce_sum(targets*tf.log(predictions), axis=1))

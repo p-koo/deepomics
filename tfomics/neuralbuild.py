@@ -91,16 +91,7 @@ class NeuralBuild():
 				new_layer = name+'_active'
 				self.network[new_layer] = layers.ActivationLayer(self.network[self.last_layer], function=model_layer['activation']) 
 				self.last_layer = new_layer
-			'''
-			# add max-pooling layer
-			if 'pool_size' in model_layer:  
-				new_layer = name+'_pool'  # str(counter) + '_' + name+'_pool' 
-				if isinstance(model_layer['pool_size'], (tuple, list)):
-					self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=model_layer['pool_size'])
-				else:
-					self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=(model_layer['pool_size'], 1))
-				self.last_layer = new_layer
-						'''
+
 			# add max-pooling layer ### Modified this from the older pool_size
 			if 'max_pool' in model_layer:  
 								new_layer = name+'_maxpool'  # str(counter) + '_' + name+'_pool' 
@@ -197,13 +188,17 @@ class NeuralBuild():
 				strides = 1
 			else:
 				strides = model_layer['strides']
+			reverse=False
+			if 'reverse' in model_layer:
+				reverse = model_layer['reverse']
 
 
 			self.network[name] = layers.Conv1DLayer(self.network[self.last_layer], num_filters=model_layer['num_filters'],
 												  filter_size=model_layer['filter_size'],
 												  W=W,
 												  padding=padding,
-												  strides=strides)
+												  strides=strides,
+												  reverse=reverse)
 
 		# concat layer
 		elif model_layer['layer'] == 'concat':

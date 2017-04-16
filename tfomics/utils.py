@@ -15,21 +15,20 @@ __all__ = [
 ]
 
 
-
 def initialize_session(placeholders=None):
-    # run session
-    sess = tf.Session()
+	# run session
+	sess = tf.Session()
 
-    # initialize variables
-    if placeholders is None:
-        sess.run(tf.global_variables_initializer()) 
+	# initialize variables
+	if placeholders is None:
+		sess.run(tf.global_variables_initializer()) 
 
-    else:
-        if 'is_training' in placeholders:
-            sess.run(tf.global_variables_initializer(), feed_dict={placeholders['is_training']: True}) 
-        else:
-            sess.run(tf.global_variables_initializer()) 
-    return sess
+	else:
+		if 'is_training' in placeholders:
+			sess.run(tf.global_variables_initializer(), feed_dict={placeholders['is_training']: True}) 
+		else:
+			sess.run(tf.global_variables_initializer()) 
+	return sess
 
 
 def placeholder(shape, dtype=tf.float32, name=None):
@@ -37,7 +36,7 @@ def placeholder(shape, dtype=tf.float32, name=None):
 	
 			
 class Variable():
-	def __init__(self, var, shape, **kwargs):
+	def __init__(self, var, shape, reverse=False, **kwargs):
 
 		self.l1_regularize = True
 		if 'l1' in kwargs.keys():
@@ -62,10 +61,15 @@ class Variable():
 			
 		self.shape = shape
 
+		variable = var(shape)
+		if reverse:
+			var2 = tf.reverse(variable, axis=[0, 2])
+			variable = tf.concat([variable, var2], axis=3)
+
 		if self.name:
-			self.variable = tf.Variable(var(shape), name=self.name)
+			self.variable = tf.Variable(variable, name=self.name)
 		else:
-			self.variable = tf.Variable(var(shape))
+			self.variable = tf.Variable(variable)
 		
 	def get_variable(self):
 		return self.variable

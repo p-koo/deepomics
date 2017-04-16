@@ -19,7 +19,7 @@ class Conv1DLayer(BaseLayer):
 	"""1D convolutional layer"""
 
 	def __init__(self, incoming, filter_size, num_filters, W=[], b=None,
-				  strides=[], padding=[], **kwargs):
+				  strides=[], padding=[], reverse=False, **kwargs):
 
 		self.filter_size = filter_size
 		self.num_filters = num_filters
@@ -29,10 +29,10 @@ class Conv1DLayer(BaseLayer):
 		self.shape = shape
 
 		if not W:
-			self.W = Variable(var=init.HeUniform(**kwargs), shape=shape)
+			self.W = Variable(var=init.HeUniform(**kwargs), shape=shape, reverse=reverse)
 		else:
-			self.W = Variable(var=W, shape=shape, **kwargs)
-			
+			self.W = Variable(var=W, shape=shape, reverse=reverse)
+
 		if not strides:
 			self.strides = [1, 1, 1, 1]
 		else:
