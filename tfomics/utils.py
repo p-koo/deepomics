@@ -134,30 +134,30 @@ def normalize_pwm(pwm, MAX=None, factor=4):
 
 def meme_generate(W, output_file='meme.txt', prefix='filter'):
 
-	# background frequency        
-	nt_freqs = [1./4 for i in range(4)]
+    # background frequency        
+    nt_freqs = [1./4 for i in range(4)]
 
-	# open file for writing
-	f = open(output_file, 'w')
+    # open file for writing
+    f = open(output_file, 'w')
 
-	# print intro material
-	f.write('MEME version 4')
-	f.write('')
-	f.write('ALPHABET= ACGT')
-	f.write('')
-	f.write('Background letter frequencies:')
-	f.write('A %.4f C %.4f G %.4f T %.4f' % tuple(nt_freqs))
-	f.write('')
+    # print intro material
+    f.write('MEME version 4\n')
+    f.write('\n')
+    f.write('ALPHABET= ACGT\n')
+    f.write('\n')
+    f.write('Background letter frequencies:\n')
+    f.write('A %.4f C %.4f G %.4f T %.4f \n' % tuple(nt_freqs))
+    f.write('\n')
 
-	for j in range(len(W)):
-		pwm = np.array(W[j])
+    for j in range(len(W)):
+        pwm = normalize_pwm(W[j])
+        pwm /= np.outer(np.ones(4), np.sum(pwm, axis=0))
 
-		f.write('MOTIF %s%d' % (prefix, j))
-		f.write('letter-probability matrix: alength= 4 w= %d nsites= %d' % (pwm.shape[1], 1000))
-		for i in range(pwm.shape[1]):
-			f.write('%.4f %.4f %.4f %.4f' % tuple(pwm[:,i]))
-		f.write('')
+        f.write('MOTIF %s%d \n' % (prefix, j))
+        f.write('letter-probability matrix: alength= 4 w= %d nsites= %d \n' % (pwm.shape[1], pwm.shape[1]))
+        for i in range(pwm.shape[1]):
+            f.write('%.4f %.4f %.4f %.4f \n' % tuple(pwm[:,i]))
+        f.write('\n')
 
-	f.close()
-	
-
+    f.close()
+    

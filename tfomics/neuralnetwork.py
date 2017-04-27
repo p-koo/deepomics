@@ -179,11 +179,14 @@ class NeuralNet:
 		return layer_params
 
 
-	def calculate_saliency(self, sess, y, dx, feed_dict, class_index=None):
+	def calculate_saliency(self, sess, y, dx, feed_dict, class_index=None, func=tf.reduce_max):
 		if class_index is None:
 			dy = tf.reduce_max(y, axis=1)
-		else:
-			dy =y[:,class_index] #  tf.sign(y[:,class_index])*tf.square(y[:,class_index])#
+		else: 
+			if len(y.get_shape()) == 4:
+				dy = func(y[:,:,:,class_index], axis=1)
+			else:
+				dy = y[:,class_index] #  tf.sign(y[:,class_index])*tf.square(y[:,class_index])
 		return sess.run([tf.gradients(dy, dx), dy], feed_dict=feed_dict) 
 
 
@@ -205,25 +208,27 @@ class NeuralNet:
 		augment = np.multiply(np.ones((num_average,1,1,1)), X)
 		stochastic_feed.update({dx: augment})
 		val = self.calculate_saliency(sess, y, dx, stochastic_feed, class_index=class_index)
-		seq = val[0][0]
+		dydx = val[0][0]
 		pred = val[1]
 
 		# average based on weights
 		saliency_ave = 0
 		norm = 0
 		counter = 0
-		for k in np.where(pred > threshold)[0]:
-			sign = choose_sign(X[0], seq[k])
+		if threshold is not None:
+			indices = np.where(pred > threshold)[0]
+		else:
+			indices = range(num_average)	
+		for k in indices:
+			sign = choose_sign(X[0], dydx[k])
 			weight = pred[k]
-			saliency_ave = saliency_ave + sign*seq[k]*weight
+			saliency_ave = saliency_ave + sign*dydx[k]*weight
 			norm += weight
 			counter += 1
 		if norm > 0:
 			saliency_ave /= norm
 			
 		return saliency_ave, counter
-
-
 
 #----------------------------------------------------------------------------------------------------
 # Train neural networks class
@@ -416,8 +421,8 @@ class NeuralTrainer():
 		"""save all performance metrics"""
 		if not file_path:
 			file_path = self.file_path
-
-		if not self.file_path:
+			
+		if file_path:
 			self.train_monitor.save_metrics(file_path)
 			self.test_monitor.save_metrics(file_path)
 			self.valid_monitor.save_metrics(file_path)
