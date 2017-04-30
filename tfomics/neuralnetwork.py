@@ -181,7 +181,7 @@ class NeuralNet:
 
 	def calculate_saliency(self, sess, y, dx, feed_dict, class_index=None, func=tf.reduce_max):
 		if class_index is None:
-			dy = tf.reduce_max(y, axis=1)
+			dy = func(y, axis=1)
 		else: 
 			if len(y.get_shape()) == 4:
 				dy = func(y[:,:,:,class_index], axis=1)
