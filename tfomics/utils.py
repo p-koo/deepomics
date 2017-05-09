@@ -36,7 +36,7 @@ def placeholder(shape, dtype=tf.float32, name=None):
 	
 			
 class Variable():
-	def __init__(self, var, shape, reverse=False, **kwargs):
+	def __init__(self, var, shape, **kwargs):
 
 		self.l1_regularize = True
 		if 'l1' in kwargs.keys():
@@ -62,14 +62,7 @@ class Variable():
 		self.shape = shape
 
 		variable = var(shape)
-		if reverse:
-			var2 = tf.reverse(variable, axis=[0, 2])
-			variable = tf.concat([variable, var2], axis=3)
-
-		if self.name:
-			self.variable = tf.Variable(variable, name=self.name)
-		else:
-			self.variable = tf.Variable(variable)
+		self.variable = tf.Variable(variable)
 		
 	def get_variable(self):
 		return self.variable

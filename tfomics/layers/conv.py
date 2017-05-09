@@ -29,9 +29,15 @@ class Conv1DLayer(BaseLayer):
 		self.shape = shape
 
 		if not W:
-			self.W = Variable(var=init.HeUniform(**kwargs), shape=shape, reverse=reverse)
+			self.W = Variable(var=init.HeUniform(), shape=shape)
 		else:
-			self.W = Variable(var=W, shape=shape, reverse=reverse)
+			self.W = Variable(var=W, shape=shape)
+
+		if reverse:
+			W_reverse = tf.reverse(self.W.get_variable(), axis=[0, 2])
+			W = tf.concat([self.W.get_variable(), W_reverse], axis=3)
+		else:
+			W = self.W.get_variable()
 
 		if not strides:
 			self.strides = [1, 1, 1, 1]
@@ -47,7 +53,7 @@ class Conv1DLayer(BaseLayer):
 		
 		# output of convolution
 		self.output = tf.nn.conv2d( input=incoming.get_output(), 
-									filter=self.W.get_variable(), 
+									filter=W, 
 									strides=self.strides, 
 									padding=self.padding)
 
