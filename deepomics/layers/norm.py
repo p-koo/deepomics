@@ -55,14 +55,18 @@ class BatchNormLayer(BaseLayer):
 			return self.pop_mean.average(batch_mean), self.pop_var.average(batch_var)
 
 		mean, var = tf.cond(self.is_training, update_mean_var, population_mean_var)
-		return tf.nn.batch_normalization(self.incoming.get_output(), mean, var, 
-										 self.beta.get_variable(), self.gamma.get_variable(), self.epsilon)
+
+		z_score = tf.divide(tf.subtract(self.incoming.get_output(), mean), tf.sqrt(tf.add(var, self.epsilon)))
+
+		return tf.add(tf.multiply(self.gamma.get_variable(), z_score), self.beta.get_variable())
+		#return tf.nn.batch_normalization(self.incoming.get_output(), mean, var, 
+			#							 self.beta.get_variable(), self.gamma.get_variable(), self.epsilon)
 
 	def get_output_shape(self):
 		return self.incoming.get_output_shape()
 
 	def get_variable(self):
-		return [self.gamma, self.beta]
+		return [self.gamma.get_variable(), self.beta.get_variable()]
 
 	def set_trainable(self, status):
 		self.gamma.set_trainable(status)

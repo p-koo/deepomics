@@ -49,7 +49,7 @@ def plot_pr_all(final_pr):
 	return fig, plt
 
 
-def plot_filter_logos(W, normalize=True, figsize=(2,10), height=25, nt_width=10, norm=0, alphabet='dna', MAX=None):
+def plot_filter_logos(W, figsize=(2,10), height=25, nt_width=10, norm=0, alphabet='dna', factor=3):
 
 	W = np.squeeze(W.transpose([3, 2, 0, 1]))
 	num_filters = W.shape[0]
@@ -59,8 +59,8 @@ def plot_filter_logos(W, normalize=True, figsize=(2,10), height=25, nt_width=10,
 	fig = plt.figure(figsize=figsize);
 	for i in range(num_filters):
 		plt.subplot(grid[i]);
-		if normalize:
-			W_norm = normalize_pwm(W[i], MAX=MAX)
+		if factor:
+			W_norm = normalize_pwm(W[i], factor=factor)
 		else:
 			W_norm = W[i]
 		logo = seq_logo(W_norm, height=height, nt_width=nt_width, norm=norm, alphabet=alphabet)
@@ -81,7 +81,7 @@ def plot_seq_logo(logo, nt_width=None, step_multiple=None):
 						[str(step_size), str(step_size*2), str(step_size*3), str(step_size*4)])
 		else:
 			plt.xticks([])
-		plt.yticks([0, 50], ['2.0','0.0'])
+		#plt.yticks([0, 50], ['2.0','0.0'])
 		ax = plt.gca()
 		ax.spines['right'].set_visible(False)
 		ax.spines['top'].set_visible(False)
@@ -93,9 +93,9 @@ def plot_seq_logo(logo, nt_width=None, step_multiple=None):
 	return plt
 
 
-def plot_pos_saliency(W, height=50, nt_width=20, alphabet='dna', MAX=None):
+def plot_pos_saliency(W, height=50, nt_width=20, alphabet='dna', factor=3):
 
-	pwm = normalize_pwm(W, MAX=MAX)
+	pwm = normalize_pwm(W, factor=factor)
 	pos_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 	plt.imshow(pos_logo, interpolation='none')
 	plt.xticks([])
@@ -107,7 +107,7 @@ def plot_pos_saliency(W, height=50, nt_width=20, alphabet='dna', MAX=None):
 	ax.xaxis.set_ticks_position('none')
 
 
-def plot_seq_pos_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=(100,8), title=None, MAX=None):
+def plot_seq_pos_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=(100,8), title=None, factor=3):
 
 	num_rows = 2
 	grid = mpl.gridspec.GridSpec(num_rows, 1)
@@ -116,7 +116,7 @@ def plot_seq_pos_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=
 	fig = plt.figure(figsize=figsize);
 
 	plt.subplot(grid[0])
-	pwm = normalize_pwm(W, MAX=MAX)
+	pwm = normalize_pwm(W, factor=factor)
 	pos_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 	plt.imshow(pos_logo, interpolation='none')
 	plt.xticks([])
@@ -138,7 +138,7 @@ def plot_seq_pos_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=
 	return fig, plt
 
 
-def plot_neg_saliency(W, height=50, nt_width=20, alphabet='dna', figsize=(100,8), title=None, MAX=None):
+def plot_neg_saliency(W, height=50, nt_width=20, alphabet='dna', figsize=(100,8), title=None, factor=3):
 
 	num_rows = 2
 	grid = mpl.gridspec.GridSpec(num_rows, 1)
@@ -146,8 +146,8 @@ def plot_neg_saliency(W, height=50, nt_width=20, alphabet='dna', figsize=(100,8)
 
 	fig = plt.figure(figsize=figsize);
 
-	plt.subplot(grid[0])
-	pwm = normalize_pwm(W, MAX=MAX)
+	plt.subplot(grid[0])	
+	pwm = normalize_pwm(W,  factor=factor)
 	pos_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 	plt.imshow(pos_logo, interpolation='none')
 	plt.xticks([])	
@@ -162,7 +162,7 @@ def plot_neg_saliency(W, height=50, nt_width=20, alphabet='dna', figsize=(100,8)
 	    plt.title(title)
 
 	plt.subplot(grid[1]);
-	pwm = normalize_pwm(-W, MAX=MAX)
+	pwm = normalize_pwm(-W, factor=factor)
 	neg_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 	plt.imshow(neg_logo[::-1,:,:], interpolation='none')
 	plt.xticks([])	
@@ -178,7 +178,7 @@ def plot_neg_saliency(W, height=50, nt_width=20, alphabet='dna', figsize=(100,8)
 	return fig, plt
 
 
-def plot_seq_neg_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=(100,8), title=None, MAX=None):
+def plot_seq_neg_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=(100,8), title=None, factor=3):
 
 	num_rows = 3
 	grid = mpl.gridspec.GridSpec(num_rows, 1)
@@ -187,7 +187,7 @@ def plot_seq_neg_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=
 	fig = plt.figure(figsize=figsize);
 
 	plt.subplot(grid[0])
-	pwm = normalize_pwm(W, MAX=MAX)
+	pwm = normalize_pwm(W, factor=factor)
 	pos_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 	plt.imshow(pos_logo, interpolation='none')
 	plt.xticks([])
@@ -207,7 +207,7 @@ def plot_seq_neg_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=
 	plt.axis('off');
 
 	plt.subplot(grid[2]);
-	pwm = normalize_pwm(-W, MAX=MAX)
+	pwm = normalize_pwm(-W, factor=factor)
 	neg_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 	plt.imshow(neg_logo[::-1,:,:], interpolation='none')
 	plt.xticks([])	
@@ -368,7 +368,11 @@ def seq_logo(pwm, height=30, nt_width=10, norm=0, alphabet='dna'):
 				total_height = height
 			else:
 				total_height = (np.log2(num_nt) - entropy(pwm[:, i]))*height;
-			heights[:,i] = np.floor(pwm[:,i]*np.minimum(total_height, height*2));
+			if alphabet == 'pu':
+				heights[:,i] = np.floor(pwm[:,i]*np.minimum(total_height, height));
+			else:
+				heights[:,i] = np.floor(pwm[:,i]*np.minimum(total_height, height*2));
+	
 		return heights.astype(int)
 
 
@@ -384,7 +388,10 @@ def seq_logo(pwm, height=30, nt_width=10, norm=0, alphabet='dna'):
 	num_nt, num_seq = pwm.shape
 	width = np.ceil(nt_width*num_seq).astype(int)
 
-	max_height = height*2
+	if alphabet == 'pu':
+		max_height = height
+	else:
+		max_height = height*2
 	#total_height = np.sum(heights,axis=0) # np.minimum(np.sum(heights,axis=0), max_height)
 	logo = np.ones((max_height, width, 3)).astype(int)*255;
 	for i in range(num_seq):

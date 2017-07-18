@@ -2,8 +2,8 @@ from __future__ import print_function
 import os, sys, time
 import numpy as np
 import tensorflow as tf
-from tfomics import neuralnetwork as nn
-from tfomics import utils
+from deepomics import neuralnetwork as nn
+from deepomics import utils
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import gen_nn_ops
 
@@ -83,7 +83,7 @@ def guided_backprop(X, layer='output', class_index=None, params=None):
 
 	
 def stochastic_backprop(X, layer='output', class_index=None, params=None, 
-						num_average=400, threshold=12.0, stochastic_val=0.5):
+						num_average=400, threshold=12.0):
 	tf.reset_default_graph()
 
 	# build new graph
@@ -91,9 +91,6 @@ def stochastic_backprop(X, layer='output', class_index=None, params=None,
 	nnmodel = nn.NeuralNet()
 	nnmodel.build_layers(model_layers, optimization)
 	nntrainer = nn.NeuralTrainer(nnmodel, save='best', filepath=params['model_path'])
-
-	if stochastic_val:
-		nntrainer.update_feed_dict(nnmodel.placeholders, nnmodel.feed_dict, stochastic_val=stochastic_val)
 
 	# setup session and restore optimal parameters
 	sess = utils.initialize_session(nnmodel.placeholders)
@@ -125,7 +122,7 @@ def stochastic_backprop(X, layer='output', class_index=None, params=None,
 
 	
 def stochastic_guided_backprop(X, layer='output', class_index=None, params=None,
-								num_average=400, threshold=12.0, stochastic_val=0.5):
+								num_average=400, threshold=12.0):
 	tf.reset_default_graph()
 	# build new graph with guided relu
 
@@ -136,9 +133,6 @@ def stochastic_guided_backprop(X, layer='output', class_index=None, params=None,
 	nnmodel = nn.NeuralNet()
 	nnmodel.build_layers(model_layers, optimization, method='guided')
 	nntrainer = nn.NeuralTrainer(nnmodel, save='best', filepath=params['model_path'])
-
-	if stochastic_val:
-		nntrainer.update_feed_dict(nnmodel.placeholders, nnmodel.feed_dict, stochastic_val=stochastic_val)
 
 	# setup session and restore optimal parameters
 	sess = utils.initialize_session(nnmodel.placeholders)

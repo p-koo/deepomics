@@ -138,7 +138,7 @@ class BiasLayer(BaseLayer):
 		return self.output_shape
 	
 	def get_variable(self):
-		return self.b
+		return self.b.get_variable()
 	
 	def set_trainable(self, status):
 		self.b.set_trainable(status)
@@ -196,5 +196,8 @@ def activation(z, function='relu', **kwargs):
 	elif function == 'prelu':
 		output = tf.nn.relu(z) - kwargs['alpha']*tf.nn.relu(-z)
 
+	elif function == 'cdf':
+		softmax = tf.nn.softmax(z)
+		output = tf.cumsum(softmax, axis=1)
 
 	return output

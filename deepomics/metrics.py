@@ -110,7 +110,7 @@ def pr(label, prediction):
 def calculate_metrics(label, prediction, objective):
 	"""calculate metrics for classification"""
 
-	if (objective == "binary") | (objective == "categorical") | (objective == 'hinge'):
+	if (objective == "binary") | (objective == 'hinge'):
 		ndim = np.ndim(label)
 		if ndim == 1:
 			label = one_hot_labels(label)
@@ -119,14 +119,20 @@ def calculate_metrics(label, prediction, objective):
 		auc_pr, pr_curves = pr(label, prediction)
 		mean = [np.nanmean(correct), np.nanmean(auc_roc), np.nanmean(auc_pr)]
 		std = [np.nanstd(correct), np.nanstd(auc_roc), np.nanstd(auc_pr)]
-		#print "ROC"
-		#print auc_roc
-		#print "PR"
-		#print auc_pr
-	elif (objective == 'squared_error'):
+
+	elif objective == "categorical":
+		correct = np.mean(np.equal(np.argmax(label, axis=1), np.argmax(prediction, axis=1)))
+		auc_roc, roc_curves = roc(label, prediction)
+		auc_pr, pr_curves = pr(label, prediction)
+		mean = [np.nanmean(correct), np.nanmean(auc_roc), np.nanmean(auc_pr)]
+		std = [np.nanstd(correct), np.nanstd(auc_roc), np.nanstd(auc_pr)]
+
+	elif (objective == 'squared_error') | (objective == 'kl_divergence') | (objective == 'cdf'):
 		corr = pearsonr(label,prediction)
 		rsqr, slope = rsquare(label, prediction)
 		mean = [np.nanmean(corr), np.nanmean(rsqr), np.nanmean(slope)]
 		std = [np.nanstd(corr), np.nanstd(rsqr), np.nanstd(slope)]
+
+
 	return [mean, std]
 

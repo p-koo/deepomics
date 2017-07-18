@@ -3,8 +3,8 @@ import os, sys, time
 import numpy as np
 from six.moves import cPickle
 import tensorflow as tf
-from tfomics import optimize, metrics, utils
-from tfomics.neuralbuild import NeuralBuild
+from deepomics import optimize, metrics, utils
+from deepomics.neuralbuild import NeuralBuild
 
 
 __all__ = [
@@ -94,6 +94,10 @@ class NeuralNet:
 		elif self.optimization['objective'] == 'lower_bound':
 			self.metric = tf.reduce_mean(tf.square(self.predictions - self.placeholders['targets']))
 
+		elif self.optimization['objective'] == 'kl_divergence':
+			self.metric = tf.reduce_mean(tf.square(self.predictions - self.placeholders['targets']))
+
+
 
 	def inspect_layers(self):
 		"""print(each layer type and parameters"""
@@ -144,9 +148,9 @@ class NeuralNet:
 					variables = self.network[layer].get_variable()
 					if isinstance(variables, list):
 						for var in variables:
-							params.append(var.get_variable())
+							params.append(var)
 					else:
-						params.append(variables.get_variable())
+						params.append(variables)
 		return params
 
 
@@ -155,27 +159,27 @@ class NeuralNet:
 
 		layer_params = []
 		if layer:
-			variables = self.network[layer].get_variable()
+			variables = self.network[layer].get_variable(shape=True)
 			if isinstance(variables, list):
 				params = []
 				for var in variables:
-					params.append(sess.run(var.get_variable()))
+					params.append(sess.run(var))
 				layer_params.append(params)
 			else:
-				layer_params.append(sess.run(variables.get_variable()))
+				layer_params.append(sess.run(variables))
 		else:
 
 			for layer in self.network:
 				if hasattr(self.network[layer], 'is_trainable'):
 					if self.network[layer].is_trainable():
-						variables = self.network[layer].get_variable()
+						variables = self.network[layer].get_variable(shape=True)
 						if isinstance(variables, list):
 							params = []
 							for var in variables:
-								params.append(sess.run(var.get_variable()))
+								params.append(sess.run(var))
 							layer_params.append(params)
 						else:
-							layer_params.append(sess.run(variables.get_variable()))
+							layer_params.append(sess.run(variables))
 		return layer_params
 
 
@@ -259,7 +263,7 @@ class NeuralTrainer():
 		self.valid_monitor = MonitorPerformance(name="cross-validation", objective=self.objective, verbose=1)
 
 
-	def update_feed_dict(self, placeholders, feed_dict, stochastic_val=None):
+	def update_feed_dict(self, placeholders, feed_dict):
 		
 		self.train_feed = {}
 		self.test_feed = {}
@@ -272,10 +276,7 @@ class NeuralTrainer():
 
 			if 'keep_prob' in key:
 				self.test_feed[placeholders[key]] = 1.0
-				if stochastic_val:
-					self.stochastic_feed[placeholders[key]] = stochastic_val
-				else:
-					self.stochastic_feed[placeholders[key]] = self.train_feed[placeholders[key]]
+				self.stochastic_feed[placeholders[key]] = self.train_feed[placeholders[key]]
 
 			if key == 'is_training':
 				self.test_feed[placeholders[key]] = False
@@ -398,7 +399,6 @@ class NeuralTrainer():
 	def save_model(self, sess, addon=None):
 		"""save model parameters to file, according to file_path"""
 
-
 		if addon is not None:
 			if self.file_path:
 				file_path = self.file_path + '_' + addon + '.ckpt'
@@ -419,6 +419,7 @@ class NeuralTrainer():
 
 	def save_all_metrics(self, file_path=None):
 		"""save all performance metrics"""
+		
 		if not file_path:
 			file_path = self.file_path
 			
@@ -429,17 +430,18 @@ class NeuralTrainer():
 		else:
 			print('No file_path provided.')
 
-	def early_stopping(self, current_loss, patience):
+
+	def early_stopping(self, current_loss, patience=False):
 		"""check if validation loss is not improving and stop after patience
 		runs out"""
 
-		min_loss, min_epoch, num_loss = self.valid_monitor.get_min_loss()
 		status = True
-
-		if min_loss < current_loss:
-			if patience - (num_loss - min_epoch) < 0:
-				status = False
-				print("Patience ran out... Early stopping.")
+		if patience:
+			min_loss, min_epoch, num_loss = self.valid_monitor.get_min_loss()
+			if min_loss < current_loss:
+				if patience - (num_loss - min_epoch) < 0:
+					status = False
+					print("Patience ran out... Early stopping.")
 		return status
 
 
@@ -491,29 +493,35 @@ class MonitorPerformance():
 
 
 	def set_verbose(self, verbose):
+		"""set verbose"""
 		self.verbose = verbose
 
 
 	def add_loss(self, loss):
+		"""append loss to list"""
 		self.loss = np.append(self.loss, loss)
 
 
 	def add_metrics(self, scores):
+		"""append metrics to list"""
 		self.metric.append(scores[0])
 		self.metric_std.append(scores[1])
 
 
 	def update(self, loss, prediction, label):
+		"""Calculate metrics and add to list"""
 		scores = metrics.calculate_metrics(label, prediction, self.objective)
 		self.add_loss(loss)
 		self.add_metrics(scores)
 
 
 	def get_mean_loss(self):
+		"""Calculate metrics and add to list"""
 		return np.mean(self.loss)
 
 
 	def get_metric_values(self):
+		"""Get the last metric values"""
 		return self.metric[-1], self.metric_std[-1]
 
 
@@ -540,7 +548,7 @@ class MonitorPerformance():
 				print("  " + name + " accuracy:\t{:.5f}+/-{:.5f}".format(mean_vals[0], error_vals[0]))
 				print("  " + name + " auc-roc:\t{:.5f}+/-{:.5f}".format(mean_vals[1], error_vals[1]))
 				print("  " + name + " auc-pr:\t\t{:.5f}+/-{:.5f}".format(mean_vals[2], error_vals[2]))
-			elif (self.objective == 'squared_error'):
+			elif (self.objective == 'squared_error') | (self.objective == 'kl_divergence'):
 				print("  " + name + " Pearson's R:\t{:.5f}+/-{:.5f}".format(mean_vals[0], error_vals[0]))
 				print("  " + name + " rsquare:\t{:.5f}+/-{:.5f}".format(mean_vals[1], error_vals[1]))
 				print("  " + name + " slope:\t\t{:.5f}+/-{:.5f}".format(mean_vals[2], error_vals[2]))
@@ -589,6 +597,7 @@ class BatchGenerator():
 		self.generate_minibatches(batch_size, shuffle)
 
 	def generate_minibatches(self, batch_size=None, shuffle=None):
+		"""Generate mini-batches"""
 
 		if shuffle is None:
 			shuffle = self.shuffle
@@ -616,6 +625,8 @@ class BatchGenerator():
 		self.current_batch = 0
 
 	def next_minibatch(self, data, feed_dict, placeholders):
+		"""Get the next mini-batch"""
+
 		indices = np.sort(self.indices[self.current_batch])
 
 		for key in data.keys():
@@ -628,9 +639,13 @@ class BatchGenerator():
 		return feed_dict
 
 	def get_batch_index(self):
+		"""Get batch index"""
+
 		return self.current_batch
 
 	def get_num_batches(self):
+		"""Get number of batches"""
+
 		return self.num_batches
 
 

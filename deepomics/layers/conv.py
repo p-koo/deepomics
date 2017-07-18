@@ -29,15 +29,16 @@ class Conv1DLayer(BaseLayer):
 		self.shape = shape
 
 		if not W:
-			self.W = Variable(var=init.HeUniform(), shape=shape)
+			self.W_flat = Variable(var=init.HeUniform(), shape=shape)
 		else:
-			self.W = Variable(var=W, shape=shape)
+			self.W_flat = Variable(var=W, shape=shape)
+		self.W = tf.reshape(self.W_flat.get_variable(), shape=shape)
 
 		if reverse:
-			W_reverse = tf.reverse(self.W.get_variable(), axis=[0, 2])
-			W = tf.concat([self.W.get_variable(), W_reverse], axis=3)
+			W_reverse = tf.reverse(self.W, axis=[0, 2])
+			W = tf.concat([self.W, W_reverse], axis=3)
 		else:
-			W = self.W.get_variable()
+			W = self.W
 
 		if not strides:
 			self.strides = [1, 1, 1, 1]
@@ -78,26 +79,29 @@ class Conv1DLayer(BaseLayer):
 	def get_output_shape(self):
 		return self.output_shape
 	
-	def get_variable(self):
-		return self.W
-	
+	def get_variable(self, shape=False):
+		if shape:
+			return tf.reshape(self.W_flat.get_variable(), shape=self.shape)
+		else:
+			return self.W_flat.get_variable()
+
 	def set_trainable(self, status):
-		self.W.set_trainable(status)
+		self.W_flat.set_trainable(status)
 		
 	def set_l1_regularize(self, status):
-		self.W.set_l1_regularize(status)    
+		self.W_flat.set_l1_regularize(status)    
 		
 	def set_l2_regularize(self, status):
-		self.W.set_l2_regularize(status)    
+		self.W_flat.set_l2_regularize(status)    
 		
 	def is_trainable(self):
-		return self.W.is_trainable()
+		return self.W_flat.is_trainable()
 		
 	def is_l1_regularize(self):
-		return self.W.is_l1_regularize()    
+		return self.W_flat.is_l1_regularize()    
 		
 	def is_l2_regularize(self):
-		return self.W.is_l2_regularize()  
+		return self.W_flat.is_l2_regularize()  
 		
 
 
@@ -117,10 +121,12 @@ class Conv2DLayer(BaseLayer):
 		else:
 			self.shape = [filter_size[0], filter_size[1], dim, num_filters]
 
+
 		if not W:
-			self.W = Variable(var=init.HeUniform(**kwargs), shape=self.shape, **kwargs)
+			self.W_flat = Variable(var=init.HeUniform(), shape=shape)
 		else:
-			self.W = Variable(var=W, shape=self.shape, **kwargs)
+			self.W_flat = Variable(var=W, shape=shape)
+		self.W = tf.reshape(self.W_flat.get_variable(), shape=shape)
 			
 
 		if not strides:		
@@ -140,7 +146,7 @@ class Conv2DLayer(BaseLayer):
 		
 		# output of convolution
 		self.output = tf.nn.conv2d( input=incoming.get_output(), 
-									filter=self.W.get_variable(), 
+									filter=self.W, 
 									strides=self.strides, 
 									padding=self.padding)
 		# shape of the output
@@ -155,26 +161,30 @@ class Conv2DLayer(BaseLayer):
 	def get_output_shape(self):
 		return self.output_shape
 	
-	def get_variable(self):
-		return self.W
-	
+	def get_variable(self, shape=False):
+		if shape:
+			return self.W
+		else:
+			return self.W_flat.get_variable()
+			
 	def set_trainable(self, status):
-		self.W.set_trainable(status)
+		self.W_flat.set_trainable(status)
 		
 	def set_l1_regularize(self, status):
-		self.W.set_l1_regularize(status)    
+		self.W_flat.set_l1_regularize(status)    
 		
 	def set_l2_regularize(self, status):
-		self.W.set_l2_regularize(status)    
+		self.W_flat.set_l2_regularize(status)    
 		
 	def is_trainable(self):
-		return self.W.is_trainable()
+		return self.W_flat.is_trainable()
 		
 	def is_l1_regularize(self):
-		return self.W.is_l1_regularize()    
+		return self.W_flat.is_l1_regularize()    
 		
 	def is_l2_regularize(self):
-		return self.W.is_l2_regularize()  
+		return self.W_flat.is_l2_regularize()  
+		
 		
 
 
@@ -197,10 +207,11 @@ class TransposeConv1DLayer(BaseLayer):
 		self.shape = shape
 
 		if not W:
-			self.W = Variable(var=init.HeUniform(**kwargs), shape=shape, **kwargs)
+			self.W_flat = Variable(var=init.HeUniform(), shape=shape)
 		else:
-			self.W = Variable(var=W, shape=shape, **kwargs)
-			
+			self.W_flat = Variable(var=W, shape=shape)
+		self.W = tf.reshape(self.W_flat.get_variable(), shape=shape)
+
 		if not strides:		
 			self.strides = [1, 1, 1, 1]
 		else:
@@ -222,7 +233,7 @@ class TransposeConv1DLayer(BaseLayer):
 		
 		# output of convolution
 		self.output = tf.nn.conv2d_transpose( input=incoming.get_output(), 
-									filter=self.W.get_variable(), 
+									filter=self.W, 
 									output_shape=self.output_shape,
 									strides=self.strides, 
 									padding=self.padding)
@@ -236,27 +247,30 @@ class TransposeConv1DLayer(BaseLayer):
 	def get_output_shape(self):
 		return self.output_shape
 	
-	def get_variable(self):
-		return self.W
-	
+	def get_variable(self, shape=False):
+		if shape:
+			return self.W
+		else:
+			return self.W_flat.get_variable()
+		
 	def set_trainable(self, status):
-		self.W.set_trainable(status)
+		self.W_flat.set_trainable(status)
 		
 	def set_l1_regularize(self, status):
-		self.W.set_l1_regularize(status)    
+		self.W_flat.set_l1_regularize(status)    
 		
 	def set_l2_regularize(self, status):
-		self.W.set_l2_regularize(status)    
+		self.W_flat.set_l2_regularize(status)    
 		
 	def is_trainable(self):
-		return self.W.is_trainable()
+		return self.W_flat.is_trainable()
 		
 	def is_l1_regularize(self):
-		return self.W.is_l1_regularize()    
+		return self.W_flat.is_l1_regularize()    
 		
 	def is_l2_regularize(self):
-		return self.W.is_l2_regularize()  
-
+		return self.W_flat.is_l2_regularize()  
+		
 
 class TransposeConv2DLayer(BaseLayer):
 	"""1D convolutional layer"""
@@ -275,10 +289,11 @@ class TransposeConv2DLayer(BaseLayer):
 			self.shape = [filter_size[0], filter_size[1], num_filters, dim]
 
 		if not W:
-			self.W = Variable(var=init.HeUniform(**kwargs), shape=self.shape, **kwargs)
+			self.W_flat = Variable(var=init.HeUniform(**kwargs), shape=self.shape, **kwargs)
 		else:
-			self.W = Variable(var=W, shape=self.shape, **kwargs)
-			
+			self.W_flat = Variable(var=W, shape=self.shape, **kwargs)
+		self.W = tf.reshape(self.W_flat.get_variable(), shape=shape)
+		
 		output_shape = (tf.shape(incoming.get_output())[0], ) + tuple(output_shape[1:])
 		output_shape = tf.stack(list(output_shape))
 		self.output_shape = output_shape
@@ -314,26 +329,30 @@ class TransposeConv2DLayer(BaseLayer):
 	def get_output_shape(self):
 		return self.output_shape
 	
-	def get_variable(self):
-		return self.W
-	
+	def get_variable(self, shape=False):
+		if shape:
+			return self.W
+		else:
+			return self.W_flat.get_variable()
+
 	def set_trainable(self, status):
-		self.W.set_trainable(status)
+		self.W_flat.set_trainable(status)
 		
 	def set_l1_regularize(self, status):
-		self.W.set_l1_regularize(status)    
+		self.W_flat.set_l1_regularize(status)    
 		
 	def set_l2_regularize(self, status):
-		self.W.set_l2_regularize(status)    
+		self.W_flat.set_l2_regularize(status)    
 		
 	def is_trainable(self):
-		return self.W.is_trainable()
+		return self.W_flat.is_trainable()
 		
 	def is_l1_regularize(self):
-		return self.W.is_l1_regularize()    
+		return self.W_flat.is_l1_regularize()    
 		
 	def is_l2_regularize(self):
-		return self.W.is_l2_regularize()  
+		return self.W_flat.is_l2_regularize()  
+		
 		
 
 

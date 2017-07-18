@@ -1,7 +1,7 @@
 from __future__ import print_function
 import tensorflow as tf 
-from tfomics import layers
-from tfomics import init, utils
+from deepomics import layers
+from deepomics import init, utils
 
 from collections import OrderedDict
 
@@ -38,7 +38,6 @@ class NeuralBuild():
 				name = model_layer['name']
 			else:
 				name = name_gen.generate_name(layer)
-
 
 			if layer == "input":
 
@@ -148,7 +147,7 @@ class NeuralBuild():
 		# dense layer
 		elif model_layer['layer'] == 'dense':
 			if 'W' not in model_layer.keys():
-				model_layer['W'] = init.HeUniform(**self.seed)
+				model_layer['W'] = init.HeNormal(**self.seed)
 			self.network[name] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'],
 												 W=model_layer['W'],
 												 b=None)
@@ -157,7 +156,7 @@ class NeuralBuild():
 		elif (model_layer['layer'] == 'conv2d'):
 
 			if 'W' not in model_layer.keys():
-				W = init.HeUniform(**self.seed)
+				W = init.HeNormal(**self.seed)
 			else:
 				W = model_layer['W']
 			if 'padding' not in model_layer.keys():
@@ -177,7 +176,7 @@ class NeuralBuild():
 			
 		elif model_layer['layer'] == 'conv1d':
 			if 'W' not in model_layer.keys():
-				W = init.HeUniform(**self.seed)
+				W = init.HeNormal(**self.seed)
 			else:
 				W = model_layer['W']
 			if 'padding' not in model_layer.keys():
@@ -229,10 +228,19 @@ class NeuralBuild():
 		shape = self.network[last_layer].get_output_shape()
 		num_filters = shape[-1].value
 
-		if not isinstance(filter_size, (list, tuple)):
-			filter_size = (filter_size, 1)
+		#if not isinstance(filter_size, (list, tuple)):
+			#filter_size = (filter_size, 1)
 
-		self.network[name+'_1resid'] = layers.Conv2DLayer(self.network[last_layer], num_filters=num_filters, filter_size=filter_size, padding='SAME', **self.seed)
+
+		if 'W' not in model_layer.keys():
+			W = init.HeNormal(**self.seed)
+		else:
+			W = model_layer['W']
+		self.network[name+'_1resid'] = layers.Conv1DLayer(self.network[last_layer], num_filters=num_filters,
+											  filter_size=filter_size,
+											  W=W,
+											  padding='SAME')
+		#self.network[name+'_1resid'] = layers.Conv2DLayer(self.network[last_layer], num_filters=num_filters, filter_size=filter_size, padding='SAME', **self.seed)
 		self.network[name+'_1resid_norm'] = layers.BatchNormLayer(self.network[name+'_1resid'], self.placeholders['is_training'])
 		self.network[name+'_1resid_active'] = layers.ActivationLayer(self.network[name+'_1resid_norm'], function=activation)
 
@@ -246,7 +254,15 @@ class NeuralBuild():
 		else:
 			lastname = name+'_1resid_active'
 
-		self.network[name+'_2resid'] = layers.Conv2DLayer(self.network[lastname], num_filters=num_filters, filter_size=filter_size, padding='SAME', **self.seed)
+		if 'W' not in model_layer.keys():
+			W = init.HeNormal(**self.seed)
+		else:
+			W = model_layer['W']
+		self.network[name+'_2resid'] = layers.Conv1DLayer(self.network[lastname], num_filters=num_filters,
+											  filter_size=filter_size,
+											  W=W,
+											  padding='SAME')
+		#self.network[name+'_2resid'] = layers.Conv2DLayer(self.network[lastname], num_filters=num_filters, filter_size=filter_size, padding='SAME', **self.seed)
 		self.network[name+'_2resid_norm'] = layers.BatchNormLayer(self.network[name+'_2resid'], self.placeholders['is_training'])
 		self.network[name+'_resid_sum'] = layers.ElementwiseSumLayer([self.network[last_layer], self.network[name+'_2resid_norm']])
 		self.network[name+'_resid'] = layers.ActivationLayer(self.network[name+'_resid_sum'], function=activation)
@@ -271,7 +287,15 @@ class NeuralBuild():
 		if not isinstance(filter_size, (list, tuple)):
 			filter_size = (filter_size, 1)
 
-		self.network[name+'_1resid'] = layers.Conv2DLayer(self.network[last_layer], num_filters=num_filters, filter_size=filter_size, padding='SAME', **self.seed)
+		if 'W' not in model_layer.keys():
+			W = init.HeNormal(**self.seed)
+		else:
+			W = model_layer['W']
+		self.network[name+'_1resid'] = layers.Conv2DLayer(self.network[last_layer], num_filters=num_filters,
+											  filter_size=filter_size,
+											  W=W,
+											  padding='SAME')			
+		#self.network[name+'_1resid'] = layers.Conv2DLayer(self.network[last_layer], num_filters=num_filters, filter_size=filter_size, padding='SAME', **self.seed)
 		self.network[name+'_1resid_norm'] = layers.BatchNormLayer(self.network[name+'_1resid'], self.placeholders['is_training'])
 		self.network[name+'_1resid_active'] = layers.ActivationLayer(self.network[name+'_1resid_norm'], function=activation)
 
@@ -286,7 +310,15 @@ class NeuralBuild():
 		else:
 			lastname = name+'_1resid_active'
 
-		self.network[name+'_2resid'] = layers.Conv2DLayer(self.network[lastname], num_filters=num_filters, filter_size=filter_size, padding='SAME', **self.seed)
+		if 'W' not in model_layer.keys():
+			W = init.HeNormal(**self.seed)
+		else:
+			W = model_layer['W']
+		self.network[name+'_2resid'] = layers.Conv2DLayer(self.network[lastname], num_filters=num_filters,
+											  filter_size=filter_size,
+											  W=W,
+											  padding='SAME')
+		#self.network[name+'_2resid'] = layers.Conv2DLayer(self.network[lastname], num_filters=num_filters, filter_size=filter_size, padding='SAME', **self.seed)
 		self.network[name+'_2resid_norm'] = layers.BatchNormLayer(self.network[name+'_2resid'], self.placeholders['is_training'])
 		self.network[name+'_resid_sum'] = layers.ElementwiseSumLayer([self.network[last_layer], self.network[name+'_2resid_norm']])
 		self.network[name+'_resid'] = layers.ActivationLayer(self.network[name+'_resid_sum'], function=activation)
@@ -378,7 +410,7 @@ class NameGenerator():
 
 		elif layer == 'conv2d_residual':
 			name = 'conv2d_residual_' + str(self.num_conv2d_residual)
-			self.num_conv1d_residual += 1
+			self.num_conv2d_residual += 1
 
 		elif layer == 'dense_residual':
 			name = 'dense_residual_' + str(self.num_dense_residual)

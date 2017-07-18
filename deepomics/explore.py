@@ -5,7 +5,7 @@ from six.moves import cPickle
 
 import tensorflow as tf
 
-import tfomics
+import deepomics
 
  
 __all__ = [
@@ -135,16 +135,16 @@ class NeuralOptimizer:
 						num_epochs=10, batch_size=128, verbose=0):
 		
 		# build neural network model
-		nnmodel = tfomics.neuralnetwork.NeuralNet()
+		nnmodel = deepomics.neuralnetwork.NeuralNet()
 		nnmodel.build_layers(new_model_layers, new_optimization)
 
 		# compile neural trainer
-		nntrainer = tfomics.neuralnetwork.NeuralTrainer(nnmodel, save=None, file_path=None)
+		nntrainer = deepomics.neuralnetwork.NeuralTrainer(nnmodel, save=None, file_path=None)
 
 		# start session
-		sess = tfomics.utils.initialize_session(nnmodel.placeholders)
+		sess = deepomics.utils.initialize_session(nnmodel.placeholders)
 
-		tfomics.fit.train_minibatch(sess, nntrainer, {'train': train}, batch_size=batch_size, num_epochs=num_epochs, 
+		deepomics.fit.train_minibatch(sess, nntrainer, {'train': train}, batch_size=batch_size, num_epochs=num_epochs, 
 								patience=None, verbose=verbose, shuffle=True, save_all=False)
 
 		loss = nntrainer.test_model(valid, name="valid", batch_size=batch_size, verbose=1)

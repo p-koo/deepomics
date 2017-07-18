@@ -9,7 +9,8 @@ __all__ = [
 
 
 def build_updates(optimization):
-
+	"""Build updates"""
+	
 	if 'optimizer' in optimization.keys():
 		optimizer = optimization['optimizer']
 	else:
@@ -143,15 +144,6 @@ def build_updates(optimization):
 
 
 def build_loss(network, predictions, targets, optimization):
-	
-	# cost function
-	if (optimization['objective'] == 'binary') | (optimization['objective'] == 'categorical'):
-		clip_value = True
-	else:
-		if 'clip_value' in optimization.keys():
-			clip_value = optimization['clip_value']
-		else:
-			clip_value = False
 
 	# build loss function
 	if 'label_smoothing' not in optimization.keys():
@@ -162,16 +154,16 @@ def build_loss(network, predictions, targets, optimization):
 
 	if 'l1' in optimization.keys():
 		l1 = get_l1_parameters(network)
-		loss += tf.reduce_sum(tf.abs(l1)) * optimization['l1']
+		loss = tf.reduce_sum(tf.abs(l1)) * optimization['l1']
 
 	if 'l2' in optimization.keys():
-		l2 = get_l1_parameters(network)
+		l2 = get_l2_parameters(network)
 		loss += tf.reduce_sum(tf.square(l2)) * optimization['l2']
 
 	return loss
 
 
-def cost_function(predictions, targets, objective='binary', label_smoothing=0):
+def cost_function(predictions, targets, objective='binary', label_smoothing=0.0):
 	if objective == 'binary':
 		if label_smoothing > 0:
 			  targets = (targets*(1-label_smoothing) + 0.5*label_smoothing)
@@ -180,14 +172,22 @@ def cost_function(predictions, targets, objective='binary', label_smoothing=0):
 		
 	elif objective == 'categorical':
 		if label_smoothing > 0:
-			num_classes = targets.get_shape([-1])
+			num_classes = targets.get_shape()[-1].value
 			smooth_positives = 1.0 - label_smoothing
 			smooth_negatives = label_smoothing/num_classes
 			targets = targets*smooth_positives + smooth_negatives
-		loss = -tf.reduce_mean(tf.reduce_sum(targets*tf.log(predictions), axis=1))
+		predictions = tf.clip_by_value(predictions,1e-7,1-1e-7)
+		#loss = -tf.reduce_mean(tf.reduce_sum(targets*tf.log(predictions), axis=1))
+		loss = -tf.reduce_mean(targets*tf.log(predictions))
 
 	elif objective == 'squared_error':
 		loss = tf.reduce_mean(tf.square(targets - predictions))
+
+	elif objective == 'cdf':
+		loss = tf.reduce_mean(tf.square(targets - predictions))
+
+	elif objective == 'kl_divergence':
+		loss = tf.reduce_mean(tf.multiply(predictions, tf.log(tf.divide(predictions, targets+1e-7))))
 
 	return loss
 
@@ -196,13 +196,12 @@ def get_l1_parameters(net):
 	params = []
 	for layer in net:
 		if hasattr(net[layer], 'is_l1_regularize'):
-			if net[layer].is_l1_regularize():
-				variables = net[layer].get_variable()
-				if isinstance(variables, list):
-					for var in variables:
-						params.append(var.get_variable())
-				else:
-					params.append(variables.get_variable())
+			variables = net[layer].get_variable()
+			if isinstance(variables, list):
+				for var in variables:
+					params.append(var)
+			else:
+				params.append(variables)
 	return merge_parameters(params)
 
 
@@ -210,13 +209,12 @@ def get_l2_parameters(net):
 	params = []
 	for layer in net:
 		if hasattr(net[layer], 'is_l2_regularize'):
-			if net[layer].is_l2_regularize():
-				variables = net[layer].get_variable()
-				if isinstance(variables, list):
-					for var in variables:
-						params.append(var.get_variable())
-				else:
-					params.append(variables.get_variable())
+			variables = net[layer].get_variable()
+			if isinstance(variables, list):
+				for var in variables:
+					params.append(var)
+			else:
+				params.append(variables)
 	return merge_parameters(params)
 
 
@@ -224,6 +222,6 @@ def get_l2_parameters(net):
 def merge_parameters(params):
 	all_params = []
 	for param in params:
-		all_params = tf.concat([all_params, tf.reshape(param, [-1,])], axis=0)
+		all_params = tf.concat([all_params, tf.reshape(param, [-1])], axis=0)
 	return all_params
 	
