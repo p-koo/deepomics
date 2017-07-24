@@ -66,7 +66,7 @@ class VariationalSampleLayer(BaseLayer):
 	def get_output(self):
 		z = tf.random_normal(shape=tf.shape(self.incoming_mu.get_output()), mean=0.0, stddev=1.0, dtype=tf.float32) 
 		std_encoder = tf.exp(0.5 * self.incoming_sigma.get_output())
-		return self.incoming_mu.get_output() + tf.matmul(std_encoder, z)
+		return self.incoming_mu.get_output() + tf.multiply(std_encoder, z)
 
 	def get_output_shape(self):
 		return self.output_shape

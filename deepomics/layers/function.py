@@ -11,6 +11,7 @@ from .. import init
 __all__ = [
 	"ActivationLayer",
 	"BiasLayer",
+	"StochasticBiasLayer",
 	"ElementwiseSumLayer",
 	"ConcatLayer"
 ]
@@ -157,6 +158,71 @@ class BiasLayer(BaseLayer):
 		
 	def is_l2_regularize(self):
 		return self.b.is_l2_regularize()  
+
+
+
+class StochasticBiasLayer(BaseLayer):
+	"""Bias layer"""
+	
+	def __init__(self, incoming, b=[], **kwargs):
+		
+		self.incoming_shape = incoming.get_output_shape()
+		if len(self.incoming_shape) > 2:
+			num_units = self.incoming_shape[3].value
+		else:
+			num_units = self.incoming_shape[1].value
+
+			
+		if not b:
+			self.b_mu = Variable(var=init.Constant(0.05), 
+						 	  shape=[num_units], 
+							  **kwargs)
+			self.b_sigma = Variable(var=init.Constant(0.05), 
+						 	  shape=[num_units], 
+							  **kwargs)
+		else:
+			self.b_mu = Variable(var=b, shape=[num_units], **kwargs)
+			self.b_sigma = Variable(var=b, shape=[num_units], **kwargs)
+		z = tf.random_normal(shape=shape, mean=0.0, stddev=1.0, dtype=tf.float32) 
+		self.b = self.b_mu.get_variable() + tf.multiply(tf.exp(0.5 * self.b_sigma.get_variable()), z)
+
+		self.output = tf.nn.bias_add(incoming.get_output(), self.b)
+		self.output_shape = self.output.get_shape()
+		
+	def get_input_shape(self):
+		return self.incoming_shape
+	
+	def get_output(self):
+		return self.output
+	
+	def get_output_shape(self):
+		return self.output_shape
+	
+	def get_variable(self):
+		return [self.b_mu, self.b_sigma]
+	
+	def set_trainable(self, status):
+		self.b_mu.set_trainable(status)
+		self.b_sigma.set_trainable(status)
+		
+	def set_l1_regularize(self, status):
+		self.b_mu.set_l1_regularize(status)    
+		self.b_sigma.set_l1_regularize(status)    
+		
+	def set_l2_regularize(self, status):
+		self.b_mu.set_l2_regularize(status)    
+		self.b_sigma.set_l2_regularize(status)    
+	
+	def is_trainable(self):
+		return self.b_mu.is_trainable()
+		
+	def is_l1_regularize(self):
+		return self.b_mu.is_l1_regularize()    
+		
+	def is_l2_regularize(self):
+		return self.b_mu.is_l2_regularize()  
+
+
 
 
 #---------------------------------------------------------------------------------

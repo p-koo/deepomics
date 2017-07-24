@@ -3,11 +3,34 @@ from .base import BaseLayer
 
 		
 __all__ = [
+	"GlobalPoolLayer",
 	"MaxPool1DLayer",
 	"MaxPool2DLayer",
 	"MeanPool1DLayer",
 	"MeanPool2DLayer"
 ]
+
+
+class GlobalPoolLayer(BaseLayer):
+	def __init__(self, incoming, func='max', **kwargs):
+				
+		self.incoming_shape = incoming.get_output_shape()
+		
+		self.output = tf.nn.global_pool(incoming.get_output(), 
+										func=func, 
+										**kwargs)
+		
+		self.output_shape = self.output.get_shape()
+		
+	def get_input_shape(self):
+		return self.incoming_shape
+	
+	def get_output(self):
+		return self.output
+	
+	def get_output_shape(self):
+		return self.output_shape
+
 
 class MaxPool1DLayer(BaseLayer):
 	def __init__(self, incoming, pool_size, strides=[], padding=[], **kwargs):
