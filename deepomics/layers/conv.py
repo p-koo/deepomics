@@ -11,7 +11,7 @@ __all__ = [
 	"Conv1DLayer", 
 	"Conv2DLayer",
 	"TransposeConv1DLayer",
-	"TransposeConv2DLayer"
+	"TransposeConv2DLayer",
 	"StochasticConv1DLayer", 
 	"StochasticConv2DLayer",
 ]
