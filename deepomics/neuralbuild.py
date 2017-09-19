@@ -74,14 +74,23 @@ class NeuralBuild():
 							self.network[new_layer] = layers.BatchNormLayer(self.network[self.last_layer], self.placeholders['is_training'])
 							self.last_layer = new_layer
 						
-				elif 'bias' in model_layer:
-					if model_layer['bias'] != None:	
-						with tf.name_scope("bias") as scope:
-							b = init.Constant(model_layer['bias'])
-							new_layer = name+'_bias'
-							self.network[new_layer] = layers.BiasLayer(self.network[self.last_layer], b=b)
-							self.last_layer = new_layer
+				else:
+					if (model_layer['layer'] == 'dense') | (model_layer['layer'] == 'conv1d') | (model_layer['layer'] == 'conv2d'):
+						if 'b' in model_layer:
+							if model_layer['b'] != None:	
+								with tf.name_scope("bias") as scope:
+									b = init.Constant(model_layer['b'])
+									new_layer = name+'_bias'
+									self.network[new_layer] = layers.BiasLayer(self.network[self.last_layer], b=b)
+									self.last_layer = new_layer
 
+						elif 'norm' not in model_layer:
+							with tf.name_scope("bias") as scope:
+								b = init.Constant(0.05)		
+								new_layer = name+'_bias'
+								self.network[new_layer] = layers.BiasLayer(self.network[self.last_layer], b=b)
+								self.last_layer = new_layer
+				
 				# add activation layer
 				if 'activation' in model_layer:
 					new_layer = name+'_active'
@@ -123,8 +132,10 @@ class NeuralBuild():
 					self.last_layer = new_layer
 
 		if supervised:
-			targets = utils.placeholder(shape=(None, model_layers[-1]['num_units']), name='output')
+
 			self.network['output'] = self.network.pop(self.last_layer)
+			shape = self.network['output'].get_output_shape()
+			targets = utils.placeholder(shape=shape, name='output')
 			self.placeholders['targets'] = targets
 			self.feed_dict['targets'] = []
 		else:
@@ -219,6 +230,12 @@ class NeuralBuild():
 		elif model_layer['layer'] == 'reshape':
 			self.network[name] = layers.ReshapeLayer(self.network[self.last_layer], model_layer['reshape'])
 
+		elif model_layer['layer'] == 'reduce_max':
+			self.network[name] = layers.MaxPoolLayer(self.network[self.last_layer], axis=1)
+
+		elif model_layer['layer'] == 'reduce_mean':
+			self.network[name] = layers.MeanPoolLayer(self.network[self.last_layer], axis=1)
+
 		self.last_layer = name
 
 
@@ -236,10 +253,6 @@ class NeuralBuild():
 			# original residual unit
 			shape = self.network[last_layer].get_output_shape()
 			num_filters = shape[-1].value
-
-			#if not isinstance(filter_size, (list, tuple)):
-				#filter_size = (filter_size, 1)
-
 
 			if 'W' not in model_layer.keys():
 				W = init.HeNormal(**self.seed)
@@ -392,6 +405,8 @@ class NameGenerator():
 		self.num_bilstm = 0
 		self.num_highway = 0
 		self.num_variational = 0
+		self.num_reduce_max = 0
+		self.num_reduce_mean = 0
 
 	def generate_name(self, layer):
 		if layer == 'input':
@@ -419,7 +434,7 @@ class NameGenerator():
 
 		elif layer == 'conv2d_residual':
 			name = 'conv2d_residual_' + str(self.num_conv2d_residual)
-			self.num_conv2d_residual += 1
+			self.num_conv1d_residual += 1
 
 		elif layer == 'dense_residual':
 			name = 'dense_residual_' + str(self.num_dense_residual)
@@ -464,6 +479,14 @@ class NameGenerator():
 		elif layer == 'variational':
 			name = 'variational_' + str(self.num_variational)
 			self.num_variational += 1
+
+		elif layer == 'reduce_max':
+			name = 'reduce_max' + str(self.num_reduce_max)
+			self.num_reduce_max += 1
+
+		elif layer == 'reduce_mean':
+			name = 'reduce_mean' + str(self.num_reduce_mean)
+			self.num_reduce_mean += 1
 
 		return name
 

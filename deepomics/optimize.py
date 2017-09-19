@@ -148,7 +148,7 @@ def build_loss(network, predictions, targets, optimization):
 	# build loss function
 	if 'label_smoothing' not in optimization.keys():
 		optimization['label_smoothing'] = 0
-	loss = cost_function(predictions=predictions, targets=targets, 
+	loss = cost_function(network, targets=targets, 
 						 objective=optimization['objective'], 
 						 label_smoothing=optimization['label_smoothing'])
 
@@ -163,14 +163,16 @@ def build_loss(network, predictions, targets, optimization):
 	return loss
 
 
-def cost_function(predictions, targets, objective='binary', label_smoothing=0.0):
+def cost_function(network, targets, objective='binary', label_smoothing=0.0):
 	if objective == 'binary':
+		predictions = network['output'].get_output()
 		if label_smoothing > 0:
 			  targets = (targets*(1-label_smoothing) + 0.5*label_smoothing)
 		predictions = tf.clip_by_value(predictions,1e-7,1-1e-7)
 		loss = -tf.reduce_mean(targets*tf.log(predictions) + (1-targets)*tf.log(1-predictions))
 		
 	elif objective == 'categorical':
+		predictions = network['output'].get_output()
 		if label_smoothing > 0:
 			num_classes = targets.get_shape()[-1].value
 			smooth_positives = 1.0 - label_smoothing
@@ -181,27 +183,70 @@ def cost_function(predictions, targets, objective='binary', label_smoothing=0.0)
 		loss = -tf.reduce_mean(targets*tf.log(predictions))
 
 	elif objective == 'squared_error':
+		predictions = network['output'].get_output()
 		loss = tf.reduce_mean(tf.square(targets - predictions))
 
 	elif objective == 'cdf':
+		predictions = network['output'].get_output()
 		loss = tf.reduce_mean(tf.square(targets - predictions))
 
 	elif objective == 'kl_divergence':
+		predictions = network['output'].get_output()
 		loss = tf.reduce_mean(tf.multiply(predictions, tf.log(tf.divide(predictions, targets+1e-7))))
 
+	elif objective == 'elbo_gaussian':
+		X_mu = network['X_mu'].get_output()
+		if 'X_sigma' in network.keys():
+			X_sigma = network['X_sigma'].get_output()
+			X_log_var = tf.log(tf.square(X_sigma))
+		else:
+			X_logvar = tf.log(X_mu*(1-X_mu))  
+
+		Z_mu = network['Z_mu'].get_output()
+		Z_sigma = network['Z_sigma'].get_output()
+		half = tf.constant(0.5, dtype=tf.float32)
+		const = tf.constant(-0.5*np.log(2*np.float32(np.pi)), dtype=tf.float32)
+
+		# calculate kl divergence
+		kl_divergence = 0.5*tf.reduce_sum(1 + 2*tf.log(Z_sigma) - tf.square(Z_mu) - tf.exp(2*tf.log(Z_sigma)), axis=1)
+
+		# calculate reconstructed likelihood
+		log_likelihood = tf.reduce_sum(const - 0.5*tf.log(X_var) - 0.5*tf.divide(tf.square(targets-X_mu),tf.exp(X_logvar)), axis=1)
+		
+		# variational lower bound (evidence lower bound)
+		loss = tf.reduce_mean(-log_likelihood - kl_divergence)
+
+	elif objective == 'elbo_binary':
+		X_mu = network['X_mu'].get_output()
+		Z_mu = network['Z_mu'].get_output()
+		Z_sigma = network['Z_sigma'].get_output()
+		half = tf.constant(0.5, dtype=tf.float32)
+		const = tf.constant(-0.5*np.log(2*np.float32(np.pi)), dtype=tf.float32)
+
+		# calculate kl divergence
+		kl_divergence = 0.5*tf.reduce_sum(1 + 2*tf.log(Z_sigma) - tf.square(Z_mu) - tf.exp(2*tf.log(Z_sigma)), axis=1)
+
+		# calculate reconstructed likelihood
+		log_likelihood = tf.reduce_sum(targets*tf.log(1e-10+X_mu) + (1.0-targets)*tf.log(1e-10+1.0-X_mu), axis=1)
+		
+		# variational lower bound (evidence lower bound)
+		loss = tf.reduce_mean(-log_likelihood - kl_divergence)
+
 	return loss
+
 
 
 def get_l1_parameters(net):    
 	params = []
 	for layer in net:
 		if hasattr(net[layer], 'is_l1_regularize'):
-			variables = net[layer].get_variable()
-			if isinstance(variables, list):
-				for var in variables:
-					params.append(var)
-			else:
-				params.append(variables)
+			if net[layer].is_l1_regularize():
+				variables = net[layer].get_variable()
+				if isinstance(variables, list):
+					for var in variables:
+						params.append(var.get_variable())
+				else:
+					params.append(variables.get_variable())
 	return merge_parameters(params)
 
 
@@ -209,12 +254,13 @@ def get_l2_parameters(net):
 	params = []
 	for layer in net:
 		if hasattr(net[layer], 'is_l2_regularize'):
-			variables = net[layer].get_variable()
-			if isinstance(variables, list):
-				for var in variables:
-					params.append(var)
-			else:
-				params.append(variables)
+			if net[layer].is_l2_regularize():
+				variables = net[layer].get_variable()
+				if isinstance(variables, list):
+					for var in variables:
+						params.append(var.get_variable())
+				else:
+					params.append(variables.get_variable())
 	return merge_parameters(params)
 
 
@@ -222,6 +268,6 @@ def get_l2_parameters(net):
 def merge_parameters(params):
 	all_params = []
 	for param in params:
-		all_params = tf.concat([all_params, tf.reshape(param, [-1])], axis=0)
+		all_params = tf.concat([all_params, tf.reshape(param, [-1,])], axis=0)
 	return all_params
 	

@@ -32,8 +32,7 @@ class Constant(Initializer):
 		self.kwargs = kwargs
 		
 	def generate(self, shape):
-		flat_shape = np.prod(shape)
-		return tf.constant(shape=[flat_shape], value=self.value, dtype=self.dtype, **self.kwargs)
+		return tf.constant(shape=shape, value=self.value, dtype=self.dtype, **self.kwargs)
 
 
 class Uniform(Initializer):
@@ -45,8 +44,7 @@ class Uniform(Initializer):
 		self.kwargs = kwargs
 		
 	def generate(self, shape):
-		flat_shape = np.prod(shape)
-		return tf.random_uniform(shape=[flat_shape], minval=self.minval, maxval=self.maxval, dtype=self.dtype, **self.kwargs)
+		return tf.random_uniform(shape=shape, minval=self.minval, maxval=self.maxval, dtype=self.dtype, **self.kwargs)
 
 
 class Normal(Initializer):
@@ -58,8 +56,7 @@ class Normal(Initializer):
 		self.kwargs = kwargs
 		
 	def generate(self, shape):
-		flat_shape = np.prod(shape)
-		return tf.random_normal(shape=[flat_shape], mean=self.mean, stddev=self.stddev, dtype=self.dtype, **self.kwargs)
+		return tf.random_normal(shape=shape, mean=self.mean, stddev=self.stddev, dtype=self.dtype, **self.kwargs)
 
 
 class TruncatedNormal(Initializer):
@@ -71,8 +68,7 @@ class TruncatedNormal(Initializer):
 		self.kwargs = kwargs
 		
 	def generate(self, shape):
-		flat_shape = np.prod(shape)
-		return tf.truncated_normal(shape=[flat_shape], mean=self.mean, stddev=self.stddev, dtype=self.dtype, **self.kwargs)
+		return tf.truncated_normal(shape=shape, mean=self.mean, stddev=self.stddev, dtype=self.dtype, **self.kwargs)
 
 
 def get_fans(shape):
@@ -111,8 +107,7 @@ class GlorotUniform(Initializer):
 	def generate(self, shape):
 		fan_in, fan_out = get_fans(shape)
 		stddev = np.sqrt(6./(fan_in + fan_out))
-		flat_shape = np.prod(shape)
-		return tf.random_uniform(shape=[flat_shape], minval=-stddev, maxval=stddev, dtype=self.dtype, **self.kwargs)
+		return tf.random_uniform(shape=shape, minval=-stddev, maxval=stddev, dtype=self.dtype, **self.kwargs)
 
 
 class GlorotNormal(Initializer):
@@ -134,8 +129,7 @@ class GlorotNormal(Initializer):
 	def generate(self, shape):
 		fan_in, fan_out = get_fans(shape)
 		stddev = np.sqrt(2./(fan_in + fan_out))
-		flat_shape = np.prod(shape)
-		return tf.truncated_normal(shape=[flat_shape], mean=self.mean, stddev=stddev, dtype=self.dtype, **self.kwargs)
+		return tf.truncated_normal(shape=shape, mean=self.mean, stddev=stddev, dtype=self.dtype, **self.kwargs)
 
 
 
@@ -157,9 +151,8 @@ class HeUniform(Initializer):
 	def generate(self, shape):
 		fan_in, fan_out = get_fans(shape)
 		stddev =  np.sqrt(6./fan_in)		
-		flat_shape = np.prod(shape)
 
-		return tf.random_uniform(shape=[flat_shape], minval=-stddev, maxval=stddev, dtype=self.dtype, **self.kwargs)
+		return tf.random_uniform(shape=shape, minval=-stddev, maxval=stddev, dtype=self.dtype, **self.kwargs)
 
 
 class HeNormal(Initializer):
@@ -181,9 +174,8 @@ class HeNormal(Initializer):
 	def generate(self, shape):
 		fan_in, fan_out = get_fans(shape)
 		stddev = np.sqrt(2./fan_in)
-		flat_shape = np.prod(shape)
 
-		return tf.truncated_normal(shape=[flat_shape], mean=self.mean, stddev=stddev, dtype=self.dtype, **self.kwargs)
+		return tf.truncated_normal(shape=shape, mean=self.mean, stddev=stddev, dtype=self.dtype, **self.kwargs)
 
 
 class Orthogonal(Initializer):

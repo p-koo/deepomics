@@ -15,6 +15,7 @@ __all__ = [
 ]
 
 	
+
 class DenseLayer(BaseLayer):
 	"""Fully-connected layer"""
 
@@ -30,12 +31,12 @@ class DenseLayer(BaseLayer):
 		self.shape = shape
 		self.incoming_shape = incoming.get_output_shape()
 		
+		
 		if not W:
-			self.W_flat = Variable(var=init.HeUniform(), shape=shape)
+			self.W = Variable(var=init.HeUniform(**kwargs), shape=shape, **kwargs)
 		else:
-			self.W_flat = Variable(var=W, shape=shape)
-		self.W = tf.reshape(self.W_flat.get_variable(), shape=shape)
-
+			self.W = Variable(var=W, shape=shape, **kwargs)
+			
 		if b is None:
 			self.b = []
 		else:
@@ -44,10 +45,9 @@ class DenseLayer(BaseLayer):
 			else:
 				self.b = Variable(var=b, shape=[num_units], **kwargs)
 			
-		self.output = tf.matmul(incoming.get_output(), self.W)
-
+		self.output = tf.matmul(incoming.get_output(), self.W.get_variable())
 		if self.b:
-			self.output = tf.nn.bias_add(self.output, self.b.get_variable())
+			self.output = tf.nn.bias_add(self.output,self.b.get_variable())
 			
 		self.output_shape = self.output.get_shape()
 		
@@ -60,41 +60,35 @@ class DenseLayer(BaseLayer):
 	def get_output_shape(self):
 		return self.output_shape
 	
-	def get_variable(self, shape=False):
-		if shape:
-			if self.b:
-				return [self.W, self.b.get_variable()]
-			else:
-				return self.W
+	def get_variable(self):
+		if self.b:
+			return [self.W, self.b]
 		else:
-			if self.b:
-				return [self.W_flat.get_variable(), self.b.get_variable()]
-			else:
-				return self.W_flat.get_variable()
-
+			return self.W
+	
 	def set_trainable(self, status):
-		self.W_flat.set_trainable(status)
+		self.W.set_trainable(status)
 		if self.b:
 			self.b.set_trainable(status)
 			
 	def set_l1_regularize(self, status):
-		self.W_flat.set_l1_regularize(status)    
+		self.W.set_l1_regularize(status)    
 		if self.b:
 			self.b.set_l1_regularize(status)
 		
 	def set_l2_regularize(self, status):
-		self.W_flat.set_l2_regularize(status)    
+		self.W.set_l2_regularize(status)    
 		if self.b:
 			self.b.set_l2_regularize(status)
 	
 	def is_trainable(self):
-		return self.W_flat.is_trainable()
+		return self.W.is_trainable()
 		
 	def is_l1_regularize(self):
-		return self.W_flat.is_l1_regularize()    
+		return self.W.is_l1_regularize()    
 		
 	def is_l2_regularize(self):
-		return self.W_flat.is_l2_regularize()  
+		return self.W.is_l2_regularize()  
 	
 
 
@@ -114,13 +108,12 @@ class StochasticDenseLayer(BaseLayer):
 		self.incoming_shape = incoming.get_output_shape()
 		
 		if not W:
-			self.W_flat_mu = Variable(var=init.HeUniform(), shape=shape)
-			self.W_flat_sigma = Variable(var=init.HeUniform(), shape=shape)
+			self.W_mu = Variable(var=init.HeUniform(), shape=shape)
+			self.W_sigma = Variable(var=init.HeUniform(), shape=shape)
 		else:
-			self.W_flat_mu = Variable(var=W, shape=shape)
-			self.W_flat_sigma = Variable(var=W, shape=shape)
-		self.W_mu = tf.reshape(self.W_flat_mu.get_variable(), shape=shape)
-		self.W_sigma = tf.reshape(self.W_flat_sigma.get_variable(), shape=shape)
+			self.W_mu = Variable(var=W, shape=shape)
+			self.W_sigma = Variable(var=W, shape=shape)
+
 		z = tf.random_normal(shape=shape, mean=0.0, stddev=1.0, dtype=tf.float32) 
 		self.W = self.W_mu.get_variable() + tf.multiply(tf.exp(0.5 * self.W_sigma.get_variable()), z)
 
@@ -138,32 +131,27 @@ class StochasticDenseLayer(BaseLayer):
 		return self.output_shape
 	
 	def get_variable(self, shape=False):
-		if shape:
-			variables = [tf.reshape(self.W_flat_mu.get_variable(), shape=self.shape), 
-					tf.reshape(self.W_flat_sigma.get_variable(), shape=self.shape)]
-			return variables
-		else:
-			return [self.W_flat_mu.get_variable(), self.W_flat_sigma.get_variable()]
+		return [self.W_mu.get_variable(), self.W_sigma.get_variable()]
 
 	def set_trainable(self, status):
-		self.W_flat_mu.set_trainable(status)
-		self.W_flat_sigma.set_trainable(status)
+		self.W_mu.set_trainable(status)
+		self.W_sigma.set_trainable(status)
 		
 	def set_l1_regularize(self, status):
-		self.W_flat_mu.set_l1_regularize(status)    
-		self.W_flat_sigma.set_l1_regularize(status)    
+		self.W_mu.set_l1_regularize(status)    
+		self.W_sigma.set_l1_regularize(status)    
 		
 	def set_l2_regularize(self, status):
-		self.W_flat_mu.set_l2_regularize(status)    
-		self.W_flat_sigma.set_l2_regularize(status)    
+		self.W_mu.set_l2_regularize(status)    
+		self.W_sigma.set_l2_regularize(status)    
 		
 	def is_trainable(self):
-		return self.W_flat_mu.is_trainable()
+		return self.W_mu.is_trainable()
 		
 	def is_l1_regularize(self):
-		return self.W_flat_mu.is_l1_regularize()    
+		return self.W_mu.is_l1_regularize()    
 		
 	def is_l2_regularize(self):
-		return self.W_flat_mu.is_l2_regularize()  
+		return self.W_mu.is_l2_regularize()  
 		
 		

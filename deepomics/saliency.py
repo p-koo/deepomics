@@ -45,11 +45,12 @@ def backprop(X, layer='output', class_index=None, params=None):
 	return saliency
 
 
-	
-def guided_backprop(X, layer='output', class_index=None, params=None):
+def guided_backprop(X, layer='output', class_index=None, params=None, batch_size=128):
 	tf.reset_default_graph()
 	
 	# build new graph
+	#g = tf.get_default_graph()
+	#with g.gradient_override_map({'Relu': 'GuidedRelu'}):
 	model_layers, optimization = params['genome_model'](params['input_shape'], params['output_shape'])
 	nnmodel = nn.NeuralNet()
 	nnmodel.build_layers(model_layers, optimization, method='guided')
@@ -62,10 +63,10 @@ def guided_backprop(X, layer='output', class_index=None, params=None):
 	# backprop saliency
 	if layer == 'output':
 		layer = list(nnmodel.network.keys())[-2]
-		saliency = nntrainer.get_saliency(sess, X, nnmodel.network[layer], class_index=class_index, batch_size=128)
-		saliency = saliency[0]
+		saliency = nntrainer.get_saliency(sess, X, nnmodel.network[layer], class_index=class_index, batch_size=batch_size)
+
 	else:
-		data = {'inputs': X}
+		data = {nnmodel.placeholders['inputs']: X}
 		layer_activations = nntrainer.get_activations(sess, data, layer)
 		max_activations = np.squeeze(np.max(layer_activations, axis=1))
 		active_indices = np.where(max_activations > 0)[0]
@@ -73,7 +74,7 @@ def guided_backprop(X, layer='output', class_index=None, params=None):
 
 		saliency = []
 		for neuron_index in active_indices:
-			val = nntrainer.get_saliency(sess, X, nnmodel.network[layer], class_index=neuron_index, batch_size=128)
+			val = nntrainer.get_saliency(sess, X, nnmodel.network[layer][:,:,:,neuron_index], class_index=None, batch_size=batch_size)
 			saliency.append(val)        
 
 	sess.close()

@@ -66,7 +66,7 @@ class BatchNormLayer(BaseLayer):
 		return self.incoming.get_output_shape()
 
 	def get_variable(self):
-		return [self.gamma.get_variable(), self.beta.get_variable()]
+		return [self.gamma, self.beta]
 
 	def set_trainable(self, status):
 		self.gamma.set_trainable(status)

@@ -26,7 +26,7 @@ def _GuidedReluGrad(op, grad):
 #------------------------------------------------------------------------------------------
 
 class NeuralNet:
-	"""Class to build a neural network and perform basic functions."""
+	"""Class to build a neural network model and perform basic functions."""
 	
 	def __init__(self, seed=None, network=[], placeholders=[], feed_dict={}, optimization={}):
 
@@ -54,11 +54,11 @@ class NeuralNet:
 				self.network, self.placeholders, self.feed_dict = nnbuild.build_layers(model_layers)
 		else:
 			self.network, self.placeholders, self.feed_dict = nnbuild.build_layers(model_layers)
-		self.build_optimizer(optimization)
-		self.train_metric()
+		self._build_optimizer(optimization)
+		self._train_metric()
 
 
-	def build_optimizer(self, optimization=None):
+	def _build_optimizer(self, optimization=None):
 		if optimization is None:
 			optimization = self.optimization
 		else:
@@ -72,31 +72,51 @@ class NeuralNet:
 		self.updates = optimize.build_updates(self.optimization)
 
 		# get list of trainable parameters (default is trainable)
-		trainable_params = self.get_trainable_parameters()
+		trainable_params = self._get_trainable_parameters()
 		self.train_step = self.updates.minimize(self.loss, var_list=trainable_params)
 
 
-	def train_metric(self):
+	def _train_metric(self):
 		"""metric to monitor performance during training"""
 
+		# categorical cross entropy (objective for softmax classification)
 		if self.optimization['objective'] == 'categorical':
 			predictions = tf.argmax(self.predictions, axis=1)
 			targets = tf.argmax(self.placeholders['targets'], axis=1)
 			self.metric = tf.reduce_mean(tf.cast(tf.equal(predictions, targets), tf.float32))
 				
+		# binary cross entropy (objective for binary classification)
 		elif self.optimization['objective'] == 'binary':
 			predictions = tf.cast(tf.greater_equal(self.predictions, 0.5), tf.float32)
 			self.metric = tf.reduce_mean(tf.cast(tf.equal(predictions, self.placeholders['targets']), tf.float32))
 	
+		# mean squared error (objective for regression)
 		elif self.optimization['objective'] == 'squared_error':
 			self.metric = tf.reduce_mean(tf.square(self.predictions - self.placeholders['targets']))
 
-		elif self.optimization['objective'] == 'lower_bound':
+		# variational lower bound -- currently just printing squared error
+		elif (self.optimization['objective'] == 'elbo_gaussian') | (self.optimization['objective'] == 'elbo_binary'):
 			self.metric = tf.reduce_mean(tf.square(self.predictions - self.placeholders['targets']))
 
+		# Kullback-Leibler divergence -- currently just printing squared error
 		elif self.optimization['objective'] == 'kl_divergence':
 			self.metric = tf.reduce_mean(tf.square(self.predictions - self.placeholders['targets']))
 
+
+	def _get_trainable_parameters(self):   
+		"""get all trainable parameters (tensorflow variables) in network""" 
+
+		params = []
+		for layer in self.network:
+			if hasattr(self.network[layer], 'is_trainable'):
+				if self.network[layer].is_trainable():
+					variables = self.network[layer].get_variable()
+					if isinstance(variables, list):
+						for var in variables:
+							params.append(var.get_variable())
+					else:
+						params.append(variables.get_variable())
+		return params
 
 
 	def inspect_layers(self):
@@ -138,28 +158,12 @@ class NeuralNet:
 		saver.restore(sess, file_path)
 
 
-	def get_trainable_parameters(self):   
-		"""get all trainable parameters (tensorflow variables) in network""" 
-
-		params = []
-		for layer in self.network:
-			if hasattr(self.network[layer], 'is_trainable'):
-				if self.network[layer].is_trainable():
-					variables = self.network[layer].get_variable()
-					if isinstance(variables, list):
-						for var in variables:
-							params.append(var)
-					else:
-						params.append(variables)
-		return params
-
-
 	def get_parameters(self, sess, layer=[]):
 		"""return all the parameters of the network"""
 
 		layer_params = []
 		if layer:
-			variables = self.network[layer].get_variable(shape=True)
+			variables = self.network[layer].get_variable()
 			if isinstance(variables, list):
 				params = []
 				for var in variables:
@@ -172,7 +176,7 @@ class NeuralNet:
 			for layer in self.network:
 				if hasattr(self.network[layer], 'is_trainable'):
 					if self.network[layer].is_trainable():
-						variables = self.network[layer].get_variable(shape=True)
+						variables = self.network[layer].get_variable()
 						if isinstance(variables, list):
 							params = []
 							for var in variables:
@@ -191,7 +195,7 @@ class NeuralNet:
 				dy = func(y[:,:,:,class_index], axis=1)
 			else:
 				dy = y[:,class_index] #  tf.sign(y[:,class_index])*tf.square(y[:,class_index])
-		return sess.run([tf.gradients(dy, dx), dy], feed_dict=feed_dict) 
+		return sess.run(tf.gradients(dy, dx), feed_dict=feed_dict) 
 
 
 	def stochastic_saliency(self, sess, X, y, dx, stochastic_feed, num_average=200, threshold=1.0, class_index=None):
@@ -234,6 +238,7 @@ class NeuralNet:
 			
 		return saliency_ave, counter
 
+
 #----------------------------------------------------------------------------------------------------
 # Train neural networks class
 #----------------------------------------------------------------------------------------------------
@@ -257,7 +262,7 @@ class NeuralTrainer():
 
 		self.update_feed_dict(nnmodel.placeholders, nnmodel.feed_dict)
 		
-		# instantiate monitor class to monitor performance
+		# instantiate monitor performance for each dataset
 		self.train_monitor = MonitorPerformance(name="train", objective=self.objective, verbose=1)
 		self.test_monitor = MonitorPerformance(name="test", objective=self.objective, verbose=1)
 		self.valid_monitor = MonitorPerformance(name="cross-validation", objective=self.objective, verbose=1)
@@ -295,6 +300,7 @@ class NeuralTrainer():
 		batch_generator = BatchGenerator(num_data, batch_size, shuffle)
 		num_batches = batch_generator.get_num_batches()
 
+		# loop through dataset
 		value = 0
 		metric = 0
 		for i in range(num_batches):
@@ -363,7 +369,8 @@ class NeuralTrainer():
 		for i in range(batch_generator.get_num_batches()):
 			self.test_feed = batch_generator.next_minibatch(data, self.test_feed, self.placeholders)
 			val = self.nnmodel.calculate_saliency(sess, y, self.placeholders['inputs'], self.test_feed, class_index=class_index)
-			saliency.append(val[0])
+			if len(val) != 0:
+				saliency.append(val[0])
 		return np.vstack(saliency)
 		  
 

@@ -9,7 +9,9 @@ rcParams.update({'figure.autolayout': True})
 from scipy.misc import imresize
 import pandas as pd
 from .utils import normalize_pwm
-
+from matplotlib import gridspec
+import matplotlib.image as mpimg
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 def plot_roc_all(final_roc):
@@ -49,7 +51,108 @@ def plot_pr_all(final_pr):
 	return fig, plt
 
 
-def plot_filter_logos(W, figsize=(2,10), height=25, nt_width=10, norm=0, alphabet='dna', factor=3):
+def activation_pwm(fmap, X, threshold, window):
+
+	# find regions above threshold
+	x, y = np.where(fmap > threshold)
+
+	# sort score 
+	index = np.argsort(fmap[x,y])[-1:0:-1]
+	data_index = x[index].astype(int)
+	pos_index = y[index].astype(int)
+	activation = fmap[data_index, pos_index]
+
+	# extract sequences with aligned activation
+	seq_align = []
+	window = int(window/2)
+	num_dims = X.shape[2]
+	count_matrix = np.zeros((window*2, num_dims))
+
+	for i in range(len(pos_index)):
+
+		start_window = pos_index[i] - window
+		if start_window < 0:
+			start_buffer = np.zeros((-start_window, num_dims))
+			start = 0    		
+		else:
+			start = start_window
+
+		end_window = pos_index[i] + window
+		end_remainder = end_window - fmap.shape[1]
+		if end_remainder > 0:
+			end = fmap.shape[1]
+			end_buffer = np.zeros((end_remainder, num_dims))
+		else:
+			end = end_window
+
+		seq = X[data_index[i], start:end, :]*activation[i]
+		counts = np.ones(seq.shape)*activation[i]
+
+		if start_window < 0:
+			seq = np.vstack([start_buffer, seq])
+			counts = np.vstack([start_buffer, counts])
+		if end_remainder > 0:
+			seq = np.vstack([seq, end_buffer])
+			counts = np.vstack([counts, end_buffer])
+
+		seq_align.append(seq)
+		count_matrix += counts
+	seq_align = np.array(seq_align)
+
+	seq_align = np.sum(seq_align, axis=0)/count_matrix
+	seq_align[np.isnan(seq_align)] = 0
+
+	return seq_align
+
+def generate_pwm(sess, nntrainer, X, guided_saliency, window=6, layer='conv1d_0_active'):
+	
+	data={'inputs': guided_saliency}
+	fmaps = nntrainer.get_activations(sess, data, layer=layer)
+
+	num_filters = fmaps.shape[-1]
+	
+	pwm = []
+	for i in range(num_filters):
+		fmap = np.squeeze(fmaps[:,:,:,i])
+
+		# get threshold
+		threshold = np.max(fmap)*0.8
+		
+		pwm.append(activation_pwm(fmap, X, threshold, window))
+
+	return np.array(pwm)
+			
+def filter_heatmap(W, norm=True, cmap='hot_r', cbar_norm=True):
+	import matplotlib
+	if norm:
+		norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
+	else:
+		norm = None
+	cmap_reversed = matplotlib.cm.get_cmap(cmap)
+	im = plt.imshow(W, cmap=cmap_reversed, norm=norm)
+
+	#plt.axis('off');
+	ax = plt.gca()
+	ax.set_xticks(np.arange(-.5, W.shape[1], 1.), minor=True);
+	ax.set_yticks(np.arange(-.5, W.shape[0], 1.), minor=True);
+	ax.grid(which='minor', color='k', linestyle='-', linewidth=2)
+	plt.xticks([]);
+	if W.shape[0] == 4:
+		plt.yticks([0, 1, 2, 3], ['A', 'C', 'G', 'U'], fontsize=16)
+	else:
+		plt.yticks([0, 1, 2, 3, 4, 5], ['A', 'C', 'G', 'U', 'paired', 'unpaired'], fontsize=16)
+
+	#cbar = plt.colorbar();
+	divider = make_axes_locatable(ax)
+	cax = divider.append_axes("right", size="5%", pad=0.2)
+	cbar = plt.colorbar(im, cax=cax)
+	cbar.ax.tick_params(labelsize=16)
+	if cbar_norm:
+		cbar.set_ticks([0.0, 0.5, 1.0])
+	return plt
+
+
+def plot_filter_logos(W, figsize=(10,7), height=25, nt_width=10, norm=0, alphabet='dna', norm_factor=3):
 
 	W = np.squeeze(W.transpose([3, 2, 0, 1]))
 	num_filters = W.shape[0]
@@ -59,8 +162,8 @@ def plot_filter_logos(W, figsize=(2,10), height=25, nt_width=10, norm=0, alphabe
 	fig = plt.figure(figsize=figsize);
 	for i in range(num_filters):
 		plt.subplot(grid[i]);
-		if factor:
-			W_norm = normalize_pwm(W[i], factor=factor)
+		if norm_factor:
+			W_norm = normalize_pwm(W[i], factor=norm_factor)
 		else:
 			W_norm = W[i]
 		logo = seq_logo(W_norm, height=height, nt_width=nt_width, norm=norm, alphabet=alphabet)
@@ -93,53 +196,125 @@ def plot_seq_logo(logo, nt_width=None, step_multiple=None):
 	return plt
 
 
-def plot_pos_saliency(W, height=50, nt_width=20, alphabet='dna', factor=3):
 
-	pwm = normalize_pwm(W, factor=factor)
-	pos_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
-	plt.imshow(pos_logo, interpolation='none')
-	plt.xticks([])
-	plt.yticks([])
-	ax = plt.gca()
-	ax.spines['right'].set_visible(False)
-	ax.spines['top'].set_visible(False)
-	ax.yaxis.set_ticks_position('none')
-	ax.xaxis.set_ticks_position('none')
+def plot_seq_struct_saliency(X, W, nt_width=100, norm_factor=3):
 
 
-def plot_seq_pos_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=(100,8), title=None, factor=3):
+	# filter out zero-padding
+	plot_index = np.where(np.sum(X, axis=0)!=0)[0]
+	num_nt = len(plot_index)
 
-	num_rows = 2
-	grid = mpl.gridspec.GridSpec(num_rows, 1)
-	grid.update(wspace=0.2, hspace=0.2, left=0.1, right=0.2, bottom=0.1, top=0.2) 
+	# sequence logo
+	pwm_seq = X[:4, plot_index]
+	pwm_seq_logo = seq_logo(pwm_seq, height=nt_width, nt_width=nt_width, norm=0, alphabet='rna', colormap='standard')
 
-	fig = plt.figure(figsize=figsize);
+	# structure logo
+	pwm_struct = X[4:, plot_index]
+	pwm_struct = normalize_pwm(pwm_struct, factor=norm_factor)
+	pwm_struct_logo = seq_logo_reverse(pwm_struct, height=nt_width*2, nt_width=nt_width, norm=0, alphabet='pu', colormap='bw')
 
-	plt.subplot(grid[0])
-	pwm = normalize_pwm(W, factor=factor)
-	pos_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
-	plt.imshow(pos_logo, interpolation='none')
-	plt.xticks([])
-	plt.yticks([])
-	#plt.yticks([0, 100], ['2.0','0.0'])
-	ax = plt.gca()
-	ax.spines['right'].set_visible(False)
-	ax.spines['top'].set_visible(False)
-	ax.yaxis.set_ticks_position('none')
-	ax.xaxis.set_ticks_position('none')
-	if title:
-		plt.title(title)
+	# sequence saliency logo
+	seq_saliency = W[:4, plot_index]
+	pwm_seq_saliency = normalize_pwm(seq_saliency, factor=norm_factor)
+	pwm_seq_saliency_logo = seq_logo(pwm_seq_saliency, height=nt_width*5, nt_width=nt_width, norm=0, alphabet='rna', colormap='standard')
+	
+	# structure saliency logo	
+	struct_saliency = W[4:, plot_index]
+	pwm_struct_saliency = normalize_pwm(struct_saliency, factor=norm_factor)
+	pwm_struct_saliency_logo = seq_logo_reverse(pwm_struct_saliency, height=int(nt_width*8), nt_width=nt_width, norm=0, alphabet='pu', colormap='bw')
 
-	plt.subplot(grid[1])
-	logo = seq_logo(np.squeeze(X), height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
-	plt.imshow(logo, interpolation='none');
+	# black line 
+	line1 = np.zeros([10, num_nt*nt_width, 3], dtype=np.uint8)
+
+	# space between seq logo and line
+	spacer1 = np.zeros([10, num_nt*nt_width, 3], dtype=np.uint8)
+	spacer1.fill(255)
+
+	# spacing between seq and struct logo
+	spacer2 = np.zeros([20, num_nt*nt_width, 3], dtype=np.uint8)
+	spacer2.fill(255)
+
+	# spacing between saliency logo and line
+	spacer6 = np.zeros([60, num_nt*nt_width, 3], dtype=np.uint8)
+	spacer6.fill(255)
+
+	# build logo image
+	logo_img = np.vstack([pwm_seq_saliency_logo, spacer6, line1, spacer2, pwm_seq_logo, spacer2,  
+						  pwm_struct_logo, line1, spacer6, pwm_struct_saliency_logo])
+
+	# plot logo image
+	plt.imshow(logo_img)
 	plt.axis('off');
 
-	return fig, plt
+	# return plot handles
+	return plt
 
 
-def plot_neg_saliency(W, height=50, nt_width=20, alphabet='dna', figsize=(100,8), title=None, factor=3):
 
+def plot_pos_saliency(W, height=500, nt_width=100, alphabet='dna', norm_factor=3, colormap='standard'):
+	"""
+	pwm = normalize_pwm(W, factor=factor)
+	pos_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
+	plt.imshow(pos_logo, interpolation='none')
+	plt.xticks([])
+	plt.yticks([])
+	ax = plt.gca()
+	ax.spines['right'].set_visible(False)
+	ax.spines['top'].set_visible(False)
+	ax.yaxis.set_ticks_position('none')
+	ax.xaxis.set_ticks_position('none')
+	"""
+	# sequence saliency logo
+	pwm = normalize_pwm(W, factor=norm_factor)
+	logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet, colormap=colormap)
+	
+	# plot logo image
+	plt.imshow(logo)
+	plt.axis('off');
+
+	# return figure and plot handles
+	return plt
+
+
+
+def plot_seq_pos_saliency(X, W, nt_width=100, alphabet='dna', norm_factor=3, colormap='standard'):
+
+	# filter out zero-padding
+	plot_index = np.where(np.sum(X, axis=0)!=0)[0]
+	num_nt = len(plot_index)
+
+	# sequence logo
+	pwm_seq_logo = seq_logo(X[:,plot_index], height=nt_width, nt_width=nt_width, norm=0, alphabet=alphabet, colormap=colormap)
+
+	# sequence saliency logo
+	pwm_seq_saliency = normalize_pwm(W[:,plot_index], factor=norm_factor)
+	pwm_seq_saliency_logo = seq_logo(pwm_seq_saliency, height=nt_width*5, nt_width=nt_width, norm=0, alphabet=alphabet, colormap=colormap)
+	
+	# black line 
+	line1 = np.zeros([10, num_nt*nt_width, 3], dtype=np.uint8)
+
+	# space between seq logo and line
+	spacer1 = np.zeros([10, num_nt*nt_width, 3], dtype=np.uint8)
+	spacer1.fill(255)
+
+	# spacing between saliency logo and line
+	spacer6 = np.zeros([60, num_nt*nt_width, 3], dtype=np.uint8)
+	spacer6.fill(255)
+
+	# build logo image
+	logo_img = np.vstack([pwm_seq_saliency_logo, spacer6, line1, spacer1, pwm_seq_logo])
+
+	# plot logo image
+	plt.imshow(logo_img)
+	plt.axis('off');
+
+	# return plot handles
+	return plt
+
+
+def plot_neg_saliency(W, height=500, nt_width=100, alphabet='dna', norm_factor=3, colormap='standard'):
+
+	"""
 	num_rows = 2
 	grid = mpl.gridspec.GridSpec(num_rows, 1)
 	grid.update(wspace=0.2, hspace=0.00, left=0.1, right=0.2, bottom=0.0, top=0.05) 
@@ -147,7 +322,7 @@ def plot_neg_saliency(W, height=50, nt_width=20, alphabet='dna', figsize=(100,8)
 	fig = plt.figure(figsize=figsize);
 
 	plt.subplot(grid[0])	
-	pwm = normalize_pwm(W,  factor=factor)
+	pwm = normalize_pwm(W, factor=factor)
 	pos_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 	plt.imshow(pos_logo, interpolation='none')
 	plt.xticks([])	
@@ -159,7 +334,7 @@ def plot_neg_saliency(W, height=50, nt_width=20, alphabet='dna', figsize=(100,8)
 	ax.yaxis.set_ticks_position('none')
 	ax.xaxis.set_ticks_position('none')
 	if title:
-	    plt.title(title)
+		plt.title(title)
 
 	plt.subplot(grid[1]);
 	pwm = normalize_pwm(-W, factor=factor)
@@ -176,10 +351,41 @@ def plot_neg_saliency(W, height=50, nt_width=20, alphabet='dna', figsize=(100,8)
 
 	fig.set_size_inches(150, 14)
 	return fig, plt
+	"""
+	num_nt = W.shape[1]
+
+	# sequence logo
+	pos_saliency = normalize_pwm(W, factor=norm_factor)
+	pos_logo = seq_logo(pos_saliency, height=height, nt_width=nt_width, norm=0, alphabet=alphabet, colormap=colormap)
+
+	# sequence saliency logo
+	neg_saliency = normalize_pwm(-W, factor=norm_factor)
+	neg_logo = seq_logo_reverse(neg_saliency, height=height, nt_width=nt_width, norm=0, alphabet=alphabet, colormap=colormap)
+	
+	# black line 
+	line1 = np.zeros([10, num_nt*nt_width, 3], dtype=np.uint8)
+
+	# space between seq logo and line
+	spacer1 = np.zeros([10, num_nt*nt_width, 3], dtype=np.uint8)
+	spacer1.fill(255)
+
+	# spacing between saliency logo and line
+	spacer6 = np.zeros([30, num_nt*nt_width, 3], dtype=np.uint8)
+	spacer6.fill(255)
+
+	# build logo image
+	logo_img = np.vstack([pos_logo, spacer6, line1, spacer6, neg_logo])
+
+	# plot logo image
+	plt.imshow(logo_img)
+	plt.axis('off');
+
+	# return plot handles
+	return plt
 
 
-def plot_seq_neg_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=(100,8), title=None, factor=3):
-
+def plot_seq_neg_saliency(X, W, height=500, nt_width=100, alphabet='dna', norm_factor=3, colormap='standard'):
+	"""
 	num_rows = 3
 	grid = mpl.gridspec.GridSpec(num_rows, 1)
 	grid.update(wspace=0.2, hspace=0.2, left=0.1, right=0.2, bottom=0.1, top=0.2) 
@@ -220,46 +426,46 @@ def plot_seq_neg_saliency(X, W, height=50, nt_width=20, alphabet='dna', figsize=
 	ax.yaxis.set_ticks_position('none')
 	ax.xaxis.set_ticks_position('none')
 	return fig, plt
+	"""
+	# filter out zero-padding
+	plot_index = np.where(np.sum(X, axis=0)!=0)[0]
+	num_nt = len(plot_index)
 
+	# sequence logo
+	pwm_seq_logo = seq_logo(X[:,plot_index], height=int(height/5), nt_width=nt_width, norm=0, alphabet=alphabet, colormap=colormap)
+	W = W[:,plot_index]
 
-def get_filter_logo_scan(X, nnmodel, sess, layer='conv1', window=10, flip_filters=0):
-	""" get the filter logo from the highest activations"""
-	fmaps = nnmodel.get_activations(sess, layer, X)
-	fmaps = np.squeeze(fmaps)
-	X = np.squeeze(X)
+	pos_saliency = normalize_pwm(W, factor=norm_factor)
+	pos_logo = seq_logo(pos_saliency, height=height, nt_width=nt_width, norm=0, alphabet=alphabet, colormap=colormap)
 
-	W_scan = []
-	for filter_index in range(fmaps.shape[1]):
-		
-		# get filter scan
-		scan = fmaps[:,filter_index,:]
+	# sequence saliency logo
+	neg_saliency = normalize_pwm(-W, factor=norm_factor)
+	neg_logo = seq_logo_reverse(neg_saliency, height=height, nt_width=nt_width, norm=0, alphabet=alphabet, colormap=colormap)
+	
+	# black line 
+	line1 = np.zeros([10, num_nt*nt_width, 3], dtype=np.uint8)
 
-		# get threshold
-		threshold = np.max(scan)/2
+	# space between seq logo and line
+	spacer1 = np.zeros([10, num_nt*nt_width, 3], dtype=np.uint8)
+	spacer1.fill(255)
 
-		# find regions above threshold
-		x, y = np.where(scan > threshold)
+	# spacing between seq and struct logo
+	spacer2 = np.zeros([20, num_nt*nt_width, 3], dtype=np.uint8)
+	spacer2.fill(255)
 
-		# sort score 
-		index = np.argsort(scan[x,y])[-1:0:-1]
-		data_index = x[index].astype(int)
-		pos_index = y[index].astype(int)
+	# spacing between saliency logo and line
+	spacer6 = np.zeros([60, num_nt*nt_width, 3], dtype=np.uint8)
+	spacer6.fill(255)
 
-		if len(pos_index) > 100:
-			seq = []
-			for i in range(len(pos_index)):
-				if (pos_index[i]-window >= 0) & (pos_index[i]+window <= scan.shape[1]):
-					seq.append(X[data_index[i],:,pos_index[i]-window:pos_index[i]+window])
-			if seq:
-				seq = np.array(seq)
-				seq = np.mean(seq,axis=0)
-				if flip_filters:
-					seq = seq[:,::-1]
-				W_scan.append(seq)
-			else:
-				seq = np.ones((4,window*2+1))*.25
-	return np.array(W_scan)
+	# build logo image
+	logo_img = np.vstack([pos_logo, spacer6, line1, spacer2, pwm_seq_logo, spacer2, line1, spacer6, neg_logo])
 
+	# plot logo image
+	plt.imshow(logo_img)
+	plt.axis('off');
+
+	# return plot handles
+	return plt
 
 
 
@@ -296,61 +502,71 @@ def subplot_grid(nrows, ncols):
 	return grid
 
 
-def load_alphabet(filepath, alphabet):
-	if (alphabet == 'dna') | (alphabet == 'rna'): # dna or rna
-		"""load images of nucleotide alphabet """
-		df = pd.read_table(os.path.join(filepath, 'A.txt'), header=None);
-		A_img = df.as_matrix()
-		A_img = np.reshape(A_img, [72, 65, 3], order="F").astype(np.uint8)
+def load_alphabet(char_path, alphabet, colormap='standard'):
 
-		df = pd.read_table(os.path.join(filepath, 'C.txt'), header=None);
-		C_img = df.as_matrix()
-		C_img = np.reshape(C_img, [76, 64, 3], order="F").astype(np.uint8)
+	def load_char(char_path, char, color):
+		colors = {}
+		colors['green'] = [10, 151, 21]
+		colors['red'] = [204, 0, 0]
+		colors['orange'] = [255, 153, 51]
+		colors['blue'] = [0, 0, 204]
+		colors['cyan'] = [153, 204, 255]
+		colors['purple'] = [178, 102, 255]
+		colors['grey'] = [160, 160, 160]
+		colors['black'] = [0, 0, 0]
 
-		df = pd.read_table(os.path.join(filepath, 'G.txt'), header=None);
-		G_img = df.as_matrix()
-		G_img = np.reshape(G_img, [76, 67, 3], order="F").astype(np.uint8)
+		img = mpimg.imread(os.path.join(char_path, char+'.eps'))
+		img = np.mean(img, axis=2)
+		x_index, y_index = np.where(img != 255)
+		y = np.ones((img.shape[0], img.shape[1], 3))*255
+		for i in range(3):
+			y[x_index, y_index, i] = colors[color][i]
+		return y.astype(np.uint8)
 
-		if (alphabet == 1) | (alphabet == 'rna'): # RNA
-			df = pd.read_table(os.path.join(filepath, 'U.txt'), header=None);
-			T_img = df.as_matrix()
-			T_img = np.reshape(T_img, [74, 57, 3], order="F").astype(np.uint8)
-		else: # DNA
-			df = pd.read_table(os.path.join(filepath, 'T.txt'), header=None);
-			T_img = df.as_matrix()
-			T_img = np.reshape(T_img, [72, 59, 3], order="F").astype(np.uint8)
-		chars = [A_img, C_img, G_img, T_img]
 
-	elif (alphabet == 'structure'): # structural profile
-		df = pd.read_table(os.path.join(filepath, 'P.txt'), header=None);
-		P_img = df.as_matrix()
-		P_img =np. reshape(P_img, [64, 41, 3], order="F").astype(np.uint8)
-		df = pd.read_table(os.path.join(filepath, 'E.txt'), header=None);
-		E_img = df.as_matrix()      
-		E_img = np.reshape(E_img, [64, 36, 3], order="F").astype(np.uint8)
-		df = pd.read_table(os.path.join(filepath, 'H.txt'), header=None);
-		H_img = df.as_matrix()        
-		H_img = np.reshape(H_img, [64, 40, 3], order="F").astype(np.uint8)
-		df = pd.read_table(os.path.join(filepath, 'I.txt'), header=None);
-		I_img = df.as_matrix()       
-		I_img = np.reshape(I_img, [64, 34, 3], order="F").astype(np.uint8)
-		df = pd.read_table(os.path.join(filepath, 'M.txt'), header=None);
-		M_img = df.as_matrix()
-		M_img = np.reshape(M_img, [64, 42, 3], order="F").astype(np.uint8)
-		chars = [P_img, H_img, I_img, M_img, E_img]
+	colors = ['green', 'blue', 'orange', 'red']
+	if alphabet == 'dna':
+		letters = 'ACGT'
+		if colormap == 'standard':
+			colors = ['green', 'blue', 'orange', 'red']
+		chars = []
+		for i, char in enumerate(letters):
+			chars.append(load_char(char_path, char, colors[i]))
 
-	elif (alphabet == 'pu'): # structural profile
-		df = pd.read_table(os.path.join(filepath, 'P.txt'), header=None);
-		P_img = df.as_matrix()
-		P_img =np. reshape(P_img, [64, 41, 3], order="F").astype(np.uint8)
-		df = pd.read_table(os.path.join(filepath, 'U_2.txt'), header=None);
-		U_img = df.as_matrix()
-		U_img = np.reshape(U_img, [64, 40, 3], order="F").astype(np.uint8)
-		chars = [P_img, U_img]
+	elif alphabet == 'rna': 
+		letters = 'ACGU'
+		if colormap == 'standard':
+			colors = ['green', 'blue', 'orange', 'red']
+		chars = []
+		for i, char in enumerate(letters):
+			chars.append(load_char(char_path, char, colors[i]))
+			
+
+	elif alphabet == 'structure': # structural profile
+
+		letters = 'PHIME'
+		if colormap == 'standard':
+			colors = ['blue', 'green', 'orange', 'red', 'cyan']
+		chars = []
+		for i, char in enumerate(letters):
+			chars.append(load_char(char_path, char, colors[i]))
+	
+	elif alphabet == 'pu': # structural profile
+		
+		letters = 'PU'
+		if colormap == 'standard':
+			colors = ['cyan', 'purple']
+		elif colormap == 'bw':
+			colors = ['black', 'grey']
+		chars = []
+		for i, char in enumerate(letters):
+			chars.append(load_char(char_path, char, colors[i]))
+
 	return chars
 
 
-def seq_logo(pwm, height=30, nt_width=10, norm=0, alphabet='dna'):
+
+def seq_logo(pwm, height=30, nt_width=10, norm=0, alphabet='dna', colormap='standard'):
 	
 	def get_nt_height(pwm, height, norm):
 		
@@ -378,8 +594,8 @@ def seq_logo(pwm, height=30, nt_width=10, norm=0, alphabet='dna'):
 
 	# get the alphabet images of each nucleotide
 	package_directory = os.path.dirname(os.path.abspath(__file__))
-	filepath = os.path.join(package_directory,'chars')
-	chars = load_alphabet(filepath, alphabet)
+	char_path = os.path.join(package_directory,'chars')
+	chars = load_alphabet(char_path, alphabet, colormap)
 
 	# get the heights of each nucleotide
 	heights = get_nt_height(pwm, height, norm)
@@ -418,3 +634,74 @@ def seq_logo(pwm, height=30, nt_width=10, norm=0, alphabet='dna'):
 				remaining_height -= nt_height[j]
 
 	return logo.astype(np.uint8)
+
+
+
+def seq_logo_reverse(pwm, height=30, nt_width=10, norm=0, alphabet='dna', colormap='standard'):
+	
+	def get_nt_height(pwm, height, norm):
+		
+		def entropy(p):
+			s = 0
+			for i in range(len(p)):
+				if p[i] > 0:
+					s -= p[i]*np.log2(p[i])
+			return s
+
+		num_nt, num_seq = pwm.shape
+		heights = np.zeros((num_nt,num_seq));
+		for i in range(num_seq):
+			if norm == 1:
+				total_height = height
+			else:
+				total_height = (np.log2(num_nt) - entropy(pwm[:, i]))*height;
+			if alphabet == 'pu':
+				heights[:,i] = np.floor(pwm[:,i]*np.minimum(total_height, height));
+			else:
+				heights[:,i] = np.floor(pwm[:,i]*np.minimum(total_height, height*2));
+	
+		return heights.astype(int)
+
+
+	# get the alphabet images of each nucleotide
+	package_directory = os.path.dirname(os.path.abspath(__file__))
+	char_path = os.path.join(package_directory,'chars')
+	chars = load_alphabet(char_path, alphabet, colormap)
+
+	# get the heights of each nucleotide
+	heights = get_nt_height(pwm, height, norm)
+
+	# resize nucleotide images for each base of sequence and stack
+	num_nt, num_seq = pwm.shape
+	width = np.ceil(nt_width*num_seq).astype(int)
+
+	if alphabet == 'pu':
+		max_height = height
+	else:
+		max_height = height*2
+	#total_height = np.sum(heights,axis=0) # np.minimum(np.sum(heights,axis=0), max_height)
+	logo = np.ones((max_height, width, 3)).astype(int)*255;
+	for i in range(num_seq):
+		nt_height = np.sort(heights[:,i])
+		index = np.argsort(heights[:,i])
+		remaining_height = 0
+
+		for j in range(num_nt):
+			if nt_height[j] > 0:
+				# resized dimensions of image
+				nt_img = imresize(chars[index[j]], (nt_height[j], nt_width))
+
+				# determine location of image
+				height_range = range(remaining_height, remaining_height+nt_height[j])
+				width_range = range(i*nt_width, i*nt_width+nt_width)
+
+				# 'annoying' way to broadcast resized nucleotide image
+				if height_range:
+					for k in range(3):
+						for m in range(len(width_range)):
+							logo[height_range, width_range[m],k] = nt_img[:,m,k];
+
+				remaining_height += nt_height[j]
+	return logo.astype(np.uint8)
+
+
