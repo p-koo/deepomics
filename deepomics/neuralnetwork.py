@@ -167,10 +167,10 @@ class NeuralNet:
 			if isinstance(variables, list):
 				params = []
 				for var in variables:
-					params.append(sess.run(var))
+					params.append(sess.run(var.get_variable()))
 				layer_params.append(params)
 			else:
-				layer_params.append(sess.run(variables))
+				layer_params.append(sess.run(variables.get_variable()))
 		else:
 
 			for layer in self.network:
@@ -180,10 +180,10 @@ class NeuralNet:
 						if isinstance(variables, list):
 							params = []
 							for var in variables:
-								params.append(sess.run(var))
-							layer_params.append(params)
+								layer_params.append(sess.run(var.get_variable()))
+							#layer_params.append(params)
 						else:
-							layer_params.append(sess.run(variables))
+							layer_params.append(sess.run(variables.get_variable()))
 		return layer_params
 
 

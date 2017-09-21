@@ -103,8 +103,6 @@ def make_directory(path, foldername, verbose=1):
 	return outdir
 
 
-
-
 def normalize_pwm(pwm, factor=None):
 
 	MAX = np.max(np.abs(pwm))
