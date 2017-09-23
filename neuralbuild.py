@@ -231,10 +231,10 @@ class NeuralBuild():
 			self.network[name] = layers.ReshapeLayer(self.network[self.last_layer], model_layer['reshape'])
 
 		elif model_layer['layer'] == 'reduce_max':
-			self.network[name] = layers.MaxPoolLayer(self.network[self.last_layer], axis=1)
+			self.network[name] = layers.MaxLayer(self.network[self.last_layer], axis=1)
 
 		elif model_layer['layer'] == 'reduce_mean':
-			self.network[name] = layers.MeanPoolLayer(self.network[self.last_layer], axis=1)
+			self.network[name] = layers.MeanLayer(self.network[self.last_layer], axis=1)
 
 		self.last_layer = name
 
