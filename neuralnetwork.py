@@ -1,4 +1,4 @@
-from __future__ import print_function 
+from __future__ import print_function
 import os, sys, time
 import numpy as np
 from six.moves import cPickle
@@ -27,7 +27,7 @@ def _GuidedReluGrad(op, grad):
 
 class NeuralNet:
 	"""Class to build a neural network model and perform basic functions."""
-	
+
 	def __init__(self, seed=None, network=[], placeholders=[], feed_dict={}, optimization={}):
 
 		self.network = network
@@ -84,12 +84,12 @@ class NeuralNet:
 			predictions = tf.argmax(self.predictions, axis=1)
 			targets = tf.argmax(self.placeholders['targets'], axis=1)
 			self.metric = tf.reduce_mean(tf.cast(tf.equal(predictions, targets), tf.float32))
-				
+
 		# binary cross entropy (objective for binary classification)
 		elif self.optimization['objective'] == 'binary':
 			predictions = tf.cast(tf.greater_equal(self.predictions, 0.5), tf.float32)
 			self.metric = tf.reduce_mean(tf.cast(tf.equal(predictions, self.placeholders['targets']), tf.float32))
-	
+
 		# mean squared error (objective for regression)
 		elif self.optimization['objective'] == 'squared_error':
 			self.metric = tf.reduce_mean(tf.square(self.predictions - self.placeholders['targets']))
@@ -103,8 +103,8 @@ class NeuralNet:
 			self.metric = tf.reduce_mean(tf.square(self.predictions - self.placeholders['targets']))
 
 
-	def _get_trainable_parameters(self):   
-		"""get all trainable parameters (tensorflow variables) in network""" 
+	def _get_trainable_parameters(self):
+		"""get all trainable parameters (tensorflow variables) in network"""
 
 		params = []
 		for layer in self.network:
@@ -148,7 +148,7 @@ class NeuralNet:
 			print("  saving model to: ", file_path)
 		saver = tf.train.Saver()
 		saver.save(sess, save_path=file_path)
-		
+
 
 	def load_model_parameters(self, sess, file_path='model.ckpt', verbose=1):
 		"""initialize network with all_param_values"""
@@ -190,16 +190,16 @@ class NeuralNet:
 	def calculate_saliency(self, sess, y, dx, feed_dict, class_index=None, func=tf.reduce_max):
 		if class_index is None:
 			dy = func(y, axis=1)
-		else: 
+		else:
 			if len(y.get_shape()) == 4:
 				dy = func(y[:,:,:,class_index], axis=1)
 			else:
 				dy = y[:,class_index] #  tf.sign(y[:,class_index])*tf.square(y[:,class_index])
-		return sess.run(tf.gradients(dy, dx), feed_dict=feed_dict) 
+		return sess.run(tf.gradients(dy, dx), feed_dict=feed_dict)
 
 
 	def stochastic_saliency(self, sess, X, y, dx, stochastic_feed, num_average=200, threshold=1.0, class_index=None):
-				
+
 		def choose_sign(x,y):
 			y2 = np.copy(y)
 			y2[y2<0] = 0
@@ -226,7 +226,7 @@ class NeuralNet:
 		if threshold is not None:
 			indices = np.where(pred > threshold)[0]
 		else:
-			indices = range(num_average)	
+			indices = range(num_average)
 		for k in indices:
 			sign = choose_sign(X[0], dydx[k])
 			weight = pred[k]
@@ -235,7 +235,7 @@ class NeuralNet:
 			counter += 1
 		if norm > 0:
 			saliency_ave /= norm
-			
+
 		return saliency_ave, counter
 
 
@@ -247,7 +247,7 @@ class NeuralTrainer():
 	""" class to train a neural network model """
 
 	def __init__(self, nnmodel, save='best', file_path=None, **kwargs):
-		
+
 		# default optimizer if none given
 		self.nnmodel = nnmodel
 		self.network = nnmodel.network
@@ -261,7 +261,7 @@ class NeuralTrainer():
 		self.test_calc = [nnmodel.loss, nnmodel.predictions]
 
 		self.update_feed_dict(nnmodel.placeholders, nnmodel.feed_dict)
-		
+
 		# instantiate monitor performance for each dataset
 		self.train_monitor = MonitorPerformance(name="train", objective=self.objective, verbose=1)
 		self.test_monitor = MonitorPerformance(name="test", objective=self.objective, verbose=1)
@@ -269,7 +269,7 @@ class NeuralTrainer():
 
 
 	def update_feed_dict(self, placeholders, feed_dict):
-		
+
 		self.train_feed = {}
 		self.test_feed = {}
 		self.stochastic_feed = {}
@@ -288,7 +288,7 @@ class NeuralTrainer():
 				self.stochastic_feed[placeholders[key]] = False
 
 
-	def train_epoch(self, sess, data, batch_size=128, verbose=1, shuffle=True):        
+	def train_epoch(self, sess, data, batch_size=128, verbose=1, shuffle=True):
 		"""Train a mini-batch --> single epoch"""
 
 		# set timer for epoch run
@@ -305,7 +305,7 @@ class NeuralTrainer():
 		metric = 0
 		for i in range(num_batches):
 			self.train_feed = batch_generator.next_minibatch(data, self.train_feed, self.placeholders)
-			results = sess.run(self.train_calc, feed_dict=self.train_feed)    
+			results = sess.run(self.train_calc, feed_dict=self.train_feed)
 			metric += results[2]
 			performance.add_loss(results[1])
 			performance.progress_bar(i+1., num_batches, metric/(i+1))
@@ -331,7 +331,7 @@ class NeuralTrainer():
 		prediction = []
 		for i in range(batch_generator.get_num_batches()):
 			self.test_feed = batch_generator.next_minibatch(data, self.test_feed, self.placeholders)
-			results = sess.run(self.test_calc, feed_dict=self.test_feed)          
+			results = sess.run(self.test_calc, feed_dict=self.test_feed)
 			performance.add_loss(results[0])
 			prediction.append(results[1])
 			label.append(self.test_feed[self.placeholders['targets']])
@@ -372,7 +372,7 @@ class NeuralTrainer():
 			if len(val) != 0:
 				saliency.append(val[0])
 		return np.vstack(saliency)
-		  
+
 
 
 	def get_stochastic_saliency(self, sess, X, layer, class_index=None, num_average=200, threshold=1.0):
@@ -382,10 +382,10 @@ class NeuralTrainer():
 		counts = []
 		for i in range(X.shape[0]):
 			x = np.expand_dims(X[i], axis=0)
-			saliency_ave, counter = self.nnmodel.stochastic_saliency(sess, x, y, self.placeholders['inputs'], 
+			saliency_ave, counter = self.nnmodel.stochastic_saliency(sess, x, y, self.placeholders['inputs'],
 														self.stochastic_feed, num_average, threshold, class_index)
 			saliency.append(np.expand_dims(saliency_ave, axis=0))
-			counts.append(counter)    
+			counts.append(counter)
 
 		#saliency = np.vstack(saliency)
 		counts = np.vstack(counts)
@@ -426,10 +426,10 @@ class NeuralTrainer():
 
 	def save_all_metrics(self, file_path=None):
 		"""save all performance metrics"""
-		
+
 		if not file_path:
 			file_path = self.file_path
-			
+
 		if file_path:
 			self.train_monitor.save_metrics(file_path)
 			self.test_monitor.save_metrics(file_path)
@@ -454,7 +454,7 @@ class NeuralTrainer():
 
 	def set_best_parameters(self, sess, file_path=[], verbose=1):
 		""" set the best parameters from file"""
-		
+
 		if not file_path:
 			file_path = self.file_path + '_best.ckpt'
 
@@ -480,14 +480,14 @@ class NeuralTrainer():
 		activations = np.vstack(activations)
 
 		return activations
-		
+
 
 #----------------------------------------------------------------------------------------------------
 # Monitor performance metrics class
 #----------------------------------------------------------------------------------------------------
 
 class MonitorPerformance():
-	"""helper class to monitor and store performance metrics during 
+	"""helper class to monitor and store performance metrics during
 	   training. This class uses the metrics for early stopping. """
 
 	def __init__(self, name='', objective='binary', verbose=1):
@@ -562,16 +562,16 @@ class MonitorPerformance():
 
 	def progress_bar(self, epoch, num_batches, value, bar_length=30):
 		if self.verbose > 1:
-			remaining_time = (time.time()-self.start_time)*(num_batches-epoch)/epoch
+			time_elapsed = time.time()-self.start_time#*(num_batches-epoch)/epoch
 			percent = epoch/num_batches
 			progress = '='*int(round(percent*bar_length))
 			spaces = ' '*int(bar_length-round(percent*bar_length))
 			if (self.objective == "binary") | (self.objective == "categorical"):
 				sys.stdout.write("\r[%s] %.1f%% -- time=%ds -- loss=%.5f -- accuracy=%.2f%%  " \
-				%(progress+spaces, percent*100, remaining_time, self.get_mean_loss(), value*100))
+				%(progress+spaces, percent*100, time_elapsed, self.get_mean_loss(), value*100))
 			elif (self.objective == 'squared_error'):
-				sys.stdout.write("\r[%s] %.1f%% -- time=%ds -- loss=%.5f -- correlation=%.5f  " \
-				%(progress+spaces, percent*100, remaining_time, self.get_mean_loss(), value))
+				sys.stdout.write("\r[%s] %.1f%% -- time=%ds -- loss=%.5f" \
+				%(progress+spaces, percent*100, time_elapsed, self.get_mean_loss()))
 			sys.stdout.flush()
 
 
@@ -624,7 +624,7 @@ class BatchGenerator():
 			self.indices.append(index[i*self.batch_size:i*self.batch_size+self.batch_size])
 
 		# get remainder
-		index = range(self.num_batches*self.batch_size, self.num_data)    
+		index = range(self.num_batches*self.batch_size, self.num_data)
 		if index:
 			self.indices.append(index)
 			self.num_batches += 1
@@ -637,8 +637,8 @@ class BatchGenerator():
 		indices = np.sort(self.indices[self.current_batch])
 
 		for key in data.keys():
-			feed_dict.update({placeholders[key]: data[key][indices]}) 
-	
+			feed_dict.update({placeholders[key]: data[key][indices]})
+
 		self.current_batch += 1
 		if self.current_batch == self.num_batches:
 			self.current_batch = 0
@@ -654,6 +654,3 @@ class BatchGenerator():
 		"""Get number of batches"""
 
 		return self.num_batches
-
-
-

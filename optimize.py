@@ -10,7 +10,7 @@ __all__ = [
 
 def build_updates(optimization):
 	"""Build updates"""
-	
+
 	if 'optimizer' in optimization.keys():
 		optimizer = optimization['optimizer']
 	else:
@@ -27,8 +27,8 @@ def build_updates(optimization):
 		name = 'adadelta'
 		if 'name' in optimization.keys():
 			name = optimization['name']
-		return tf.train.GradientDescentOptimizer(learning_rate=learning_rate, 
-												 use_locking=use_locking, 
+		return tf.train.GradientDescentOptimizer(learning_rate=learning_rate,
+												 use_locking=use_locking,
 												 name=name)
 
 	elif optimizer == 'momentum':
@@ -47,12 +47,12 @@ def build_updates(optimization):
 		name = 'momenum'
 		if 'name' in optimization.keys():
 			name = optimization['name']
-		return tf.train.MomentumOptimizer(learning_rate=learning_rate, 
-										  momentum=momentum, 
-										  use_nesterov=use_nesterov, 
-										  use_locking=use_locking, 
+		return tf.train.MomentumOptimizer(learning_rate=learning_rate,
+										  momentum=momentum,
+										  use_nesterov=use_nesterov,
+										  use_locking=use_locking,
 										  name=name)
-	
+
 	elif optimizer == 'adam':
 		learning_rate = 0.001
 		if 'learning_rate' in optimization.keys():
@@ -72,11 +72,11 @@ def build_updates(optimization):
 		name = 'adam'
 		if 'name' in optimization.keys():
 			name = optimization['name']
-		return tf.train.AdamOptimizer(learning_rate=learning_rate, 
-									  beta1=beta1, 
-									  beta2=beta2, 
-									  epsilon=epsilon, 
-									  use_locking=use_locking, 
+		return tf.train.AdamOptimizer(learning_rate=learning_rate,
+									  beta1=beta1,
+									  beta2=beta2,
+									  epsilon=epsilon,
+									  use_locking=use_locking,
 									  name=name)
 
 	elif optimizer == 'rmsprop':
@@ -95,12 +95,12 @@ def build_updates(optimization):
 		name = 'rmsprop'
 		if 'name' in optimization.keys():
 			name = optimization['name']
-		return tf.train.RMSPropOptimizer(learning_rate=learning_rate, 
-										 rho=rho, 
-										 epsilon=epsilon, 
-										 use_locking=use_locking, 
+		return tf.train.RMSPropOptimizer(learning_rate=learning_rate,
+										 rho=rho,
+										 epsilon=epsilon,
+										 use_locking=use_locking,
 										 name=name)
-	
+
 	elif optimizer == 'adadelta':
 		learning_rate = 0.001
 		if 'learning_rate' in optimization.keys():
@@ -117,10 +117,10 @@ def build_updates(optimization):
 		name = 'adadelta'
 		if 'name' in optimization.keys():
 			name = optimization['name']
-		return tf.train.AdadeltaOptimizer(learning_rate=learning_rate, 
-										  rho=rho, 
-										  epsilon=epsilon, 
-										  use_locking=use_locking, 
+		return tf.train.AdadeltaOptimizer(learning_rate=learning_rate,
+										  rho=rho,
+										  epsilon=epsilon,
+										  use_locking=use_locking,
 										  name=name)
 
 	elif optimizer == 'adagrad':
@@ -136,9 +136,9 @@ def build_updates(optimization):
 		name = 'adagrad'
 		if 'name' in optimization.keys():
 			name = optimization['name']
-		return tf.train.AdagradOptimizer(learning_rate=learning_rate, 
-										 initial_accumulator_value=initial_accumulator_value, 
-										 use_locking=use_locking, 
+		return tf.train.AdagradOptimizer(learning_rate=learning_rate,
+										 initial_accumulator_value=initial_accumulator_value,
+										 use_locking=use_locking,
 										 name=name)
 
 
@@ -148,13 +148,13 @@ def build_loss(network, predictions, targets, optimization):
 	# build loss function
 	if 'label_smoothing' not in optimization.keys():
 		optimization['label_smoothing'] = 0
-	loss = cost_function(network, targets=targets, 
-						 objective=optimization['objective'], 
+	loss = cost_function(network, targets=targets,
+						 objective=optimization['objective'],
 						 label_smoothing=optimization['label_smoothing'])
 
 	if 'l1' in optimization.keys():
 		l1 = get_l1_parameters(network)
-		loss = tf.reduce_sum(tf.abs(l1)) * optimization['l1']
+		loss += tf.reduce_sum(tf.abs(l1)) * optimization['l1']
 
 	if 'l2' in optimization.keys():
 		l2 = get_l2_parameters(network)
@@ -170,7 +170,7 @@ def cost_function(network, targets, objective='binary', label_smoothing=0.0):
 			  targets = (targets*(1-label_smoothing) + 0.5*label_smoothing)
 		predictions = tf.clip_by_value(predictions,1e-7,1-1e-7)
 		loss = -tf.reduce_mean(targets*tf.log(predictions) + (1-targets)*tf.log(1-predictions))
-		
+
 	elif objective == 'categorical':
 		predictions = network['output'].get_output()
 		if label_smoothing > 0:
@@ -200,7 +200,7 @@ def cost_function(network, targets, objective='binary', label_smoothing=0.0):
 			X_sigma = network['X_sigma'].get_output()
 			X_log_var = tf.log(tf.square(X_sigma))
 		else:
-			X_logvar = tf.log(X_mu*(1-X_mu))  
+			X_logvar = tf.log(X_mu*(1-X_mu))
 
 		Z_mu = network['Z_mu'].get_output()
 		Z_sigma = network['Z_sigma'].get_output()
@@ -212,7 +212,7 @@ def cost_function(network, targets, objective='binary', label_smoothing=0.0):
 
 		# calculate reconstructed likelihood
 		log_likelihood = tf.reduce_sum(const - 0.5*tf.log(X_var) - 0.5*tf.divide(tf.square(targets-X_mu),tf.exp(X_logvar)), axis=1)
-		
+
 		# variational lower bound (evidence lower bound)
 		loss = tf.reduce_mean(-log_likelihood - kl_divergence)
 
@@ -228,7 +228,7 @@ def cost_function(network, targets, objective='binary', label_smoothing=0.0):
 
 		# calculate reconstructed likelihood
 		log_likelihood = tf.reduce_sum(targets*tf.log(1e-10+X_mu) + (1.0-targets)*tf.log(1e-10+1.0-X_mu), axis=1)
-		
+
 		# variational lower bound (evidence lower bound)
 		loss = tf.reduce_mean(-log_likelihood - kl_divergence)
 
@@ -236,7 +236,7 @@ def cost_function(network, targets, objective='binary', label_smoothing=0.0):
 
 
 
-def get_l1_parameters(net):    
+def get_l1_parameters(net):
 	params = []
 	for layer in net:
 		if hasattr(net[layer], 'is_l1_regularize'):
@@ -250,7 +250,7 @@ def get_l1_parameters(net):
 	return merge_parameters(params)
 
 
-def get_l2_parameters(net):    
+def get_l2_parameters(net):
 	params = []
 	for layer in net:
 		if hasattr(net[layer], 'is_l2_regularize'):
@@ -270,4 +270,3 @@ def merge_parameters(params):
 	for param in params:
 		all_params = tf.concat([all_params, tf.reshape(param, [-1,])], axis=0)
 	return all_params
-	
