@@ -1,4 +1,4 @@
-from __future__ import print_function
+from __future__ import print_function 
 import os, sys, time
 import numpy as np
 from six.moves import cPickle
@@ -14,7 +14,6 @@ __all__ = [
 	"BatchGenerator"
 ]
 
-
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import gen_nn_ops
 @ops.RegisterGradient("GuidedRelu")
@@ -26,8 +25,8 @@ def _GuidedReluGrad(op, grad):
 #------------------------------------------------------------------------------------------
 
 class NeuralNet:
-	"""Class to build a neural network model and perform basic functions."""
-
+	"""Class to build a neural network and perform basic functions."""
+	
 	def __init__(self, seed=None, network=[], placeholders=[], feed_dict={}, optimization={}):
 
 		self.network = network
@@ -44,8 +43,14 @@ class NeuralNet:
 		self.seed = seed
 
 
-	def build_layers(self, model_layers, optimization=None, method=None):
+	def build_layers(self, model_layers, optimization=None, method=None, use_scope=True):
 		tf.reset_default_graph()
+
+		if use_scope:
+			from deepomics.neuralbuild_scope import NeuralBuild
+		else:
+			from deepomics.neuralbuild import NeuralBuild
+		
 		nnbuild = NeuralBuild(self.seed)
 
 		if method == 'guided':
@@ -54,11 +59,11 @@ class NeuralNet:
 				self.network, self.placeholders, self.feed_dict = nnbuild.build_layers(model_layers)
 		else:
 			self.network, self.placeholders, self.feed_dict = nnbuild.build_layers(model_layers)
-		self._build_optimizer(optimization)
-		self._train_metric()
+		self.build_optimizer(optimization)
+		self.train_metric()
 
 
-	def _build_optimizer(self, optimization=None):
+	def build_optimizer(self, optimization=None):
 		if optimization is None:
 			optimization = self.optimization
 		else:
@@ -72,11 +77,11 @@ class NeuralNet:
 		self.updates = optimize.build_updates(self.optimization)
 
 		# get list of trainable parameters (default is trainable)
-		trainable_params = self._get_trainable_parameters()
+		trainable_params = self.get_trainable_parameters()
 		self.train_step = self.updates.minimize(self.loss, var_list=trainable_params)
 
 
-	def _train_metric(self):
+	def train_metric(self):
 		"""metric to monitor performance during training"""
 
 		# categorical cross entropy (objective for softmax classification)
@@ -103,8 +108,8 @@ class NeuralNet:
 			self.metric = tf.reduce_mean(tf.square(self.predictions - self.placeholders['targets']))
 
 
-	def _get_trainable_parameters(self):
-		"""get all trainable parameters (tensorflow variables) in network"""
+	def get_trainable_parameters(self):   
+		"""get all trainable parameters (tensorflow variables) in network""" 
 
 		params = []
 		for layer in self.network:
@@ -135,7 +140,6 @@ class NeuralNet:
 		print('----------------------------------------------------------------------------')
 
 
-
 	def get_activations(self, sess, feed_X, layer='output'):
 		"""get the real-valued feature maps of a given convolutional layer"""
 
@@ -148,7 +152,7 @@ class NeuralNet:
 			print("  saving model to: ", file_path)
 		saver = tf.train.Saver()
 		saver.save(sess, save_path=file_path)
-
+		
 
 	def load_model_parameters(self, sess, file_path='model.ckpt', verbose=1):
 		"""initialize network with all_param_values"""
@@ -178,10 +182,8 @@ class NeuralNet:
 					if self.network[layer].is_trainable():
 						variables = self.network[layer].get_variable()
 						if isinstance(variables, list):
-							params = []
 							for var in variables:
 								layer_params.append(sess.run(var.get_variable()))
-							#layer_params.append(params)
 						else:
 							layer_params.append(sess.run(variables.get_variable()))
 		return layer_params
@@ -239,6 +241,7 @@ class NeuralNet:
 		return saliency_ave, counter
 
 
+
 #----------------------------------------------------------------------------------------------------
 # Train neural networks class
 #----------------------------------------------------------------------------------------------------
@@ -246,8 +249,8 @@ class NeuralNet:
 class NeuralTrainer():
 	""" class to train a neural network model """
 
-	def __init__(self, nnmodel, save='best', file_path=None, **kwargs):
-
+	def __init__(self, nnmodel, save='best', file_path='.', **kwargs):
+		
 		# default optimizer if none given
 		self.nnmodel = nnmodel
 		self.network = nnmodel.network
@@ -261,8 +264,8 @@ class NeuralTrainer():
 		self.test_calc = [nnmodel.loss, nnmodel.predictions]
 
 		self.update_feed_dict(nnmodel.placeholders, nnmodel.feed_dict)
-
-		# instantiate monitor performance for each dataset
+		
+		# instantiate monitor class to monitor performance
 		self.train_monitor = MonitorPerformance(name="train", objective=self.objective, verbose=1)
 		self.test_monitor = MonitorPerformance(name="test", objective=self.objective, verbose=1)
 		self.valid_monitor = MonitorPerformance(name="cross-validation", objective=self.objective, verbose=1)
@@ -288,7 +291,7 @@ class NeuralTrainer():
 				self.stochastic_feed[placeholders[key]] = False
 
 
-	def train_epoch(self, sess, data, batch_size=128, verbose=1, shuffle=True):
+	def train_epoch(self, sess, data, batch_size=128, verbose=1, shuffle=True):        
 		"""Train a mini-batch --> single epoch"""
 
 		# set timer for epoch run
@@ -300,12 +303,11 @@ class NeuralTrainer():
 		batch_generator = BatchGenerator(num_data, batch_size, shuffle)
 		num_batches = batch_generator.get_num_batches()
 
-		# loop through dataset
 		value = 0
 		metric = 0
 		for i in range(num_batches):
 			self.train_feed = batch_generator.next_minibatch(data, self.train_feed, self.placeholders)
-			results = sess.run(self.train_calc, feed_dict=self.train_feed)
+			results = sess.run(self.train_calc, feed_dict=self.train_feed)    
 			metric += results[2]
 			performance.add_loss(results[1])
 			performance.progress_bar(i+1., num_batches, metric/(i+1))
@@ -331,7 +333,7 @@ class NeuralTrainer():
 		prediction = []
 		for i in range(batch_generator.get_num_batches()):
 			self.test_feed = batch_generator.next_minibatch(data, self.test_feed, self.placeholders)
-			results = sess.run(self.test_calc, feed_dict=self.test_feed)
+			results = sess.run(self.test_calc, feed_dict=self.test_feed)          
 			performance.add_loss(results[0])
 			prediction.append(results[1])
 			label.append(self.test_feed[self.placeholders['targets']])
@@ -372,7 +374,7 @@ class NeuralTrainer():
 			if len(val) != 0:
 				saliency.append(val[0])
 		return np.vstack(saliency)
-
+		  
 
 
 	def get_stochastic_saliency(self, sess, X, layer, class_index=None, num_average=200, threshold=1.0):
@@ -382,10 +384,10 @@ class NeuralTrainer():
 		counts = []
 		for i in range(X.shape[0]):
 			x = np.expand_dims(X[i], axis=0)
-			saliency_ave, counter = self.nnmodel.stochastic_saliency(sess, x, y, self.placeholders['inputs'],
+			saliency_ave, counter = self.nnmodel.stochastic_saliency(sess, x, y, self.placeholders['inputs'], 
 														self.stochastic_feed, num_average, threshold, class_index)
 			saliency.append(np.expand_dims(saliency_ave, axis=0))
-			counts.append(counter)
+			counts.append(counter)    
 
 		#saliency = np.vstack(saliency)
 		counts = np.vstack(counts)
@@ -405,6 +407,7 @@ class NeuralTrainer():
 
 	def save_model(self, sess, addon=None):
 		"""save model parameters to file, according to file_path"""
+
 
 		if addon is not None:
 			if self.file_path:
@@ -438,7 +441,7 @@ class NeuralTrainer():
 			print('No file_path provided.')
 
 
-	def early_stopping(self, current_loss, patience=False):
+	def early_stopping(self, current_loss, patience):
 		"""check if validation loss is not improving and stop after patience
 		runs out"""
 
@@ -454,7 +457,7 @@ class NeuralTrainer():
 
 	def set_best_parameters(self, sess, file_path=[], verbose=1):
 		""" set the best parameters from file"""
-
+		
 		if not file_path:
 			file_path = self.file_path + '_best.ckpt'
 
@@ -480,14 +483,14 @@ class NeuralTrainer():
 		activations = np.vstack(activations)
 
 		return activations
-
+		
 
 #----------------------------------------------------------------------------------------------------
 # Monitor performance metrics class
 #----------------------------------------------------------------------------------------------------
 
 class MonitorPerformance():
-	"""helper class to monitor and store performance metrics during
+	"""helper class to monitor and store performance metrics during 
 	   training. This class uses the metrics for early stopping. """
 
 	def __init__(self, name='', objective='binary', verbose=1):
@@ -500,35 +503,29 @@ class MonitorPerformance():
 
 
 	def set_verbose(self, verbose):
-		"""set verbose"""
 		self.verbose = verbose
 
 
 	def add_loss(self, loss):
-		"""append loss to list"""
 		self.loss = np.append(self.loss, loss)
 
 
 	def add_metrics(self, scores):
-		"""append metrics to list"""
 		self.metric.append(scores[0])
 		self.metric_std.append(scores[1])
 
 
 	def update(self, loss, prediction, label):
-		"""Calculate metrics and add to list"""
 		scores = metrics.calculate_metrics(label, prediction, self.objective)
 		self.add_loss(loss)
 		self.add_metrics(scores)
 
 
 	def get_mean_loss(self):
-		"""Calculate metrics and add to list"""
 		return np.mean(self.loss)
 
 
 	def get_metric_values(self):
-		"""Get the last metric values"""
 		return self.metric[-1], self.metric_std[-1]
 
 
@@ -560,6 +557,7 @@ class MonitorPerformance():
 				print("  " + name + " rsquare:\t{:.5f}+/-{:.5f}".format(mean_vals[1], error_vals[1]))
 				print("  " + name + " slope:\t\t{:.5f}+/-{:.5f}".format(mean_vals[2], error_vals[2]))
 
+
 	def progress_bar(self, epoch, num_batches, value, bar_length=30):
 		if self.verbose > 1:
 			time_elapsed = time.time()-self.start_time#*(num_batches-epoch)/epoch
@@ -579,12 +577,11 @@ class MonitorPerformance():
 		savepath = file_path + "_" + self.name +"_performance.pickle"
 		print("  saving metrics to " + savepath)
 
-		f = open(savepath, 'wb')
-		cPickle.dump(self.name, f, protocol=cPickle.HIGHEST_PROTOCOL)
-		cPickle.dump(self.loss, f, protocol=cPickle.HIGHEST_PROTOCOL)
-		cPickle.dump(self.metric, f, protocol=cPickle.HIGHEST_PROTOCOL)
-		cPickle.dump(self.metric_std, f, protocol=cPickle.HIGHEST_PROTOCOL)
-		f.close()
+		with open(savepath, 'wb') as f:
+			cPickle.dump(self.name, f, protocol=cPickle.HIGHEST_PROTOCOL)
+			cPickle.dump(self.loss, f, protocol=cPickle.HIGHEST_PROTOCOL)
+			cPickle.dump(self.metric, f, protocol=cPickle.HIGHEST_PROTOCOL)
+			cPickle.dump(self.metric_std, f, protocol=cPickle.HIGHEST_PROTOCOL)
 
 
 
@@ -604,7 +601,6 @@ class BatchGenerator():
 		self.generate_minibatches(batch_size, shuffle)
 
 	def generate_minibatches(self, batch_size=None, shuffle=None):
-		"""Generate mini-batches"""
 
 		if shuffle is None:
 			shuffle = self.shuffle
@@ -624,7 +620,7 @@ class BatchGenerator():
 			self.indices.append(index[i*self.batch_size:i*self.batch_size+self.batch_size])
 
 		# get remainder
-		index = range(self.num_batches*self.batch_size, self.num_data)
+		index = range(self.num_batches*self.batch_size, self.num_data)    
 		if index:
 			self.indices.append(index)
 			self.num_batches += 1
@@ -632,13 +628,11 @@ class BatchGenerator():
 		self.current_batch = 0
 
 	def next_minibatch(self, data, feed_dict, placeholders):
-		"""Get the next mini-batch"""
-
 		indices = np.sort(self.indices[self.current_batch])
 
 		for key in data.keys():
-			feed_dict.update({placeholders[key]: data[key][indices]})
-
+			feed_dict.update({placeholders[key]: data[key][indices]}) 
+	
 		self.current_batch += 1
 		if self.current_batch == self.num_batches:
 			self.current_batch = 0
@@ -646,11 +640,10 @@ class BatchGenerator():
 		return feed_dict
 
 	def get_batch_index(self):
-		"""Get batch index"""
-
 		return self.current_batch
 
 	def get_num_batches(self):
-		"""Get number of batches"""
-
 		return self.num_batches
+
+
+

@@ -50,17 +50,16 @@ class BatchNormLayer(BaseLayer):
 			pop_var_op = self.pop_var.apply([batch_var])
 			with tf.control_dependencies([pop_mean_op, pop_var_op]):
 				return tf.identity(batch_mean), tf.identity(batch_var)
-				
+
 		def population_mean_var():
 			return self.pop_mean.average(batch_mean), self.pop_var.average(batch_var)
 
 		mean, var = tf.cond(self.is_training, update_mean_var, population_mean_var)
 
-		z_score = tf.divide(tf.subtract(self.incoming.get_output(), mean), tf.sqrt(tf.add(var, self.epsilon)))
-
-		return tf.add(tf.multiply(self.gamma.get_variable(), z_score), self.beta.get_variable())
-		#return tf.nn.batch_normalization(self.incoming.get_output(), mean, var, 
-			#							 self.beta.get_variable(), self.gamma.get_variable(), self.epsilon)
+		#z_score = tf.divide(tf.subtract(self.incoming.get_output(), mean), tf.sqrt(tf.add(var, self.epsilon)))
+		#return tf.add(tf.multiply(self.gamma.get_variable(), z_score), self.beta.get_variable())
+		return tf.nn.batch_normalization(self.incoming.get_output(), mean, var,
+										 self.beta.get_variable(), self.gamma.get_variable(), self.epsilon)
 
 	def get_output_shape(self):
 		return self.incoming.get_output_shape()
@@ -71,36 +70,12 @@ class BatchNormLayer(BaseLayer):
 	def set_trainable(self, status):
 		self.gamma.set_trainable(status)
 		self.beta.set_trainable(status)
-		
+
 	def is_trainable(self):
 		return self.gamma.is_trainable()
-		
+
 	def is_l1_regularize(self):
-		return self.gamma.is_l1_regularize()  
-		
+		return self.gamma.is_l1_regularize()
+
 	def is_l2_regularize(self):
-		return self.gamma.is_l2_regularize() 
-
-
-
-"""
-def get_output(self):
-		return tf.select(self.is_training, self._batch_output(), self._pop_output())
-	def _batch_output(self):
-		mean, variance = tf.nn.moments(self.incoming.get_output(), self.bn_axes)
-		update_moving_mean = moving_averages.assign_moving_average(
-					moving_mean, mean, decay)
-		update_moving_variance = moving_averages.assign_moving_average(
-					moving_variance, variance, decay)
-
-		with tf.control_dependencies([update_moving_mean, update_moving_variance]):
-			return tf.identity(mean), tf.identity(variance)
-	
-	def _pop_output(self):
-		return tf.nn.batch_normalization(self.incoming.get_output(), self.pop_mean, self.pop_var, 
-												 self.beta.get_variable(), self.gamma.get_variable(), self.epsilon)
-"""
-
-
-
-
+		return self.gamma.is_l2_regularize()
