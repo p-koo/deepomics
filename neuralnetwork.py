@@ -371,9 +371,11 @@ class NeuralTrainer():
 		for i in range(batch_generator.get_num_batches()):
 			self.test_feed = batch_generator.next_minibatch(data, self.test_feed, self.placeholders)
 			val = self.nnmodel.calculate_saliency(sess, y, self.placeholders['inputs'], self.test_feed, class_index=class_index)
-			if len(val) != 0:
+			if isinstance(val, (list)):
 				saliency.append(val[0])
-		return np.vstack(saliency)
+			else:
+				saliency.append(val)
+		return np.concatenate(saliency, axis=0)
 		  
 
 

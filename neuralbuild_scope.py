@@ -116,9 +116,9 @@ class NeuralBuild():
 					self.last_layer = new_layer
 
 				# add global-pooling layer
-				elif 'global_pool' in model_layers:
+				elif 'global_pool' in model_layer:
 					new_layer = name+'_globalpool'
-					self.network[new_layer] = layers.GlobalPoolLayer(self.network[self.last_layer], func=model_layers['global_pool'], name=name+'_globalpool')
+					self.network[new_layer] = layers.GlobalPoolLayer(self.network[self.last_layer], func=model_layer['global_pool'], name=name+'_globalpool')
 					self.last_layer = new_layer
 
 				# add dropout layer

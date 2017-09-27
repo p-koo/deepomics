@@ -42,12 +42,11 @@ def backprop(X, layer='output', class_index=None, params=None):
 
 	sess.close()
 	tf.reset_default_graph()    
-	return saliency
+	return np.vstack(saliency)
 
 
 def guided_backprop(X, layer='output', class_index=None, params=None, batch_size=128):
 	tf.reset_default_graph()
-	
 	# build new graph
 	#g = tf.get_default_graph()
 	#with g.gradient_override_map({'Relu': 'GuidedRelu'}):
@@ -59,12 +58,11 @@ def guided_backprop(X, layer='output', class_index=None, params=None, batch_size
 	# setup session and restore optimal parameters
 	sess = utils.initialize_session(nnmodel.placeholders)
 	nntrainer.set_best_parameters(sess, params['model_path'], verbose=0)
-
+		
 	# backprop saliency
 	if layer == 'output':
 		layer = list(nnmodel.network.keys())[-2]
 		saliency = nntrainer.get_saliency(sess, X, nnmodel.network[layer], class_index=class_index, batch_size=batch_size)
-
 	else:
 		data = {nnmodel.placeholders['inputs']: X}
 		layer_activations = nntrainer.get_activations(sess, data, layer)
@@ -79,7 +77,6 @@ def guided_backprop(X, layer='output', class_index=None, params=None, batch_size
 
 	sess.close()
 	tf.reset_default_graph()  
-
 	return saliency
 
 	
@@ -119,7 +116,7 @@ def stochastic_backprop(X, layer='output', class_index=None, params=None,
 	sess.close()
 	tf.reset_default_graph()
 	
-	return saliency, counts
+	return np.vstack(saliency), np.array(counts)
 
 	
 def stochastic_guided_backprop(X, layer='output', class_index=None, params=None,
@@ -162,7 +159,7 @@ def stochastic_guided_backprop(X, layer='output', class_index=None, params=None,
 	tf.reset_default_graph()
 	
 	
-	return saliency, counts
+	return np.vstack(saliency), np.array(counts)
 
 
 

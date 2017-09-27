@@ -16,10 +16,24 @@ class GlobalPoolLayer(BaseLayer):
 				
 		self.incoming_shape = incoming.get_output_shape()
 		
-		self.output = tf.nn.global_pool(incoming.get_output(), 
-										func=func, 
-										**kwargs)
-		
+		#self.output = tf.nn.global_pool(incoming.get_output(), 
+		#								func=func, 
+		#								**kwargs)
+		pool_size = [1, self.incoming_shape[1], self.incoming_shape[2], 1]
+		strides = [1, self.incoming_shape[1], self.incoming_shape[2], 1]
+		padding = 'SAME'
+		if func == 'max':
+			self.output = tf.nn.max_pool(incoming.get_output(), 
+									ksize=pool_size, 
+									strides=strides, 
+									padding=padding, 
+									**kwargs)
+		elif func == 'mean':
+			self.output = tf.nn.avg_pool(incoming.get_output(), 
+									ksize=pool_size, 
+									strides=strides, 
+									padding=padding, 
+									**kwargs)
 		self.output_shape = self.output.get_shape()
 		
 	def get_input_shape(self):

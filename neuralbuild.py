@@ -32,7 +32,7 @@ class NeuralBuild():
 		# loop to build each layer of network
 		for model_layer in model_layers:
 			layer = model_layer['layer']
-			
+
 			# name of layer
 			if 'name' in model_layer:
 				name = model_layer['name']
@@ -97,16 +97,7 @@ class NeuralBuild():
 				new_layer = name+'_active'
 				self.network[new_layer] = layers.ActivationLayer(self.network[self.last_layer], function=model_layer['activation']) 
 				self.last_layer = new_layer
-			'''
-			# add max-pooling layer
-			if 'pool_size' in model_layer:  
-				new_layer = name+'_pool'  # str(counter) + '_' + name+'_pool' 
-				if isinstance(model_layer['pool_size'], (tuple, list)):
-					self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=model_layer['pool_size'])
-				else:
-					self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=(model_layer['pool_size'], 1))
-				self.last_layer = new_layer
-						'''
+						
 			# add max-pooling layer ### Modified this from the older pool_size
 			if 'max_pool' in model_layer:  
 				new_layer = name+'_maxpool'  # str(counter) + '_' + name+'_pool' 
@@ -116,15 +107,6 @@ class NeuralBuild():
 					else:
 							self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=(model_layer['max_pool'], 1))
 
-				self.last_layer = new_layer
-
-			# add mean-pooling layer ### Praveen modified this
-			if 'mean_pool' in model_layer:
-				new_layer = name+'_meanpool'  # str(counter) + '_' + name+'_pool' 
-				if isinstance(model_layer['mean_pool'], (tuple, list)):
-						self.network[new_layer] = layers.MeanPool2DLayer(self.network[self.last_layer], pool_size=model_layer['mean_pool'])
-				else:
-						self.network[new_layer] = layers.MeanPool2DLayer(self.network[self.last_layer], pool_size=(model_layer['mean_pool'], 1))
 				self.last_layer = new_layer
 
 			# add mean-pooling layer
@@ -137,9 +119,10 @@ class NeuralBuild():
 				self.last_layer = new_layer
 
 			# add global-pooling layer
-			elif 'global_pool' in model_layers:
+			elif 'global_pool' in model_layer:
+				print('global_pool')
 				new_layer = name+'_globalpool'
-				self.network[new_layer] = layers.GlobalPoolLayer(self.network[self.last_layer], func=model_layers['global_pool'], name=name+'_globalpool')
+				self.network[new_layer] = layers.GlobalPoolLayer(self.network[self.last_layer], func=model_layer['global_pool'], name=name+'_globalpool')
 				self.last_layer = new_layer
 
 			# add dropout layer
