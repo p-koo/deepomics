@@ -17,6 +17,7 @@ __all__ = [
 ]
 
 
+
 class Conv1DLayer(BaseLayer):
 	"""1D convolutional layer"""
 
@@ -178,6 +179,17 @@ class Conv2DLayer(BaseLayer):
 #---------------------------------------------------------------------------
 
 
+def deconv_output_length(input_length, filter_size, padding, stride):
+	if input_length is None:
+		return None
+	input_length *= stride
+	if padding.upper() == 'VALID':
+		input_length += max(filter_size - stride, 0)
+	elif padding.upper() == 'FULL':
+		input_length -= (stride + filter_size - 2)
+	return input_length
+
+
 
 class TransposeConv1DLayer(BaseLayer):
 	"""1D convolutional layer"""
@@ -210,19 +222,29 @@ class TransposeConv1DLayer(BaseLayer):
 			self.padding = 'VALID'
 			
 		# input data shape
-		self.incoming_shape = incoming.get_output_shape()
+		inputs_shape = incoming.get_shape().as_list()#array_ops.shape(Z_reshape)
+		height, dim = inputs_shape[1], inputs_shape[3]
 
-		output_shape = (tf.shape(incoming.get_output())[0], ) + tuple(output_shape[1:])
-		output_shape = tf.stack(list(output_shape))
-		self.output_shape = output_shape
+		out_height = deconv_output_length(height,
+											kernel_h,
+											self.padding,
+											stride)
+
+		batch_size = tf.shape(incoming)[0]
+
+		self.incoming_shape = incoming.get_output_shape()
+		self.output_shape = (batch_size, out_height, 1, num_filters)
+		self.num_filters = num_filters
 		
-		# output of convolution
-		self.output = tf.nn.conv2d_transpose( input=incoming.get_output(), 
-									filter=self.W.get_variable(), 
-									output_shape=self.output_shape,
-									strides=self.strides, 
-									padding=self.padding)
+		self.incoming_shape = incoming.get_output_shape()
+		X = tf.nn.conv2d_transpose(input=incoming.get_output(), 
+											filter=self.W.get_variable(), 
+											output_shape=self.output_shape,
+											strides=self.strides, 
+											padding=self.padding)
 		
+		self.output = tf.reshape(X, [-1, out_height, out_width, num_filters])
+
 	def get_input_shape(self):
 		return self.incoming_shape
 	
@@ -254,30 +276,24 @@ class TransposeConv1DLayer(BaseLayer):
 		return self.W.is_l2_regularize()  
 
 
+
+
 class TransposeConv2DLayer(BaseLayer):
 	"""1D convolutional layer"""
 
 	def __init__(self, incoming, filter_size, num_filters, output_shape, W=[],
-				  strides=[], padding=[], **kwargs):
+				  strides=(1,1), padding='SAME', **kwargs):
 
-		self.filter_size = filter_size
-		self.num_filters = num_filters
+		self.padding = padding.upper()
 		
-		dim = incoming.get_output_shape()[3].value
+		inputs_shape = incoming.get_shape().as_list()#array_ops.shape(Z_reshape)
+		height, width, dim = inputs_shape[1], inputs_shape[2], inputs_shape[3]
 
 		if not isinstance(filter_size, (list, tuple)):
-			self.shape = [filter_size, filter_size, num_filters, dim]
+			self.filter_size = [filter_size, filter_size, num_filters, dim]
 		else:
-			self.shape = [filter_size[0], filter_size[1], num_filters, dim]
-
-		if not W:
-			self.W = Variable(var=init.HeUniform(**kwargs), shape=self.shape, **kwargs)
-		else:
-			self.W = Variable(var=W, shape=self.shape, **kwargs)
-			
-		output_shape = (tf.shape(incoming.get_output())[0], ) + tuple(output_shape[1:])
-		output_shape = tf.stack(list(output_shape))
-		self.output_shape = output_shape
+			self.filter_size = [filter_size[0], filter_size[1], num_filters, dim]
+		_, kernel_h, kernel_w, _ = self.filter_size
 
 		if not strides:		
 			self.strides = [1, 1, 1, 1]
@@ -286,21 +302,40 @@ class TransposeConv2DLayer(BaseLayer):
 				self.strides = [1, strides, strides, 1]
 			else:
 				self.strides = [1, strides[0], strides[1], 1]
+		_, stride_h, stride_w, _ = self.strides
 
-		self.padding = padding
-		if not padding:
-			self.padding = 'VALID'
+		out_height = deconv_output_length(height,
+											kernel_h,
+											self.padding,
+											stride_h)
+
+		out_width = deconv_output_length(width,
+									   kernel_w,
+									   self.padding,
+									   stride_w)
+
+		batch_size = tf.shape(incoming)[0]
+
+		#output_shape = tf.stack([batch_size, 40, 40, 32])
+		self.output_shape = (batch_size, out_height, out_width, num_filters)
+		self.num_filters = num_filters
+		
+		if not W:
+			self.W = Variable(var=init.HeUniform(**kwargs), shape=self.filter_size, **kwargs)
+		else:
+			self.W = Variable(var=W, shape=self.filter_size, **kwargs)
 			
 		# input data shape
 		self.incoming_shape = incoming.get_output_shape()
-		
-		# output of convolution
-		self.output = tf.nn.conv2d_transpose(input=incoming.get_output(), 
+		X = tf.nn.conv2d_transpose(input=incoming.get_output(), 
 											filter=self.W.get_variable(), 
 											output_shape=self.output_shape,
 											strides=self.strides, 
 											padding=self.padding)
 		
+		self.output = tf.reshape(X, [-1, out_height, out_width, num_filters])
+
+
 	def get_input_shape(self):
 		return self.incoming_shape
 	
@@ -330,6 +365,7 @@ class TransposeConv2DLayer(BaseLayer):
 		
 	def is_l2_regularize(self):
 		return self.W.is_l2_regularize()  
+
 		
 		
 class StochasticConv1DLayer(BaseLayer):
