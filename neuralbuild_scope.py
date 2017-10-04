@@ -46,6 +46,41 @@ class NeuralBuild():
 					# add input layer
 					self.single_layer(model_layer, name)
 
+
+				elif (layer == 'variational') | (layer == 'variational_normal'):
+					self.network['Z_mu'] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'], **self.seed)
+					self.network['Z_logsigma'] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'], **self.seed)
+					self.network['Z'] = layers.VariationalSampleLayer(self.network['Z_mu'], self.network['Z_logsigma'])
+					self.last_layer = 'Z'
+
+				elif layer == 'gumbel_softmax':
+					if 'hard' in model_layer:
+						hard = model_layer['hard']
+					else:
+						hard = False
+					num_categories = model_layer['num_categories']
+					num_classes = model_layer['num_classes']
+
+					if 'temperature' in model_layer:				
+						temperature = model_layer['temperature']
+					else:					
+						temperature = 5.0
+					self.feed_dict['temperature'] = temperature
+					self.placeholders['temperature'] = tf.placeholder(dtype=tf.float32, name="temperature")
+					if 'name' in model_layer:
+						name = model_layer['name']
+					else:
+						name = 'Z'
+
+					self.network[name+'_logits'] = layers.DenseLayer(self.network[self.last_layer], num_units=num_categories*num_classes)
+					self.network[name+'_logits_reshape'] = layers.ReshapeLayer(self.network[name+'_logits'], shape=[-1, num_classes])
+					self.network[name] = layers.ActivationLayer(self.network[name+'_logits_reshape'], function='softmax')
+					self.network[name+'_sample'] = layers.CategoricalSampleLayer(self.network[name+'_logits_reshape'], 
+																		temperature=temperature,
+																		hard=hard)
+					self.network[name+'_reshape'] = layers.ReshapeLayer(self.network[name+'_sample'], [-1, num_classes*num_categories])
+					self.last_layer = name+'_reshape'
+
 				else:
 					if layer == 'conv1d_residual':
 						self.conv1d_residual_block(model_layer, name)
@@ -56,80 +91,74 @@ class NeuralBuild():
 					elif layer == 'dense_residual':
 						self.dense_residual_block(model_layer, name)
 
-					elif layer == 'variational':
-						self.network['encode_mu'] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'], **self.seed)
-						self.network['encode_logsigma'] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'], **self.seed)
-						self.network['Z'] = layers.VariationalSampleLayer(self.network['encode_mu'], self.network['encode_logsigma'])
-						self.last_layer = 'Z'
-
 					else:
 						# add core layer
 						self.single_layer(model_layer, name)
 
-				# add Batch normalization layer
-				if 'norm' in model_layer:
-					if 'batch' in model_layer['norm']:
-						with tf.name_scope("norm") as scope:
-							new_layer = name + '_batch' #str(counter) + '_' + name + '_batch'
-							self.network[new_layer] = layers.BatchNormLayer(self.network[self.last_layer], self.placeholders['is_training'])
-							self.last_layer = new_layer
+					# add Batch normalization layer
+					if 'norm' in model_layer:
+						if 'batch' in model_layer['norm']:
+							with tf.name_scope("norm") as scope:
+								new_layer = name + '_batch' #str(counter) + '_' + name + '_batch'
+								self.network[new_layer] = layers.BatchNormLayer(self.network[self.last_layer], self.placeholders['is_training'])
+								self.last_layer = new_layer
 
-				else:
-					if (model_layer['layer'] == 'dense') | (model_layer['layer'] == 'conv1d') | (model_layer['layer'] == 'conv2d'):
-						if 'b' in model_layer:
-							if model_layer['b'] != None:
+					else:
+						if (model_layer['layer'] == 'dense') | (model_layer['layer'] == 'conv1d') | (model_layer['layer'] == 'conv2d'):
+							if 'b' in model_layer:
+								if model_layer['b'] != None:
+									with tf.name_scope("bias") as scope:
+										b = init.Constant(model_layer['b'])
+										new_layer = name+'_bias'
+										self.network[new_layer] = layers.BiasLayer(self.network[self.last_layer], b=b)
+										self.last_layer = new_layer
+
+							elif 'norm' not in model_layer:
 								with tf.name_scope("bias") as scope:
-									b = init.Constant(model_layer['b'])
+									b = init.Constant(0.05)
 									new_layer = name+'_bias'
 									self.network[new_layer] = layers.BiasLayer(self.network[self.last_layer], b=b)
 									self.last_layer = new_layer
 
-						elif 'norm' not in model_layer:
-							with tf.name_scope("bias") as scope:
-								b = init.Constant(0.05)
-								new_layer = name+'_bias'
-								self.network[new_layer] = layers.BiasLayer(self.network[self.last_layer], b=b)
-								self.last_layer = new_layer
+					# add activation layer
+					if 'activation' in model_layer:
+						new_layer = name+'_active'
+						self.network[new_layer] = layers.ActivationLayer(self.network[self.last_layer], function=model_layer['activation'], name=scope)
+						self.last_layer = new_layer
 
-				# add activation layer
-				if 'activation' in model_layer:
-					new_layer = name+'_active'
-					self.network[new_layer] = layers.ActivationLayer(self.network[self.last_layer], function=model_layer['activation'], name=scope)
-					self.last_layer = new_layer
+					# add max-pooling layer
+					if 'max_pool' in model_layer:
+						new_layer = name+'_maxpool'  # str(counter) + '_' + name+'_pool'
+						if isinstance(model_layer['max_pool'], (tuple, list)):
+								self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=model_layer['max_pool'], name=name+'_maxpool')
+						else:
+								self.network[new_layer] = layers.MaxPool1DLayer(self.network[self.last_layer], pool_size=model_layer['max_pool'], name=name+'_maxpool')
+						self.last_layer = new_layer
 
-				# add max-pooling layer
-				if 'max_pool' in model_layer:
-					new_layer = name+'_maxpool'  # str(counter) + '_' + name+'_pool'
-					if isinstance(model_layer['max_pool'], (tuple, list)):
-							self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=model_layer['max_pool'], name=name+'_maxpool')
-					else:
-							self.network[new_layer] = layers.MaxPool1DLayer(self.network[self.last_layer], pool_size=model_layer['max_pool'], name=name+'_maxpool')
-					self.last_layer = new_layer
+					# add mean-pooling layer
+					elif 'mean_pool' in model_layer:
+						new_layer = name+'_meanpool'  # str(counter) + '_' + name+'_pool'
+						if isinstance(model_layer['mean_pool'], (tuple, list)):
+								self.network[new_layer] = layers.MeanPool2DLayer(self.network[self.last_layer], pool_size=model_layer['mean_pool'], name=name+'_meanpool')
+						else:
+								self.network[new_layer] = layers.MeanPool1DLayer(self.network[self.last_layer], pool_size=model_layer['mean_pool'], name=name+'_meanpool')
+						self.last_layer = new_layer
 
-				# add mean-pooling layer
-				elif 'mean_pool' in model_layer:
-					new_layer = name+'_meanpool'  # str(counter) + '_' + name+'_pool'
-					if isinstance(model_layer['mean_pool'], (tuple, list)):
-							self.network[new_layer] = layers.MeanPool2DLayer(self.network[self.last_layer], pool_size=model_layer['mean_pool'], name=name+'_meanpool')
-					else:
-							self.network[new_layer] = layers.MeanPool1DLayer(self.network[self.last_layer], pool_size=model_layer['mean_pool'], name=name+'_meanpool')
-					self.last_layer = new_layer
+					# add global-pooling layer
+					elif 'global_pool' in model_layer:
+						new_layer = name+'_globalpool'
+						self.network[new_layer] = layers.GlobalPoolLayer(self.network[self.last_layer], func=model_layer['global_pool'], name=name+'_globalpool')
+						self.last_layer = new_layer
 
-				# add global-pooling layer
-				elif 'global_pool' in model_layer:
-					new_layer = name+'_globalpool'
-					self.network[new_layer] = layers.GlobalPoolLayer(self.network[self.last_layer], func=model_layer['global_pool'], name=name+'_globalpool')
-					self.last_layer = new_layer
-
-				# add dropout layer
-				if 'dropout' in model_layer:
-					new_layer = name+'_dropout' # str(counter) + '_' + name+'_dropout'
-					placeholder_name = 'keep_prob_'+str(self.num_dropout)
-					self.placeholders[placeholder_name] = tf.placeholder(tf.float32, name=placeholder_name)
-					self.feed_dict[placeholder_name] = 1-model_layer['dropout']
-					self.num_dropout += 1
-					self.network[new_layer] = layers.DropoutLayer(self.network[self.last_layer], keep_prob=self.placeholders[placeholder_name], name=name+'_dropout')
-					self.last_layer = new_layer
+					# add dropout layer
+					if 'dropout' in model_layer:
+						new_layer = name+'_dropout' # str(counter) + '_' + name+'_dropout'
+						placeholder_name = 'keep_prob_'+str(self.num_dropout)
+						self.placeholders[placeholder_name] = tf.placeholder(tf.float32, name=placeholder_name)
+						self.feed_dict[placeholder_name] = 1-model_layer['dropout']
+						self.num_dropout += 1
+						self.network[new_layer] = layers.DropoutLayer(self.network[self.last_layer], keep_prob=self.placeholders[placeholder_name], name=name+'_dropout')
+						self.last_layer = new_layer
 
 		if supervised:
 
@@ -140,7 +169,7 @@ class NeuralBuild():
 			self.feed_dict['targets'] = []
 		else:
 			self.network['X'] = self.network.pop(self.last_layer)
-			self.placeholders['targets'] = self.placeholders['inputs'][0]
+			self.placeholders['targets'] = self.placeholders['inputs']
 			self.feed_dict['targets'] = []
 
 		return self.network, self.placeholders, self.feed_dict
@@ -218,6 +247,49 @@ class NeuralBuild():
 													  strides=strides,
 													  reverse=reverse)
 
+		# convolution layer
+		elif (model_layer['layer'] == 'conv2d_transpose'):
+
+			if 'W' not in model_layer.keys():
+				W = init.HeNormal(**self.seed)
+			else:
+				W = model_layer['W']
+			if 'padding' not in model_layer.keys():
+				padding = 'SAME'
+			else:
+				padding = model_layer['padding']
+			if 'strides' not in model_layer.keys():
+				strides = (1, 1)
+			else:
+				strides = model_layer['strides']
+
+			self.network[name] = layers.TransposeConv2DLayer(self.network[self.last_layer], num_filters=model_layer['num_filters'],
+												  filter_size=model_layer['filter_size'],
+												  W=W,
+												  padding=padding,
+												  strides=strides)
+			
+		elif model_layer['layer'] == 'conv1d_transpose':
+			if 'W' not in model_layer.keys():
+				W = init.HeNormal(**self.seed)
+			else:
+				W = model_layer['W']
+			if 'padding' not in model_layer.keys():
+				padding = 'SAME'
+			else:
+				padding = model_layer['padding']
+			if 'strides' not in model_layer.keys():
+				strides = 1
+			else:
+				strides = model_layer['strides']
+
+
+			self.network[name] = layers.TransposeConv1DLayer(self.network[self.last_layer], num_filters=model_layer['num_filters'],
+												  filter_size=model_layer['filter_size'],
+												  W=W,
+												  padding=padding,
+												  strides=strides)
+
 		# concat layer
 		elif model_layer['layer'] == 'concat':
 			self.network[name] = layers.ConcatLayer([self.network[self.last_layer], self.network[model_layer['concat']]])
@@ -235,6 +307,7 @@ class NeuralBuild():
 
 		elif model_layer['layer'] == 'reduce_mean':
 			self.network[name] = layers.MeanLayer(self.network[self.last_layer], axis=1)
+
 
 		self.last_layer = name
 
@@ -407,6 +480,7 @@ class NameGenerator():
 		self.num_variational = 0
 		self.num_reduce_max = 0
 		self.num_reduce_mean = 0
+		self.num_gumbel_softmax = 0
 
 	def generate_name(self, layer):
 		if layer == 'input':
@@ -440,11 +514,11 @@ class NameGenerator():
 			name = 'dense_residual_' + str(self.num_dense_residual)
 			self.num_dense_residual += 1
 
-		elif layer == 'transpose_conv1d':
+		elif layer == 'conv1d_transpose':
 			name = 'transpose_conv1d_' + str(self.num_transpose_conv1d)
 			self.num_transpose_conv1d += 1
 
-		elif (layer == 'transpose_conv2d') | (layer == 'transpose_convolution'):
+		elif (layer == 'conv2d_transpose') | (layer == 'transpose_convolution'):
 			name = 'transpose_conv2d_' + str(self.num_transpose_conv2d)
 			self.num_transpose_conv2d += 1
 
@@ -476,7 +550,7 @@ class NameGenerator():
 			name = 'highway_' + str(self.num_highway)
 			self.num_highway += 1
 
-		elif layer == 'variational':
+		elif (layer == 'variational') | (layer == 'variational_normal'):
 			name = 'variational_' + str(self.num_variational)
 			self.num_variational += 1
 
@@ -487,5 +561,7 @@ class NameGenerator():
 		elif layer == 'reduce_mean':
 			name = 'reduce_mean' + str(self.num_reduce_mean)
 			self.num_reduce_mean += 1
+		elif layer == 'gumbel_softmax':
+			name = 'gumbel_softmax' + str(self.num_gumbel_softmax)
 
 		return name

@@ -9,7 +9,8 @@ from .base import BaseLayer
 __all__ = [
 	"DropoutLayer",
 	"GaussianNoiseLayer",
-	"VariationalSampleLayer"
+	"VariationalSampleLayer",
+	"CategoricalSampleLayer",
 ]
 
 
@@ -73,3 +74,43 @@ class VariationalSampleLayer(BaseLayer):
 		
 
 
+
+
+
+def gumbel_softmax_sample(logits, temperature): 
+	""" Draw a sample from the Gumbel-Softmax distribution"""
+	
+	def sample_gumbel(shape, eps=1e-20): 
+		"""Sample from Gumbel(0, 1)"""
+		U = tf.random_uniform(shape,minval=0,maxval=1)
+		return -tf.log(-tf.log(U + eps) + eps)
+	
+	y = logits + sample_gumbel(tf.shape(logits))
+	return tf.nn.softmax( y / temperature)
+
+
+
+class CategoricalSampleLayer(BaseLayer):
+	def __init__(self, incoming, temperature, hard=False, **kwargs):
+				
+		self.incoming_shape = incoming.get_output_shape()
+		self.output_shape = self.incoming_shape	
+		self.temperature = temperature	
+		self.hard = hard
+
+		self.output = gumbel_softmax_sample(incoming.get_output(), temperature)
+		if self.hard:
+			k = tf.shape(self.output)[-1]
+			#y_hard = tf.cast(tf.one_hot(tf.argmax(y,1),k), y.dtype)
+			y_hard = tf.cast(tf.equal(self.output, tf.reduce_max(self.output,1,keep_dims=True)), self.output.dtype)
+			self.output = tf.stop_gradient(y_hard - self.output) + self.output
+		
+	def get_input_shape(self):
+		return self.incoming_shape
+	
+	def get_output(self):
+		return self.output
+
+	def get_output_shape(self):
+		return self.output_shape
+		

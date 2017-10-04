@@ -43,8 +43,10 @@ class NeuralNet:
 		self.seed = seed
 
 
-	def build_layers(self, model_layers, optimization=None, method=None, use_scope=True):
-		tf.reset_default_graph()
+	def build_layers(self, model_layers, optimization=None, method=None, supervised=True, use_scope=True, reset=True):
+
+		if reset:
+			tf.reset_default_graph()
 
 		if use_scope:
 			from deepomics.neuralbuild_scope import NeuralBuild
@@ -56,11 +58,16 @@ class NeuralNet:
 		if method == 'guided':
 			g = tf.get_default_graph()
 			with g.gradient_override_map({'Relu': 'GuidedRelu'}):
-				self.network, self.placeholders, self.feed_dict = nnbuild.build_layers(model_layers)
+				self.network, self.placeholders, self.feed_dict = nnbuild.build_layers(model_layers, supervised)
 		else:
-			self.network, self.placeholders, self.feed_dict = nnbuild.build_layers(model_layers)
+			self.network, self.placeholders, self.feed_dict = nnbuild.build_layers(model_layers, supervised)
 		self.build_optimizer(optimization)
 		self.train_metric()
+
+
+	def add_placeholder(self, variable, name, value):
+		self.feed_dict[name] = value
+		self.placeholders[name] = variable
 
 
 	def build_optimizer(self, optimization=None):
@@ -68,9 +75,13 @@ class NeuralNet:
 			optimization = self.optimization
 		else:
 			self.optimization = optimization
+		
+		output_layer = self.network.keys()[-1]
+
 		# get predictions
-		self.predictions = self.network['output'].get_output()
+		self.predictions = self.network[output_layer].get_output()
 		self.targets = self.placeholders['targets']
+
 		self.loss = optimize.build_loss(self.network, self.predictions, self.targets, optimization)
 
 		# setup optimizer
@@ -100,11 +111,7 @@ class NeuralNet:
 			self.metric = tf.reduce_mean(tf.square(self.predictions - self.placeholders['targets']))
 
 		# variational lower bound -- currently just printing squared error
-		elif (self.optimization['objective'] == 'elbo_gaussian') | (self.optimization['objective'] == 'elbo_binary'):
-			self.metric = tf.reduce_mean(tf.square(self.predictions - self.placeholders['targets']))
-
-		# Kullback-Leibler divergence -- currently just printing squared error
-		elif self.optimization['objective'] == 'kl_divergence':
+		else:
 			self.metric = tf.reduce_mean(tf.square(self.predictions - self.placeholders['targets']))
 
 
@@ -263,7 +270,7 @@ class NeuralTrainer():
 		self.train_calc = [nnmodel.train_step, nnmodel.loss, nnmodel.metric]
 		self.test_calc = [nnmodel.loss, nnmodel.predictions]
 
-		self.update_feed_dict(nnmodel.placeholders, nnmodel.feed_dict)
+		self.initialize_feed_dict(nnmodel.placeholders, nnmodel.feed_dict)
 		
 		# instantiate monitor class to monitor performance
 		self.train_monitor = MonitorPerformance(name="train", objective=self.objective, verbose=1)
@@ -271,7 +278,24 @@ class NeuralTrainer():
 		self.valid_monitor = MonitorPerformance(name="cross-validation", objective=self.objective, verbose=1)
 
 
-	def update_feed_dict(self, placeholders, feed_dict):
+	def update_feed_dict(self, key, value):
+
+		self.train_feed[self.placeholders[key]] = value
+		if 'keep_prob' in key:
+			self.test_feed[self.placeholders[key]] = 1.0
+			self.stochastic_feed[self.placeholders[key]] = self.train_feed[placeholders[key]]
+		if key == 'is_training':
+			self.test_feed[self.placeholders[key]] = False
+			self.stochastic_feed[self.placeholders[key]] = False
+		if key == 'KL_weight':
+			self.test_feed[self.placeholders[key]] = 1.0
+			self.stochastic_feed[self.placeholders[key]] = 1.0
+		else:
+			self.test_feed[self.placeholders[key]] = value
+			self.stochastic_feed[self.placeholders[key]] = value
+			
+
+	def initialize_feed_dict(self, placeholders, feed_dict):
 
 		self.train_feed = {}
 		self.test_feed = {}
@@ -289,6 +313,10 @@ class NeuralTrainer():
 			if key == 'is_training':
 				self.test_feed[placeholders[key]] = False
 				self.stochastic_feed[placeholders[key]] = False
+
+			if key == 'KL_weight':
+				self.test_feed[placeholders[key]] = 1.0
+				self.stochastic_feed[placeholders[key]] = 1.0
 
 
 	def train_epoch(self, sess, data, batch_size=128, verbose=1, shuffle=True):        
@@ -341,22 +369,26 @@ class NeuralTrainer():
 		label = np.vstack(label)
 		test_loss = performance.get_mean_loss()
 
-		if name == "train":
-			self.train_monitor.update(test_loss, prediction, label)
-			mean, std = self.train_monitor.get_metric_values()
-			if verbose >= 1:
-				self.train_monitor.print_results(name)
-		elif name == "valid":
-			self.valid_monitor.update(test_loss, prediction, label)
-			mean, std = self.valid_monitor.get_metric_values()
-			if verbose >= 1:
-				self.valid_monitor.print_results(name)
-		elif name == "test":
-			self.test_monitor.update(test_loss, prediction, label)
-			mean, std = self.test_monitor.get_metric_values()
-			if verbose >= 1:
-				self.test_monitor.print_results(name)
-		return test_loss, mean, std
+		if name == 'eblo':
+			return test_loss
+
+		else:
+			if name == "train":
+				self.train_monitor.update(test_loss, prediction, label)
+				mean, std = self.train_monitor.get_metric_values()
+				if verbose >= 1:
+					self.train_monitor.print_results(name)
+			elif name == "valid":
+				self.valid_monitor.update(test_loss, prediction, label)
+				mean, std = self.valid_monitor.get_metric_values()
+				if verbose >= 1:
+					self.valid_monitor.print_results(name)
+			elif name == "test":
+				self.test_monitor.update(test_loss, prediction, label)
+				mean, std = self.test_monitor.get_metric_values()
+				if verbose >= 1:
+					self.test_monitor.print_results(name)
+			return test_loss, mean, std
 
 
 
@@ -562,14 +594,14 @@ class MonitorPerformance():
 
 	def progress_bar(self, epoch, num_batches, value, bar_length=30):
 		if self.verbose > 1:
-			time_elapsed = time.time()-self.start_time#*(num_batches-epoch)/epoch
+			time_elapsed = time.time()-self.start_time+1#*(num_batches-epoch)/epoch
 			percent = epoch/num_batches
 			progress = '='*int(round(percent*bar_length))
 			spaces = ' '*int(bar_length-round(percent*bar_length))
 			if (self.objective == "binary") | (self.objective == "categorical"):
 				sys.stdout.write("\r[%s] %.1f%% -- time=%ds -- loss=%.5f -- accuracy=%.2f%%  " \
 				%(progress+spaces, percent*100, time_elapsed, self.get_mean_loss(), value*100))
-			elif (self.objective == 'squared_error'):
+			else:# (self.objective == 'squared_error') | (self.objective == 'elbo_gaussian')| (self.objective == 'elbo_binary'):
 				sys.stdout.write("\r[%s] %.1f%% -- time=%ds -- loss=%.5f" \
 				%(progress+spaces, percent*100, time_elapsed, self.get_mean_loss()))
 			sys.stdout.flush()

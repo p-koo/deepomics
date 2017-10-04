@@ -32,6 +32,7 @@ class NeuralBuild():
 		# loop to build each layer of network
 		for model_layer in model_layers:
 			layer = model_layer['layer']
+			print(model_layer)
 
 			# name of layer
 			if 'name' in model_layer:
@@ -145,7 +146,9 @@ class NeuralBuild():
 			self.network['X'] = self.network.pop(self.last_layer)
 			self.placeholders['targets'] = self.placeholders['inputs'][0]
 			self.feed_dict['targets'] = []
-			
+
+			self.feed_dict['KL_weight'] = 1.0
+			self.placeholders['KL_weight'] = tf.placeholder(tf.float32)
 		return self.network, self.placeholders, self.feed_dict
 
 
@@ -206,6 +209,49 @@ class NeuralBuild():
 
 
 			self.network[name] = layers.Conv1DLayer(self.network[self.last_layer], num_filters=model_layer['num_filters'],
+												  filter_size=model_layer['filter_size'],
+												  W=W,
+												  padding=padding,
+												  strides=strides)
+
+		# convolution layer
+		elif (model_layer['layer'] == 'conv2d_transpose'):
+
+			if 'W' not in model_layer.keys():
+				W = init.HeNormal(**self.seed)
+			else:
+				W = model_layer['W']
+			if 'padding' not in model_layer.keys():
+				padding = 'SAME'
+			else:
+				padding = model_layer['padding']
+			if 'strides' not in model_layer.keys():
+				strides = (1, 1)
+			else:
+				strides = model_layer['strides']
+
+			self.network[name] = layers.TransposeConv2DLayer(self.network[self.last_layer], num_filters=model_layer['num_filters'],
+												  filter_size=model_layer['filter_size'],
+												  W=W,
+												  padding=padding,
+												  strides=strides)
+			
+		elif model_layer['layer'] == 'conv1d_transpose':
+			if 'W' not in model_layer.keys():
+				W = init.HeNormal(**self.seed)
+			else:
+				W = model_layer['W']
+			if 'padding' not in model_layer.keys():
+				padding = 'SAME'
+			else:
+				padding = model_layer['padding']
+			if 'strides' not in model_layer.keys():
+				strides = 1
+			else:
+				strides = model_layer['strides']
+
+
+			self.network[name] = layers.TransposeConv1DLayer(self.network[self.last_layer], num_filters=model_layer['num_filters'],
 												  filter_size=model_layer['filter_size'],
 												  W=W,
 												  padding=padding,
@@ -437,11 +483,11 @@ class NameGenerator():
 			name = 'dense_residual_' + str(self.num_dense_residual)
 			self.num_dense_residual += 1
 
-		elif layer == 'transpose_conv1d':
+		elif layer == 'conv1d_transpose':
 			name = 'transpose_conv1d_' + str(self.num_transpose_conv1d)
 			self.num_transpose_conv1d += 1
 
-		elif (layer == 'transpose_conv2d') | (layer == 'transpose_convolution'):
+		elif (layer == 'conv2d_transpose') | (layer == 'transpose_convolution'):
 			name = 'transpose_conv2d_' + str(self.num_transpose_conv2d)
 			self.num_transpose_conv2d += 1
 
