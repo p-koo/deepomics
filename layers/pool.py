@@ -7,7 +7,9 @@ __all__ = [
 	"MaxPool1DLayer",
 	"MaxPool2DLayer",
 	"MeanPool1DLayer",
-	"MeanPool2DLayer"
+	"MeanPool2DLayer",
+	"Upsample1DLayer",
+	"Upsample2DLayer",
 ]
 
 
@@ -190,4 +192,38 @@ class MeanPool2DLayer(BaseLayer):
 	def get_output_shape(self):
 		return self.output_shape
 
+
+class Upsample1DLayer(BaseLayer):
+	def __init__(self, incoming, pool_size, **kwargs):
 		
+		self.incoming_shape = self.incoming.get_output_shape().as_list()
+		self.output_shape = tf.stack([self.incoming_shape[0], self.incoming_shape[1]*pool_size, self.incoming_shape[2], self.incoming_shape[3]])
+
+		self.output = tf.image.resize_images(input_tensor, self.output_shape)
+		
+	def get_input_shape(self):
+		return self.incoming_shape
+	
+	def get_output(self):
+		return self.output
+	
+	def get_output_shape(self):
+		return self.output_shape
+
+
+class Upsample2DLayer(BaseLayer):
+	def __init__(self, incoming, pool_size,**kwargs):
+		self.incoming_shape = self.incoming.get_output_shape().as_list()
+		self.output_shape = tf.stack([self.incoming_shape[0], self.incoming_shape[1]*pool_size, self.incoming_shape[2]*pool_size, self.incoming_shape[3]])
+
+		self.output = tf.image.resize_images(input_tensor, self.output_shape)
+
+		
+	def get_input_shape(self):
+		return self.incoming_shape
+	
+	def get_output(self):
+		return self.output
+	
+	def get_output_shape(self):
+		return self.output_shape

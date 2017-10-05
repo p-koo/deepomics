@@ -53,7 +53,7 @@ class NeuralBuild():
 					self.network['Z'] = layers.VariationalSampleLayer(self.network['Z_mu'], self.network['Z_logsigma'])
 					self.last_layer = 'Z'
 
-				elif layer == 'gumbel_softmax':
+				elif layer == 'variational_softmax':
 					if 'hard' in model_layer:
 						hard = model_layer['hard']
 					else:
@@ -74,12 +74,12 @@ class NeuralBuild():
 
 					self.network[name+'_logits'] = layers.DenseLayer(self.network[self.last_layer], num_units=num_categories*num_classes)
 					self.network[name+'_logits_reshape'] = layers.ReshapeLayer(self.network[name+'_logits'], shape=[-1, num_classes])
-					self.network[name] = layers.ActivationLayer(self.network[name+'_logits_reshape'], function='softmax')
+					#self.network[name] = layers.ActivationLayer(self.network[name+'_logits_reshape'], function='softmax')
 					self.network[name+'_sample'] = layers.CategoricalSampleLayer(self.network[name+'_logits_reshape'], 
 																		temperature=temperature,
 																		hard=hard)
-					self.network[name+'_reshape'] = layers.ReshapeLayer(self.network[name+'_sample'], [-1, num_classes*num_categories])
-					self.last_layer = name+'_reshape'
+					self.network[name+'_sample_reshape'] = layers.ReshapeLayer(self.network[name+'_sample'], [-1, num_categories, num_classes])
+					self.last_layer = name+'_sample_reshape'
 
 				else:
 					if layer == 'conv1d_residual':
@@ -126,39 +126,44 @@ class NeuralBuild():
 						self.network[new_layer] = layers.ActivationLayer(self.network[self.last_layer], function=model_layer['activation'], name=scope)
 						self.last_layer = new_layer
 
-					# add max-pooling layer
-					if 'max_pool' in model_layer:
-						new_layer = name+'_maxpool'  # str(counter) + '_' + name+'_pool'
-						if isinstance(model_layer['max_pool'], (tuple, list)):
-								self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=model_layer['max_pool'], name=name+'_maxpool')
-						else:
-								self.network[new_layer] = layers.MaxPool1DLayer(self.network[self.last_layer], pool_size=model_layer['max_pool'], name=name+'_maxpool')
-						self.last_layer = new_layer
+				# add max-pooling layer
+				if 'max_pool' in model_layer:
+					new_layer = name+'_maxpool'  # str(counter) + '_' + name+'_pool'
+					if isinstance(model_layer['max_pool'], (tuple, list)):
+							self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=model_layer['max_pool'], name=name+'_maxpool')
+					else:
+							self.network[new_layer] = layers.MaxPool1DLayer(self.network[self.last_layer], pool_size=model_layer['max_pool'], name=name+'_maxpool')
+					self.last_layer = new_layer
 
-					# add mean-pooling layer
-					elif 'mean_pool' in model_layer:
-						new_layer = name+'_meanpool'  # str(counter) + '_' + name+'_pool'
-						if isinstance(model_layer['mean_pool'], (tuple, list)):
-								self.network[new_layer] = layers.MeanPool2DLayer(self.network[self.last_layer], pool_size=model_layer['mean_pool'], name=name+'_meanpool')
-						else:
-								self.network[new_layer] = layers.MeanPool1DLayer(self.network[self.last_layer], pool_size=model_layer['mean_pool'], name=name+'_meanpool')
-						self.last_layer = new_layer
+				# add mean-pooling layer
+				elif 'mean_pool' in model_layer:
+					new_layer = name+'_meanpool'  # str(counter) + '_' + name+'_pool'
+					if isinstance(model_layer['mean_pool'], (tuple, list)):
+							self.network[new_layer] = layers.MeanPool2DLayer(self.network[self.last_layer], pool_size=model_layer['mean_pool'], name=name+'_meanpool')
+					else:
+							self.network[new_layer] = layers.MeanPool1DLayer(self.network[self.last_layer], pool_size=model_layer['mean_pool'], name=name+'_meanpool')
+					self.last_layer = new_layer
 
-					# add global-pooling layer
-					elif 'global_pool' in model_layer:
-						new_layer = name+'_globalpool'
-						self.network[new_layer] = layers.GlobalPoolLayer(self.network[self.last_layer], func=model_layer['global_pool'], name=name+'_globalpool')
-						self.last_layer = new_layer
+				# add global-pooling layer
+				elif 'global_pool' in model_layer:
+					new_layer = name+'_globalpool'
+					self.network[new_layer] = layers.GlobalPoolLayer(self.network[self.last_layer], func=model_layer['global_pool'], name=name+'_globalpool')
+					self.last_layer = new_layer
 
-					# add dropout layer
-					if 'dropout' in model_layer:
-						new_layer = name+'_dropout' # str(counter) + '_' + name+'_dropout'
-						placeholder_name = 'keep_prob_'+str(self.num_dropout)
-						self.placeholders[placeholder_name] = tf.placeholder(tf.float32, name=placeholder_name)
-						self.feed_dict[placeholder_name] = 1-model_layer['dropout']
-						self.num_dropout += 1
-						self.network[new_layer] = layers.DropoutLayer(self.network[self.last_layer], keep_prob=self.placeholders[placeholder_name], name=name+'_dropout')
-						self.last_layer = new_layer
+				# add dropout layer
+				if 'dropout' in model_layer:
+					new_layer = name+'_dropout' # str(counter) + '_' + name+'_dropout'
+					placeholder_name = 'keep_prob_'+str(self.num_dropout)
+					self.placeholders[placeholder_name] = tf.placeholder(tf.float32, name=placeholder_name)
+					self.feed_dict[placeholder_name] = 1-model_layer['dropout']
+					self.num_dropout += 1
+					self.network[new_layer] = layers.DropoutLayer(self.network[self.last_layer], keep_prob=self.placeholders[placeholder_name], name=name+'_dropout')
+					self.last_layer = new_layer
+
+				if 'reshape' in model_layer:
+					new_layer = name+'_reshape'
+					self.network[new_layer] = layers.ReshapeLayer(self.network[self.last_layer], model_layer['reshape'])
+					self.last_layer = new_layer
 
 		if supervised:
 
@@ -308,6 +313,8 @@ class NeuralBuild():
 		elif model_layer['layer'] == 'reduce_mean':
 			self.network[name] = layers.MeanLayer(self.network[self.last_layer], axis=1)
 
+		elif model_layer['layer'] == 'softmax2D':
+			self.network[name] = layers.Softmax2DLayer(self.network[self.last_layer])
 
 		self.last_layer = name
 
@@ -481,6 +488,7 @@ class NameGenerator():
 		self.num_reduce_max = 0
 		self.num_reduce_mean = 0
 		self.num_gumbel_softmax = 0
+		self.num_softmax2D = 0
 
 	def generate_name(self, layer):
 		if layer == 'input':
@@ -563,5 +571,7 @@ class NameGenerator():
 			self.num_reduce_mean += 1
 		elif layer == 'gumbel_softmax':
 			name = 'gumbel_softmax' + str(self.num_gumbel_softmax)
+		elif layer == 'softmax2D':
+			name = 'softmax2D' + str(self.num_softmax2D)
 
 		return name

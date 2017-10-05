@@ -15,8 +15,34 @@ __all__ = [
 	"BiasLayer",
 	"StochasticBiasLayer",
 	"ElementwiseSumLayer",
-	"ConcatLayer"
+	"ConcatLayer",
+	"Softmax2DLayer",
 ]
+
+
+class Softmax2DLayer(BaseLayer):
+	def __init__(self, incoming, **kwargs):
+		
+		shape = incoming.get_output_shape().as_list()
+		num_classes = shape[-1]
+		num_categories = shape[1]
+
+		self.incoming_shape = incoming.get_output_shape()
+		
+		reshape = tf.reshape(incoming.get_output(), [-1, num_classes], **kwargs)
+
+		softmax = tf.nn.softmax(reshape)
+		self.output = tf.reshape(softmax, [-1, num_categories, num_classes])
+		self.output_shape = self.output.get_shape()
+		
+	def get_input_shape(self):
+		return self.incoming_shape
+	
+	def get_output(self):
+		return self.output
+	
+	def get_output_shape(self):
+		return self.output_shape
 
 
 class MaxLayer(BaseLayer):
@@ -303,3 +329,5 @@ def activation(z, function='relu', **kwargs):
 		output = tf.cumsum(softmax, axis=1)
 
 	return output
+
+
