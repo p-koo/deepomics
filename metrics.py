@@ -133,6 +133,9 @@ def calculate_metrics(label, prediction, objective):
 		mean = [np.nanmean(corr), np.nanmean(rsqr), np.nanmean(slope)]
 		std = [np.nanstd(corr), np.nanstd(rsqr), np.nanstd(slope)]
 
+	else:
+		mean = 0
+		std = 0
 
 	return [mean, std]
 

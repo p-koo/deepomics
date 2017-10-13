@@ -46,20 +46,33 @@ class NeuralBuild():
 					# add input layer
 					self.single_layer(model_layer, name)
 
+				elif layer == 'embedding':
+					vocab_size = model_layer['vocab_size']
+					embedding_size = model_layer['embedding_size']
+					if 'max_norm' in model_layer:
+						max_norm = model_layer['max_norm']
+					else:
+						max_norm = None
+					self.network[name] = layers.EmbeddingLayer(self.network[self.last_layer], vocab_size, embedding_size, max_norm)
+					self.last_layer = name
 
 				elif (layer == 'variational') | (layer == 'variational_normal'):
-					self.network['Z_mu'] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'], **self.seed)
-					self.network['Z_logsigma'] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'], **self.seed)
-					self.network['Z'] = layers.VariationalSampleLayer(self.network['Z_mu'], self.network['Z_logsigma'])
-					self.last_layer = 'Z'
+					if 'name' in model_layer:
+						name = model_layer['name']
+					else:
+						name = 'Z'
+
+					self.network[name+'_mu'] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'], b=init.HeNormal(), **self.seed)
+					self.network[name+'_logvar'] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'], b=init.HeNormal(), **self.seed)
+					self.network[name+'_sample'] = layers.VariationalSampleLayer(self.network[name+'_mu'], self.network[name+'_logvar'])
+					self.last_layer = name+'_sample'
 
 				elif layer == 'variational_softmax':
 					if 'hard' in model_layer:
 						hard = model_layer['hard']
 					else:
 						hard = False
-					num_categories = model_layer['num_categories']
-					num_classes = model_layer['num_classes']
+					num_categories, num_classes = model_layer['Z_shape']
 
 					if 'temperature' in model_layer:				
 						temperature = model_layer['temperature']
@@ -72,9 +85,9 @@ class NeuralBuild():
 					else:
 						name = 'Z'
 
-					self.network[name+'_logits'] = layers.DenseLayer(self.network[self.last_layer], num_units=num_categories*num_classes)
+					self.network[name+'_logits'] = layers.DenseLayer(self.network[self.last_layer], num_units=num_categories*num_classes, b=init.HeNormal())
 					self.network[name+'_logits_reshape'] = layers.ReshapeLayer(self.network[name+'_logits'], shape=[-1, num_classes])
-					#self.network[name] = layers.ActivationLayer(self.network[name+'_logits_reshape'], function='softmax')
+					self.network[name] = layers.ActivationLayer(self.network[name+'_logits_reshape'], function='softmax')
 					self.network[name+'_sample'] = layers.CategoricalSampleLayer(self.network[name+'_logits_reshape'], 
 																		temperature=temperature,
 																		hard=hard)
@@ -115,16 +128,16 @@ class NeuralBuild():
 
 							elif 'norm' not in model_layer:
 								with tf.name_scope("bias") as scope:
-									b = init.Constant(0.05)
+									b = init.HeNormal()
 									new_layer = name+'_bias'
 									self.network[new_layer] = layers.BiasLayer(self.network[self.last_layer], b=b)
 									self.last_layer = new_layer
 
-					# add activation layer
-					if 'activation' in model_layer:
-						new_layer = name+'_active'
-						self.network[new_layer] = layers.ActivationLayer(self.network[self.last_layer], function=model_layer['activation'], name=scope)
-						self.last_layer = new_layer
+				# add activation layer
+				if 'activation' in model_layer:
+					new_layer = name+'_active'
+					self.network[new_layer] = layers.ActivationLayer(self.network[self.last_layer], function=model_layer['activation'], name=scope)
+					self.last_layer = new_layer
 
 				# add max-pooling layer
 				if 'max_pool' in model_layer:
@@ -160,7 +173,7 @@ class NeuralBuild():
 					self.network[new_layer] = layers.DropoutLayer(self.network[self.last_layer], keep_prob=self.placeholders[placeholder_name], name=name+'_dropout')
 					self.last_layer = new_layer
 
-				if 'reshape' in model_layer:
+				if ('reshape' in model_layer) & (layer != 'reshape'):
 					new_layer = name+'_reshape'
 					self.network[new_layer] = layers.ReshapeLayer(self.network[self.last_layer], model_layer['reshape'])
 					self.last_layer = new_layer
@@ -198,7 +211,7 @@ class NeuralBuild():
 
 			with tf.name_scope('dense') as scope:
 				if 'W' not in model_layer.keys():
-					model_layer['W'] = init.HeUniform(**self.seed)
+					model_layer['W'] = init.HeNormal(**self.seed)
 				self.network[name] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'],
 													 W=model_layer['W'],
 													 b=None)
@@ -208,7 +221,7 @@ class NeuralBuild():
 
 			with tf.name_scope('conv2d') as scope:
 				if 'W' not in model_layer.keys():
-					W = init.HeUniform(**self.seed)
+					W = init.HeNormal(**self.seed)
 				else:
 					W = model_layer['W']
 				if 'padding' not in model_layer.keys():
@@ -229,7 +242,7 @@ class NeuralBuild():
 		elif model_layer['layer'] == 'conv1d':
 			with tf.name_scope('conv1d') as scope:
 				if 'W' not in model_layer.keys():
-					W = init.HeUniform(**self.seed)
+					W = init.HeNormal(**self.seed)
 				else:
 					W = model_layer['W']
 				if 'padding' not in model_layer.keys():
@@ -335,7 +348,7 @@ class NeuralBuild():
 			num_filters = shape[-1].value
 
 			if 'W' not in model_layer.keys():
-				W = init.HeUniform(**self.seed)
+				W = init.HeNormal(**self.seed)
 			else:
 				W = model_layer['W']
 			self.network[name+'_1resid'] = layers.Conv1DLayer(self.network[last_layer], num_filters=num_filters,
@@ -357,7 +370,7 @@ class NeuralBuild():
 				lastname = name+'_1resid_active'
 
 			if 'W' not in model_layer.keys():
-				W = init.HeUniform(**self.seed)
+				W = init.HeNormal(**self.seed)
 			else:
 				W = model_layer['W']
 			self.network[name+'_2resid'] = layers.Conv1DLayer(self.network[lastname], num_filters=num_filters,
@@ -390,7 +403,7 @@ class NeuralBuild():
 				filter_size = (filter_size, 1)
 
 			if 'W' not in model_layer.keys():
-				W = init.HeUniform(**self.seed)
+				W = init.HeNormal(**self.seed)
 			else:
 				W = model_layer['W']
 			self.network[name+'_1resid'] = layers.Conv2DLayer(self.network[last_layer], num_filters=num_filters,
@@ -413,7 +426,7 @@ class NeuralBuild():
 				lastname = name+'_1resid_active'
 
 			if 'W' not in model_layer.keys():
-				W = init.HeUniform(**self.seed)
+				W = init.HeNormal(**self.seed)
 			else:
 				W = model_layer['W']
 			self.network[name+'_2resid'] = layers.Conv2DLayer(self.network[lastname], num_filters=num_filters,
@@ -487,8 +500,9 @@ class NameGenerator():
 		self.num_variational = 0
 		self.num_reduce_max = 0
 		self.num_reduce_mean = 0
-		self.num_gumbel_softmax = 0
+		self.num_variational_softmax = 0
 		self.num_softmax2D = 0
+		self.num_embedding = 0
 
 	def generate_name(self, layer):
 		if layer == 'input':
@@ -569,9 +583,13 @@ class NameGenerator():
 		elif layer == 'reduce_mean':
 			name = 'reduce_mean' + str(self.num_reduce_mean)
 			self.num_reduce_mean += 1
-		elif layer == 'gumbel_softmax':
-			name = 'gumbel_softmax' + str(self.num_gumbel_softmax)
+
+		elif layer == 'variational_softmax':
+			name = 'variational_softmax' + str(self.num_variational_softmax)
+
 		elif layer == 'softmax2D':
 			name = 'softmax2D' + str(self.num_softmax2D)
 
+		elif layer == 'embedding':
+			name = 'embedding' + str(self.num_embedding)
 		return name

@@ -36,15 +36,18 @@ def categorical_cross_entropy2D(targets, predictions, shape):
 	return tf.reduce_sum(loss_by_sample, axis=1)
 	
 
-def elbo_gaussian_gaussian(targets, X_mu, Z_mu, Z_logsigma, KL_weight=None):
+def elbo_gaussian_gaussian(targets, X_mu, X_logvar, Z_mu, Z_logvar, KL_weight=None):
 		
 	# calculate kl divergence
-	Z_sigma = tf.exp(Z_logsigma)+1e-7
+	Z_sigma = tf.sqrt(tf.exp(Z_logvar)+1e-7)
 	kl_divergence = 0.5*tf.reduce_sum(1 + 2*tf.log(Z_sigma) - tf.square(Z_mu) - tf.exp(2*tf.log(Z_sigma)), axis=1)
 
 	# calculate reconstructed likelihood
-	log_likelihood = -tf.reduce_sum(tf.square(targets-X_mu), axis=1) 
-	#log_likelihood = tf.reduce_sum(const - 0.5*X_logvar - 0.5*tf.divide(tf.square(targets-X_mu),tf.exp(X_logvar)), axis=1)
+	X_logvar = tf.log(tf.exp(X_logvar) + 1e-7)
+
+	#log_likelihood = -tf.reduce_sum(tf.square(targets-X_mu), axis=1) 
+	const = tf.constant(-0.5*np.log(2*np.float32(np.pi)), dtype=tf.float32)
+	log_likelihood = tf.reduce_sum(const - 0.5*X_logvar - 0.5*tf.divide(tf.square(targets-X_mu),tf.exp(X_logvar)), axis=1)
 
 	if KL_weight is None:
 		KL_weight = 1.0
@@ -52,10 +55,10 @@ def elbo_gaussian_gaussian(targets, X_mu, Z_mu, Z_logsigma, KL_weight=None):
 	return log_likelihood + KL_weight*kl_divergence
 
 
-def elbo_gaussian_binary(targets, X_mu, Z_mu, Z_logsigma, KL_weight=None):
+def elbo_gaussian_binary(targets, X_mu, Z_mu, Z_logvar, KL_weight=None):
 
 	# calculate kl divergence
-	Z_sigma = tf.exp(Z_logsigma)+1e-7
+	Z_sigma = tf.sqrt(tf.exp(Z_logvar)+1e-7)
 	kl_divergence = 0.5*tf.reduce_sum(1 + 2*tf.log(Z_sigma) - tf.square(Z_mu) - tf.exp(2*tf.log(Z_sigma)), axis=1)
 
 	# calculate reconstructed likelihood
@@ -69,14 +72,13 @@ def elbo_gaussian_binary(targets, X_mu, Z_mu, Z_logsigma, KL_weight=None):
 	return log_likelihood + KL_weight*kl_divergence
 
 
-def elbo_gaussian_softmax(targets, X, Z_mu, Z_logsigma, X_shape, KL_weight=None):
+def elbo_gaussian_softmax(targets, X, Z_mu, Z_logvar, X_shape, KL_weight=None):
 
 	num_categories, num_classes = X_shape
 
 	# calculate kl divergence
-	Z_sigma = tf.exp(Z_logsigma)+1e-7
+	Z_sigma = tf.sqrt(tf.exp(Z_logvar)+1e-7)
 	kl_divergence = 0.5*tf.reduce_sum(1 + 2*tf.log(Z_sigma) - tf.square(Z_mu) - tf.exp(2*tf.log(Z_sigma)), axis=1)
-
 	# calculate reconstructed likelihood
 	# reshape
 	X = tf.clip_by_value(X, 1e-7, 1-1e-7)
@@ -84,7 +86,7 @@ def elbo_gaussian_softmax(targets, X, Z_mu, Z_logsigma, X_shape, KL_weight=None)
 	targets_reshape = tf.reshape(targets, [-1, num_classes])
 
 	# get categorical cross-entropy and reshape by data sample
-	loss_by_sample = tf.reshape(targets_reshape*tf.log(predictions_reshape), [-1, num_categories])
+	loss_by_sample = tf.reshape(tf.reduce_sum(targets_reshape*tf.log(predictions_reshape), axis=1), [-1, num_categories])
 	log_likelihood = tf.reduce_sum(loss_by_sample, axis=1)
 
 	if KL_weight is None:
@@ -151,7 +153,7 @@ def elbo_softmax_softmax(targets, X, Z, X_shape, Z_shape, KL_weight=None):
 	targets_reshape = tf.reshape(targets, [-1, num_classes])
 
 	# get categorical cross-entropy and reshape by data sample
-	loss_by_sample = tf.reshape(targets_reshape*tf.log(predictions_reshape), [-1, num_categories])
+	loss_by_sample = tf.reshape(tf.reduce_sum(targets_reshape*tf.log(predictions_reshape), axis=1), [-1, num_categories])
 	log_likelihood = tf.reduce_sum(loss_by_sample, axis=1)
 
 	if KL_weight is None:

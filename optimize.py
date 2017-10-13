@@ -174,7 +174,6 @@ def cost_function(network, targets, optimization):
 			  targets = (targets*(1-label_smoothing) + 0.5*label_smoothing)
 
 		predictions = network['output'].get_output()
-		predictions = tf.clip_by_value(predictions,1e-7,1-1e-7)
 
 		loss = -tf.reduce_mean(objectives.binary_cross_entropy(targets, predictions))
 
@@ -188,7 +187,6 @@ def cost_function(network, targets, optimization):
 			targets = targets*smooth_positives + smooth_negatives
 		
 		predictions = network['output'].get_output()
-		predictions = tf.clip_by_value(predictions,1e-7,1-1e-7)
 		loss = -tf.reduce_mean(objectives.categorical_cross_entropy(targets, predictions))
 
 
@@ -216,10 +214,11 @@ def cost_function(network, targets, optimization):
 			KL_weight = 1.0 
 
 		X = network['X'].get_output()
+		X_logvar = network['X_logvar'].get_output()
 		Z_mu = network['Z_mu'].get_output()
-		Z_logsigma = network['Z_logsigma'].get_output()
+		Z_logvar = network['Z_logvar'].get_output()
 
-		loss = -tf.reduce_mean(objectives.elbo_gaussian_gaussian(targets, X, Z_mu, Z_logsigma, KL_weight=KL_weight))
+		loss = -tf.reduce_mean(objectives.elbo_gaussian_gaussian(targets, X, X_logvar, Z_mu, Z_logvar, KL_weight=KL_weight))
 
 
 	elif objective == 'elbo_gaussian_binary':
@@ -233,12 +232,10 @@ def cost_function(network, targets, optimization):
 			  targets = (targets*(1-label_smoothing) + 0.5*label_smoothing)
 
 		X = network['X'].get_output()
-		X = tf.clip_by_value(X, 1e-7, 1-1e-7)
-
 		Z_mu = network['Z_mu'].get_output()
-		Z_logsigma = network['Z_logsigma'].get_output()
+		Z_logvar = network['Z_logvar'].get_output()
 
-		loss = -tf.reduce_mean(objectives.elbo_gaussian_binary(targets, X, Z_mu, Z_logsigma, KL_weight=KL_weight))
+		loss = -tf.reduce_mean(objectives.elbo_gaussian_binary(targets, X, Z_mu, Z_logvar, KL_weight=KL_weight))
 
 
 	elif objective == 'elbo_gaussian_softmax':
@@ -255,12 +252,10 @@ def cost_function(network, targets, optimization):
 			targets = targets*smooth_positives + smooth_negatives
 
 		X = network['X'].get_output()
-		X = tf.clip_by_value(X, 1e-7, 1-1e-7)
-
 		Z_mu = network['Z_mu'].get_output()
-		Z_logsigma = network['Z_logsigma'].get_output()
+		Z_logvar = network['Z_logvar'].get_output()
 		
-		loss = -tf.reduce_mean(objectives.elbo_gaussian_softmax(targets, X, Z_mu, Z_logsigma, optimization['Z_shape'], KL_weight=KL_weight))
+		loss = -tf.reduce_mean(objectives.elbo_gaussian_softmax(targets, X, Z_mu, Z_logvar, optimization['softmax_shape'], KL_weight=KL_weight))
 
 
 	elif objective == 'elbo_softmax_normal':

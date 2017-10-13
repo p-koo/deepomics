@@ -44,7 +44,7 @@ def backprop(X, layer='output', class_index=None, params=None):
 
 	sess.close()
 	tf.reset_default_graph()
-	return np.vstack(saliency)
+	return saliency
 
 
 def guided_backprop(X, layer='output', class_index=None, params=None, batch_size=128):

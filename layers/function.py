@@ -24,7 +24,7 @@ class Softmax2DLayer(BaseLayer):
 	def __init__(self, incoming, **kwargs):
 		
 		shape = incoming.get_output_shape().as_list()
-		num_classes = shape[-1]
+		num_classes = shape[2]
 		num_categories = shape[1]
 
 		self.incoming_shape = incoming.get_output_shape()

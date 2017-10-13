@@ -7,3 +7,4 @@ from .optimize import *
 from .fit import *
 from .neuralbuild import *
 from .explore import *
+from .objectives import *
