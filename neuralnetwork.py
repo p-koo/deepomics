@@ -601,11 +601,11 @@ class MonitorPerformance():
 			progress = '='*int(round(percent*bar_length))
 			spaces = ' '*int(bar_length-round(percent*bar_length))
 			if (self.objective == "binary") | (self.objective == "categorical"):
-				sys.stdout.write("\r[%s] %.1f%% -- epoch %d -- time=%ds -- loss=%.5f -- accuracy=%.2f%%  " \
-				%(progress+spaces, percent*100, epoch, time_elapsed, self.get_mean_loss(), value*100))
+				sys.stdout.write("\r[%s] %.1f%% -- time=%ds -- loss=%.5f -- accuracy=%.2f%%  " \
+				%(progress+spaces, percent*100, time_elapsed, self.get_mean_loss(), value*100))
 			else:# (self.objective == 'squared_error') | (self.objective == 'elbo_gaussian')| (self.objective == 'elbo_binary'):
-				sys.stdout.write("\r[%s] %.1f%% -- epoch %d -- time=%ds -- loss=%.5f" \
-				%(progress+spaces, percent*100, epoch, time_elapsed, self.get_mean_loss()))
+				sys.stdout.write("\r[%s] %.1f%% -- time=%ds -- loss=%.5f" \
+				%(progress+spaces, percent*100, time_elapsed, self.get_mean_loss()))
 			sys.stdout.flush()
 
 

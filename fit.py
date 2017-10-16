@@ -272,6 +272,13 @@ def train_kl_annealing(sess, nntrainer, data, annealing_rate=None, batch_size=12
 	# train model
 	for epoch in range(num_epochs):
 
+		if verbose >= 1:
+			sys.stdout.write("\rEpoch %d out of %d \n"%(epoch+1, num_epochs))
+		else:
+			if epoch % 10 == 0:
+				sys.stdout.write("\rEpoch %d out of %d \n"%(epoch+1, num_epochs))
+
+
 		if annealing_rate:
 			weight = 1 - np.exp(-(epoch+3)*annealing_rate)
 		else:
