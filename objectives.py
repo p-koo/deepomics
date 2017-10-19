@@ -63,7 +63,7 @@ def elbo_gaussian_binary(targets, X_mu, Z_mu, Z_logvar, KL_weight=None):
 
 	# calculate reconstructed likelihood
 	X_mu = tf.clip_by_value(X_mu, 1e-7, 1-1e-7)
-	log_likelihood = tf.reduce_sum(targets*tf.log(X_mu) + (1.0-targets)*tf.log(1.0-X_mu), axis=1)
+	log_likelihood = tf.reduce_mean(targets*tf.log(X_mu) + (1.0-targets)*tf.log(1.0-X_mu), axis=1)
 
 	if KL_weight is None:
 		KL_weight = 1.0
@@ -87,7 +87,7 @@ def elbo_gaussian_softmax(targets, X, Z_mu, Z_logvar, X_shape, KL_weight=None):
 
 	# get categorical cross-entropy and reshape by data sample
 	loss_by_sample = tf.reshape(tf.reduce_sum(targets_reshape*tf.log(predictions_reshape), axis=1), [-1, num_categories])
-	log_likelihood = tf.reduce_sum(loss_by_sample, axis=1)
+	log_likelihood = tf.reduce_mean(loss_by_sample, axis=1)
 
 	if KL_weight is None:
 		KL_weight = 1.0

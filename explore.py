@@ -137,6 +137,7 @@ class NeuralOptimizer:
 		# build neural network model
 		nnmodel = deepomics.neuralnetwork.NeuralNet()
 		nnmodel.build_layers(new_model_layers, new_optimization)
+		#nnmodel.inspect_layers()
 
 		# compile neural trainer
 		nntrainer = deepomics.neuralnetwork.NeuralTrainer(nnmodel, save=None, file_path=None)
@@ -147,7 +148,7 @@ class NeuralOptimizer:
 		deepomics.fit.train_minibatch(sess, nntrainer, {'train': train}, batch_size=batch_size, num_epochs=num_epochs, 
 								patience=None, verbose=verbose, shuffle=True, save_all=False)
 
-		loss = nntrainer.test_model(valid, name="valid", batch_size=batch_size, verbose=1)
+		loss, mean, std = nntrainer.test_model(sess, valid, name="valid", batch_size=batch_size, verbose=1)
 		sess.close()
 
 		return loss
@@ -168,7 +169,8 @@ class NeuralOptimizer:
 		print('    took ' + str(time.time() - start_time) + ' seconds')
 		print('')
 
-		for trial_index in range(num_trials):
+		trial_index = 0
+		while trial_index < num_trials:
 			start_time = time.time()
 			print('---------------------------------------------------------')
 			print('trial ' + str(trial_index+1) + ' out of ' + str(num_trials))
@@ -194,8 +196,12 @@ class NeuralOptimizer:
 					self.optimal_loss = loss 
 					self.update_optimization(new_optimization)
 					self.update_model_layers(new_model_layers)
+
 			except:
 				print('failed trial -- negative network size sampled')
+
+			trial_index += 1
+
 
 			print('')
 		print('---------------------------------------------------------')
@@ -238,15 +244,17 @@ class NeuralOptimizer:
 		print('')
 		print('Model layers:')
 		for layer in model_layers:
+			print(layer['layer'])
 			for key in layer.keys():
-				if isinstance(layer[key], str):
-					if key == 'name':
-						print(key + ': ' + layer[key])
-				elif isinstance(layer[key], (int, float)):
-					print(key + ': ' + str(layer[key]))
+				if isinstance(layer[key], (int)):
+					print("\t%s: %d"%(key, layer[key]))
+				elif isinstance(layer[key], (float)):
+					print("\t%s: %0.3f"%(key, layer[key]))
 
 		print('')
 		print('Optimization:')
 		for key in optimization.keys():
-			if isinstance(optimization[key], (int, float)):
-				print(key + ': ' + str(optimization[key]))
+			if isinstance(optimization[key], (int)):
+				print("\t%s: %d"%(key, optimization[key]))
+			elif isinstance(optimization[key], (float)):
+				print("\t%s: %f"%(key, optimization[key]))

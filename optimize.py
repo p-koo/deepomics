@@ -193,7 +193,7 @@ def cost_function(network, targets, optimization):
 	elif objective == 'squared_error':
 		
 		predictions = network['output'].get_output()
-		loss = tf.reduce_mean(squared_error(targets, predictions))
+		loss = tf.reduce_mean(objectives.squared_error(targets, predictions))
 
 
 	elif objective == 'categorical2D':
