@@ -92,17 +92,28 @@ def gumbel_softmax_sample(logits, temperature):
 class CategoricalSampleLayer(BaseLayer):
 	def __init__(self, incoming, temperature, hard=False, **kwargs):
 				
+		shape = incoming.get_output_shape().as_list()
+		num_classes = shape[2]
+		num_categories = shape[1]
+
 		self.incoming_shape = incoming.get_output_shape()
 		self.output_shape = self.incoming_shape	
 		self.temperature = temperature	
 		self.hard = hard
 
-		self.output = gumbel_softmax_sample(incoming.get_output(), temperature)
+		#softmax = tf.nn.softmax(incoming.get_output(), dim=-1)
+		#self.output = 
+
+		reshape = tf.reshape(incoming.get_output(), [-1, num_classes], **kwargs)
+		softmax = gumbel_softmax_sample(reshape, temperature)
+
 		if self.hard:
-			k = tf.shape(self.output)[-1]
+			k = tf.shape(softmax)[-1]
 			#y_hard = tf.cast(tf.one_hot(tf.argmax(y,1),k), y.dtype)
-			y_hard = tf.cast(tf.equal(self.output, tf.reduce_max(self.output,1,keep_dims=True)), self.output.dtype)
-			self.output = tf.stop_gradient(y_hard - self.output) + self.output
+			y_hard = tf.cast(tf.equal(softmax, tf.reduce_max(softmax, 1, keep_dims=True)), softmax.dtype)
+			softmax = tf.stop_gradient(y_hard - softmax) + softmax
+
+		self.output = tf.reshape(softmax, [-1, num_categories, num_classes])
 		
 	def get_input_shape(self):
 		return self.incoming_shape

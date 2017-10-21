@@ -23,16 +23,17 @@ __all__ = [
 class Softmax2DLayer(BaseLayer):
 	def __init__(self, incoming, **kwargs):
 		
-		shape = incoming.get_output_shape().as_list()
-		num_classes = shape[2]
-		num_categories = shape[1]
-
 		self.incoming_shape = incoming.get_output_shape()
 		
-		reshape = tf.reshape(incoming.get_output(), [-1, num_classes], **kwargs)
+		#shape = incoming.get_output_shape().as_list()
+		#num_classes = shape[2]
+		#num_categories = shape[1]
 
-		softmax = tf.nn.softmax(reshape)
-		self.output = tf.reshape(softmax, [-1, num_categories, num_classes])
+		#reshape = tf.reshape(incoming.get_output(), [-1, num_classes], **kwargs)
+		#softmax = tf.nn.softmax(incoming.get_output(), dim=-1)
+		#self.output = tf.reshape(softmax, [-1, num_categories, num_classes])
+		
+		self.output = tf.nn.softmax(incoming.get_output(), dim=-1)
 		self.output_shape = self.output.get_shape()
 		
 	def get_input_shape(self):

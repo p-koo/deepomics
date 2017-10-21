@@ -43,7 +43,7 @@ class NeuralNet:
 		self.seed = seed
 
 
-	def build_layers(self, model_layers, optimization=None, method=None, supervised=True, use_scope=True, reset=True):
+	def build_layers(self, model_layers, optimization=None, method=None, supervised=True, use_scope=True, reset=True, overwrite=True):
 
 		if reset:
 			tf.reset_default_graph()
@@ -58,10 +58,10 @@ class NeuralNet:
 		if method == 'guided':
 			g = tf.get_default_graph()
 			with g.gradient_override_map({'Relu': 'GuidedRelu'}):
-				self.network, self.placeholders, self.feed_dict = nnbuild.build_layers(model_layers, supervised)
+				self.network, self.placeholders, self.feed_dict = nnbuild.build_layers(model_layers, supervised, overwrite)
 		else:
-			self.network, self.placeholders, self.feed_dict = nnbuild.build_layers(model_layers, supervised)
-		self.build_optimizer(optimization)
+			self.network, self.placeholders, self.feed_dict = nnbuild.build_layers(model_layers, supervised, overwrite)
+		self.build_optimizer(optimization, supervised)
 		self.train_metric()
 
 
@@ -70,13 +70,16 @@ class NeuralNet:
 		self.placeholders[name] = variable
 
 
-	def build_optimizer(self, optimization=None):
+	def build_optimizer(self, optimization=None, supervised=False):
 		if optimization is None:
 			optimization = self.optimization
 		else:
 			self.optimization = optimization
 		
-		output_layer = self.network.keys()[-1]
+		if supervised:
+			output_layer = 'X'
+		else:
+			output_layer = self.network.keys()[-1]
 
 		# get predictions
 		self.predictions = self.network[output_layer].get_output()

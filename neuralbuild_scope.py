@@ -22,7 +22,7 @@ class NeuralBuild():
 
 		self.seed = {'seed': tf.set_random_seed(seed)}
 
-	def build_layers(self, model_layers, supervised=True):
+	def build_layers(self, model_layers, supervised=True, overwrite=True):
 
 		self.network = OrderedDict()
 		name_gen = NameGenerator()
@@ -73,7 +73,7 @@ class NeuralBuild():
 						hard = model_layer['hard']
 					else:
 						hard = False
-					num_categories, num_classes = model_layer['Z_shape']
+					num_categories, num_classes = model_layer['shape']
 
 					if 'temperature' in model_layer:				
 						temperature = model_layer['temperature']
@@ -87,13 +87,14 @@ class NeuralBuild():
 						name = 'Z'
 
 					self.network[name+'_logits'] = layers.DenseLayer(self.network[self.last_layer], num_units=num_categories*num_classes, b=init.HeUniform())
-					self.network[name+'_logits_reshape'] = layers.ReshapeLayer(self.network[name+'_logits'], shape=[-1, num_classes])
-					self.network[name] = layers.ActivationLayer(self.network[name+'_logits_reshape'], function='softmax')
+					self.network[name+'_logits_reshape'] = layers.ReshapeLayer(self.network[name+'_logits'], shape=[-1, num_categories, num_classes])
+					self.network[name+'_softmax'] = layers.Softmax2DLayer(self.network[name+'_logits_reshape'])
+					self.network[name] = layers.ReshapeLayer(self.network[name+'_softmax'], shape=[-1, num_categories*num_classes])
 					self.network[name+'_sample'] = layers.CategoricalSampleLayer(self.network[name+'_logits_reshape'], 
 																		temperature=temperature,
 																		hard=hard)
-					self.network[name+'_sample_reshape'] = layers.ReshapeLayer(self.network[name+'_sample'], [-1, num_categories, num_classes])
-					self.last_layer = name+'_sample_reshape'
+
+					self.last_layer = name+'_sample'
 
 				else:
 					if layer == 'conv1d_residual':
@@ -179,7 +180,7 @@ class NeuralBuild():
 					self.network[new_layer] = layers.ReshapeLayer(self.network[self.last_layer], model_layer['reshape'])
 					self.last_layer = new_layer
 
-		if supervised:
+		if not supervised:
 
 			self.network['output'] = self.network.pop(self.last_layer)
 			shape = self.network['output'].get_output_shape()
@@ -187,7 +188,8 @@ class NeuralBuild():
 			self.placeholders['targets'] = targets
 			self.feed_dict['targets'] = []
 		else:
-			self.network['X'] = self.network.pop(self.last_layer)
+			if overwrite:
+				self.network['X'] = self.network.pop(self.last_layer)
 			self.placeholders['targets'] = self.placeholders['inputs']
 			self.feed_dict['targets'] = []
 
