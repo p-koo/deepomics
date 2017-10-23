@@ -22,7 +22,7 @@ class NeuralBuild():
 
 		self.seed = {'seed': tf.set_random_seed(seed)}
 
-	def build_layers(self, model_layers, supervised=True, overwrite=True):
+	def build_layers(self, model_layers, supervised=False, overwrite=True):
 
 		self.network = OrderedDict()
 		name_gen = NameGenerator()
@@ -180,8 +180,7 @@ class NeuralBuild():
 					self.network[new_layer] = layers.ReshapeLayer(self.network[self.last_layer], model_layer['reshape'])
 					self.last_layer = new_layer
 
-		if not supervised:
-
+		if supervised:
 			self.network['output'] = self.network.pop(self.last_layer)
 			shape = self.network['output'].get_output_shape()
 			targets = utils.placeholder(shape=shape, name='output')
