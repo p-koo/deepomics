@@ -75,9 +75,9 @@ class NeuralBuild():
 						hard = False
 					num_categories, num_classes = model_layer['shape']
 
-					if 'temperature' in model_layer:				
+					if 'temperature' in model_layer:
 						temperature = model_layer['temperature']
-					else:					
+					else:
 						temperature = 5.0
 					self.feed_dict['temperature'] = temperature
 					self.placeholders['temperature'] = tf.placeholder(dtype=tf.float32, name="temperature")
@@ -89,12 +89,11 @@ class NeuralBuild():
 					self.network[name+'_logits'] = layers.DenseLayer(self.network[self.last_layer], num_units=num_categories*num_classes, b=init.HeUniform())
 					self.network[name+'_logits_reshape'] = layers.ReshapeLayer(self.network[name+'_logits'], shape=[-1, num_categories, num_classes])
 					self.network[name+'_softmax'] = layers.Softmax2DLayer(self.network[name+'_logits_reshape'])
-					self.network[name] = layers.ReshapeLayer(self.network[name+'_softmax'], shape=[-1, num_categories*num_classes])
-					self.network[name+'_sample'] = layers.CategoricalSampleLayer(self.network[name+'_logits_reshape'], 
+					self.network[name+'_sample'] = layers.CategoricalSampleLayer(self.network[name+'_logits_reshape'],
 																		temperature=temperature,
 																		hard=hard)
-
-					self.last_layer = name+'_sample'
+					self.network[name] = layers.ReshapeLayer(self.network[name+'_softmax'], shape=[-1, num_categories*num_classes])
+					self.last_layer = name
 
 				else:
 					if layer == 'conv1d_residual':
@@ -288,7 +287,7 @@ class NeuralBuild():
 												  W=W,
 												  padding=padding,
 												  strides=strides)
-			
+
 		elif model_layer['layer'] == 'conv1d_transpose':
 			if 'W' not in model_layer.keys():
 				W = init.HeUniform(**self.seed)

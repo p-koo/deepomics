@@ -179,25 +179,25 @@ def cost_function(network, targets, optimization):
 
 
 	elif objective == 'categorical':
-		
+
 		if label_smoothing > 0:
 			num_classes = targets.get_shape()[-1].value
 			smooth_positives = 1.0 - label_smoothing
 			smooth_negatives = label_smoothing/num_classes
 			targets = targets*smooth_positives + smooth_negatives
-		
+
 		predictions = network['output'].get_output()
 		loss = -objectives.categorical_cross_entropy(targets, predictions)
 
 
 	elif objective == 'squared_error':
-		
+
 		predictions = network['output'].get_output()
 		loss = tf.reduce_mean(objectives.squared_error(targets, predictions))
 
 
 	elif objective == 'categorical2D':
-		
+
 		if 'output' in network:
 			predictions = network['output'].get_output()
 		else:
@@ -207,11 +207,11 @@ def cost_function(network, targets, optimization):
 
 
 	elif objective == 'elbo_gaussian_gaussian':
-	
+
 		if 'KL_weight' in optimization:
 			KL_weight = optimization['KL_weight']
 		else:
-			KL_weight = 1.0 
+			KL_weight = 1.0
 
 		X = network['X'].get_output()
 		X_logvar = network['X_logvar'].get_output()
@@ -222,11 +222,11 @@ def cost_function(network, targets, optimization):
 
 
 	elif objective == 'elbo_gaussian_binary':
-	
+
 		if 'KL_weight' in optimization:
 			KL_weight = optimization['KL_weight']
 		else:
-			KL_weight = 1.0 
+			KL_weight = 1.0
 
 		if label_smoothing > 0:
 			  targets = (targets*(1-label_smoothing) + 0.5*label_smoothing)
@@ -239,11 +239,11 @@ def cost_function(network, targets, optimization):
 
 
 	elif objective == 'elbo_gaussian_softmax':
-	
+
 		if 'KL_weight' in optimization:
 			KL_weight = optimization['KL_weight']
 		else:
-			KL_weight = 1.0 
+			KL_weight = 1.0
 
 		if label_smoothing > 0:
 			num_classes = targets.get_shape()[-1].value
@@ -254,7 +254,7 @@ def cost_function(network, targets, optimization):
 		X = network['X'].get_output()
 		Z_mu = network['Z_mu'].get_output()
 		Z_logvar = network['Z_logvar'].get_output()
-		
+
 		loss = -objectives.elbo_gaussian_softmax(targets, X, Z_mu, Z_logvar, optimization['softmax_shape'], KL_weight=KL_weight)
 
 
@@ -263,11 +263,11 @@ def cost_function(network, targets, optimization):
 		if 'KL_weight' in optimization:
 			KL_weight = optimization['KL_weight']
 		else:
-			KL_weight = 1.0 
+			KL_weight = 1.0
 
 		X = network['X'].get_output()
 		Z = network['Z'].get_output()
-		
+
 		loss = -tf.reduce_mean(objectives.elbo_softmax_normal(targets, X, Z, optimization['Z_shape'], KL_weight=KL_weight))
 
 
@@ -276,7 +276,7 @@ def cost_function(network, targets, optimization):
 		if 'KL_weight' in optimization:
 			KL_weight = optimization['KL_weight']
 		else:
-			KL_weight = 1.0 
+			KL_weight = 1.0
 
 		if label_smoothing > 0:
 			  targets = (targets*(1-label_smoothing) + 0.5*label_smoothing)
@@ -285,21 +285,21 @@ def cost_function(network, targets, optimization):
 		Z = network['Z'].get_output()
 
 		loss = -objectives.elbo_softmax_binary(targets, X, Z, optimization['Z_shape'], KL_weight=KL_weight)
-	
+
 
 	elif objective == 'elbo_softmax_softmax':
 
 		if 'KL_weight' in optimization:
 			KL_weight = optimization['KL_weight']
 		else:
-			KL_weight = 1.0 
+			KL_weight = 1.0
 
 		if label_smoothing > 0:
 			num_classes = targets.get_shape()[-1].value
 			smooth_positives = 1.0 - label_smoothing
 			smooth_negatives = label_smoothing/num_classes
 			targets = targets*smooth_positives + smooth_negatives
-		
+
 		X = network['X'].get_output()
 		Z = network['Z'].get_output()
 		loss = -objectives.elbo_softmax_softmax(targets, X, Z, optimization['softmax_shape'], optimization['Z_shape'], KL_weight=KL_weight)
