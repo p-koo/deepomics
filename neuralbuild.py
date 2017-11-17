@@ -32,7 +32,6 @@ class NeuralBuild():
 		# loop to build each layer of network
 		for model_layer in model_layers:
 			layer = model_layer['layer']
-			print(model_layer)
 
 			# name of layer
 			if 'name' in model_layer:
