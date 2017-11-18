@@ -1,5 +1,5 @@
 from __future__ import print_function
-import tensorflow as tf 
+import tensorflow as tf
 from deepomics import layers
 from deepomics import init, utils
 
@@ -23,7 +23,7 @@ class NeuralBuild():
 
 	def build_layers(self, model_layers, supervised=True, use_scope=False):
 
-		self.network = OrderedDict()	
+		self.network = OrderedDict()
 		name_gen = NameGenerator()
 		self.num_dropout = 0
 		self.num_inputs = 0
@@ -63,31 +63,31 @@ class NeuralBuild():
 				else:
 					# add core layer
 					self.single_layer(model_layer, name)
-					
+
 			# add Batch normalization layer
 			if 'norm' in model_layer:
 				if 'batch' in model_layer['norm']:
 					new_layer = name + '_batch' #str(counter) + '_' + name + '_batch'
 					self.network[new_layer] = layers.BatchNormLayer(self.network[self.last_layer], self.placeholders['is_training'])
 					self.last_layer = new_layer
-					
+
 			else:
-				if (model_layer['layer'] == 'dense') | (model_layer['layer'] == 'conv1d') | (model_layer['layer'] == 'conv2d'):		
+				if (model_layer['layer'] == 'dense') | (model_layer['layer'] == 'conv1d') | (model_layer['layer'] == 'conv2d'):
 					if 'b' in model_layer:
 						if model_layer['b'] != None:
-							b = init.Constant(0.05)		
+							b = init.Constant(0.05)
 							new_layer = name+'_bias'
 							self.network[new_layer] = layers.BiasLayer(self.network[self.last_layer], b=b)
 							self.last_layer = new_layer
 					elif 'norm' not in model_layer:
-						b = init.Constant(0.05)		
+						b = init.Constant(0.05)
 						new_layer = name+'_bias'
 						self.network[new_layer] = layers.BiasLayer(self.network[self.last_layer], b=b)
 						self.last_layer = new_layer
-				else:	
+				else:
 					if 'b' in model_layer:
 						if model_layer['b'] != None:
-							b = init.Constant(0.05)		
+							b = init.Constant(0.05)
 							new_layer = name+'_bias'
 							self.network[new_layer] = layers.BiasLayer(self.network[self.last_layer], b=b)
 							self.last_layer = new_layer
@@ -95,12 +95,12 @@ class NeuralBuild():
 			# add activation layer
 			if 'activation' in model_layer:
 				new_layer = name+'_active'
-				self.network[new_layer] = layers.ActivationLayer(self.network[self.last_layer], function=model_layer['activation']) 
+				self.network[new_layer] = layers.ActivationLayer(self.network[self.last_layer], function=model_layer['activation'])
 				self.last_layer = new_layer
-						
+
 			# add max-pooling layer ### Modified this from the older pool_size
-			if 'max_pool' in model_layer:  
-				new_layer = name+'_maxpool'  # str(counter) + '_' + name+'_pool' 
+			if 'max_pool' in model_layer:
+				new_layer = name+'_maxpool'  # str(counter) + '_' + name+'_pool'
 				if len(self.network[self.last_layer].output_shape) == 4:
 					if isinstance(model_layer['max_pool'], (tuple, list)):
 							self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=model_layer['max_pool'])
@@ -191,7 +191,7 @@ class NeuralBuild():
 												  W=W,
 												  padding=padding,
 												  strides=strides)
-			
+
 		elif model_layer['layer'] == 'conv1d':
 			if 'W' not in model_layer.keys():
 				W = init.HeNormal(**self.seed)
@@ -234,7 +234,7 @@ class NeuralBuild():
 												  W=W,
 												  padding=padding,
 												  strides=strides)
-			
+
 		elif model_layer['layer'] == 'conv1d_transpose':
 			if 'W' not in model_layer.keys():
 				W = init.HeNormal(**self.seed)
@@ -373,7 +373,7 @@ class NeuralBuild():
 		self.network[name+'_resid_sum'] = layers.ElementwiseSumLayer([self.network[last_layer], self.network[name+'_2resid_norm']])
 		self.network[name+'_resid'] = layers.ActivationLayer(self.network[name+'_resid_sum'], function=activation)
 		self.last_layer = name+'_resid'
-		
+
 
 
 
@@ -395,10 +395,10 @@ class NeuralBuild():
 		else:
 			W = model_layer['W']
 
-		self.network[name+'_1resid'] = layers.DenseLayer(self.network[last_layer], 
-														num_units=num_units, 
+		self.network[name+'_1resid'] = layers.DenseLayer(self.network[last_layer],
+														num_units=num_units,
 														W=W,
-														b=None, 
+														b=None,
 														**self.seed)
 		self.network[name+'_1resid_norm'] = layers.BatchNormLayer(self.network[name+'_1resid'], self.placeholders['is_training'])
 		self.network[name+'_1resid_active'] = layers.ActivationLayer(self.network[name+'_1resid_norm'], function=activation)
@@ -414,10 +414,10 @@ class NeuralBuild():
 			lastname = name+'_1resid_active'
 
 
-		self.network[name+'_2resid'] = layers.DenseLayer(self.network[lastname], 
-														num_units=num_units, 
+		self.network[name+'_2resid'] = layers.DenseLayer(self.network[lastname],
+														num_units=num_units,
 														W=W,
-														b=None, 
+														b=None,
 														**self.seed)
 		self.network[name+'_2resid_norm'] = layers.BatchNormLayer(self.network[name+'_2resid'], self.placeholders['is_training'])
 		self.network[name+'_resid_sum'] = layers.ElementwiseSumLayer([self.network[last_layer], self.network[name+'_2resid_norm']])
