@@ -59,9 +59,9 @@ class NeuralNet:
 		if method == 'guided':
 			g = tf.get_default_graph()
 			with g.gradient_override_map({'Relu': 'GuidedRelu'}):
-				self.network, self.placeholders, self.feed_dict = nnbuild.build_layers(model_layers, supervised, overwrite)
+				self.network, self.placeholders, self.feed_dict = nnbuild.build_layers(model_layers, supervised)
 		else:
-			self.network, self.placeholders, self.feed_dict = nnbuild.build_layers(model_layers, supervised, overwrite)
+			self.network, self.placeholders, self.feed_dict = nnbuild.build_layers(model_layers, supervised)
 		self.build_optimizer(optimization, supervised)
 		self.train_metric()
 
