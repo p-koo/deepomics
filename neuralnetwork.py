@@ -208,7 +208,7 @@ class NeuralNet:
 			if len(y.get_shape()) == 4:
 				dy = func(y[:,:,:,class_index], axis=1)
 			else:
-				dy = y[:,class_index] #  tf.sign(y[:,class_index])*tf.square(y[:,class_index])
+				dy = func(y, axis=1) #  tf.sign(y[:,class_index])*tf.square(y[:,class_index])
 		return sess.run(tf.gradients(dy, dx), feed_dict=feed_dict)
 
 
@@ -318,6 +318,20 @@ class NeuralTrainer():
 				self.test_feed[placeholders[key]] = False
 				self.stochastic_feed[placeholders[key]] = False
 
+		shape = list(placeholders['inputs'].shape)
+		shape[0] = 1
+		shape = tuple(shape)
+		self.train_feed[placeholders['inputs']] = np.zeros(shape)
+		self.test_feed[placeholders['inputs']] = np.zeros(shape)
+		self.stochastic_feed[placeholders['inputs']] = np.zeros(shape)
+
+		shape = list(placeholders['targets'].shape)
+		shape[0] = 1
+		shape = tuple(shape)
+		self.train_feed[placeholders['targets']] = np.zeros(shape)
+		self.test_feed[placeholders['targets']] = np.zeros(shape)
+		self.stochastic_feed[placeholders['targets']] = np.zeros(shape)
+
 
 	def train_epoch(self, sess, data, batch_size=128, verbose=1, shuffle=True):
 		"""Train a mini-batch --> single epoch"""
@@ -389,7 +403,6 @@ class NeuralTrainer():
 				if verbose >= 1:
 					self.test_monitor.print_results(name)
 			return test_loss, mean, std
-
 
 
 	def get_saliency(self, sess, X, layer, class_index=None, batch_size=500):

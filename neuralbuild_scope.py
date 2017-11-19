@@ -63,8 +63,8 @@ class NeuralBuild():
 					else:
 						name = 'Z'
 
-					self.network[name+'_mu'] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'], b=init.HeUniform(), **self.seed)
-					self.network[name+'_logvar'] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'], b=init.HeUniform(), **self.seed)
+					self.network[name+'_mu'] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'], b=init.GlorotUniform(), **self.seed)
+					self.network[name+'_logvar'] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'], b=init.GlorotUniform(), **self.seed)
 					self.network[name+'_sample'] = layers.VariationalSampleLayer(self.network[name+'_mu'], self.network[name+'_logvar'])
 					self.last_layer = name+'_sample'
 
@@ -86,7 +86,7 @@ class NeuralBuild():
 					else:
 						name = 'Z'
 
-					self.network[name+'_logits'] = layers.DenseLayer(self.network[self.last_layer], num_units=num_categories*num_classes, b=init.HeUniform())
+					self.network[name+'_logits'] = layers.DenseLayer(self.network[self.last_layer], num_units=num_categories*num_classes, b=init.GlorotUniform())
 
 					self.network[name+'_logits_reshape'] = layers.ReshapeLayer(self.network[name+'_logits'], shape=[-1, num_classes])
 					self.network[name] = layers.ActivationLayer(self.network[name+'_logits_reshape'], function='softmax')
@@ -133,7 +133,7 @@ class NeuralBuild():
 
 							elif 'norm' not in model_layer:
 								with tf.name_scope("bias") as scope:
-									b = init.HeUniform()
+									b = init.GlorotUniform()
 									new_layer = name+'_bias'
 									self.network[new_layer] = layers.BiasLayer(self.network[self.last_layer], b=b)
 									self.last_layer = new_layer
@@ -215,7 +215,7 @@ class NeuralBuild():
 
 			with tf.name_scope('dense') as scope:
 				if 'W' not in model_layer.keys():
-					model_layer['W'] = init.HeUniform(**self.seed)
+					model_layer['W'] = init.GlorotUniform(**self.seed)
 				self.network[name] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'],
 													 W=model_layer['W'],
 													 b=None)
@@ -225,7 +225,7 @@ class NeuralBuild():
 
 			with tf.name_scope('conv2d') as scope:
 				if 'W' not in model_layer.keys():
-					W = init.HeUniform(**self.seed)
+					W = init.GlorotUniform(**self.seed)
 				else:
 					W = model_layer['W']
 				if 'padding' not in model_layer.keys():
@@ -246,7 +246,7 @@ class NeuralBuild():
 		elif model_layer['layer'] == 'conv1d':
 			with tf.name_scope('conv1d') as scope:
 				if 'W' not in model_layer.keys():
-					W = init.HeUniform(**self.seed)
+					W = init.GlorotUniform(**self.seed)
 				else:
 					W = model_layer['W']
 				if 'padding' not in model_layer.keys():
@@ -273,7 +273,7 @@ class NeuralBuild():
 		elif (model_layer['layer'] == 'conv2d_transpose'):
 
 			if 'W' not in model_layer.keys():
-				W = init.HeUniform(**self.seed)
+				W = init.GlorotUniform(**self.seed)
 			else:
 				W = model_layer['W']
 			if 'padding' not in model_layer.keys():
@@ -293,7 +293,7 @@ class NeuralBuild():
 
 		elif model_layer['layer'] == 'conv1d_transpose':
 			if 'W' not in model_layer.keys():
-				W = init.HeUniform(**self.seed)
+				W = init.GlorotUniform(**self.seed)
 			else:
 				W = model_layer['W']
 			if 'padding' not in model_layer.keys():
@@ -352,7 +352,7 @@ class NeuralBuild():
 			num_filters = shape[-1].value
 
 			if 'W' not in model_layer.keys():
-				W = init.HeUniform(**self.seed)
+				W = init.GlorotUniform(**self.seed)
 			else:
 				W = model_layer['W']
 			self.network[name+'_1resid'] = layers.Conv1DLayer(self.network[last_layer], num_filters=num_filters,
@@ -374,7 +374,7 @@ class NeuralBuild():
 				lastname = name+'_1resid_active'
 
 			if 'W' not in model_layer.keys():
-				W = init.HeUniform(**self.seed)
+				W = init.GlorotUniform(**self.seed)
 			else:
 				W = model_layer['W']
 			self.network[name+'_2resid'] = layers.Conv1DLayer(self.network[lastname], num_filters=num_filters,
@@ -407,7 +407,7 @@ class NeuralBuild():
 				filter_size = (filter_size, 1)
 
 			if 'W' not in model_layer.keys():
-				W = init.HeUniform(**self.seed)
+				W = init.GlorotUniform(**self.seed)
 			else:
 				W = model_layer['W']
 			self.network[name+'_1resid'] = layers.Conv2DLayer(self.network[last_layer], num_filters=num_filters,
@@ -430,7 +430,7 @@ class NeuralBuild():
 				lastname = name+'_1resid_active'
 
 			if 'W' not in model_layer.keys():
-				W = init.HeUniform(**self.seed)
+				W = init.GlorotUniform(**self.seed)
 			else:
 				W = model_layer['W']
 			self.network[name+'_2resid'] = layers.Conv2DLayer(self.network[lastname], num_filters=num_filters,
