@@ -31,7 +31,7 @@ def backprop(X, layer='output', class_index=None, params=None):
 		saliency = nntrainer.get_saliency(sess, X, nnmodel.network[layer], class_index=class_index, batch_size=128)
 		saliency = saliency[0]
 	else:
-		data = {nnmodel.placeholders['inputs']: X}
+		data = {'inputs': X}
 		layer_activations = nntrainer.get_activations(sess, data, layer)
 		max_activations = np.squeeze(np.max(layer_activations, axis=1))
 		active_indices = np.where(max_activations > 0)[0]
@@ -69,7 +69,7 @@ def guided_backprop(X, layer='output', class_index=None, params=None, batch_size
 		layer = list(nnmodel.network.keys())[-2]
 		saliency = nntrainer.get_saliency(sess, X, nnmodel.network[layer], class_index=class_index, batch_size=batch_size)
 	else:
-		data = {nnmodel.placeholders['inputs']: X}
+		data = {'inputs': X}
 		layer_activations = nntrainer.get_activations(sess, data, layer)
 		max_activations = np.squeeze(np.max(layer_activations, axis=1))
 		active_indices = np.where(max_activations > 0)[0]
