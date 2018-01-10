@@ -30,7 +30,7 @@ def plot_roc_all(final_roc):
 	map(lambda yl: yl.set_fontsize(13), ax.get_yticklabels())
 	plt.tight_layout()
 	#plt.legend(loc='best', frameon=False, fontsize=14)
-	return fig, plt
+	return fig
 
 
 def plot_pr_all(final_pr):
@@ -48,7 +48,7 @@ def plot_pr_all(final_pr):
 	map(lambda yl: yl.set_fontsize(13), ax.get_yticklabels())
 	plt.tight_layout()
 	#plt.legend(loc='best', frameon=False, fontsize=14)
-	return fig, plt
+	return fig
 
 
 def activation_pwm(fmap, X, threshold, window):
@@ -56,7 +56,7 @@ def activation_pwm(fmap, X, threshold, window):
 	# find regions above threshold
 	x, y = np.where(fmap > threshold)
 
-	# sort score 
+	# sort score
 	index = np.argsort(fmap[x,y])[-1:0:-1]
 	data_index = x[index].astype(int)
 	pos_index = y[index].astype(int)
@@ -73,7 +73,7 @@ def activation_pwm(fmap, X, threshold, window):
 		start_window = pos_index[i] - window
 		if start_window < 0:
 			start_buffer = np.zeros((-start_window, num_dims))
-			start = 0    		
+			start = 0
 		else:
 			start = start_window
 
@@ -105,23 +105,23 @@ def activation_pwm(fmap, X, threshold, window):
 	return seq_align
 
 def generate_pwm(sess, nntrainer, X, guided_saliency, window=6, layer='conv1d_0_active'):
-	
+
 	data={'inputs': guided_saliency}
 	fmaps = nntrainer.get_activations(sess, data, layer=layer)
 
 	num_filters = fmaps.shape[-1]
-	
+
 	pwm = []
 	for i in range(num_filters):
 		fmap = np.squeeze(fmaps[:,:,:,i])
 
 		# get threshold
 		threshold = np.max(fmap)*0.8
-		
+
 		pwm.append(activation_pwm(fmap, X, threshold, window))
 
 	return np.array(pwm)
-			
+
 def filter_heatmap(W, norm=True, cmap='hot_r', cbar_norm=True):
 	import matplotlib
 	if norm:
@@ -149,16 +149,15 @@ def filter_heatmap(W, norm=True, cmap='hot_r', cbar_norm=True):
 	cbar.ax.tick_params(labelsize=16)
 	if cbar_norm:
 		cbar.set_ticks([0.0, 0.5, 1.0])
-	return plt
 
 
 def plot_filter_logos(W, figsize=(10,7), height=25, nt_width=10, norm=0, alphabet='dna', norm_factor=3):
 
 	W = np.squeeze(W.transpose([3, 2, 0, 1]))
 	num_filters = W.shape[0]
-	num_rows = int(np.ceil(np.sqrt(num_filters)))    
+	num_rows = int(np.ceil(np.sqrt(num_filters)))
 	grid = mpl.gridspec.GridSpec(num_rows, num_rows)
-	grid.update(wspace=0.2, hspace=0.2, left=0.1, right=0.2, bottom=0.1, top=0.2) 
+	grid.update(wspace=0.2, hspace=0.2, left=0.1, right=0.2, bottom=0.1, top=0.2)
 	fig = plt.figure(figsize=figsize);
 	for i in range(num_filters):
 		plt.subplot(grid[i]);
@@ -170,7 +169,7 @@ def plot_filter_logos(W, figsize=(10,7), height=25, nt_width=10, norm=0, alphabe
 		plot_seq_logo(logo, nt_width=nt_width, step_multiple=None)
 		#if np.mod(i, num_rows) != 0:
 		plt.yticks([])
-	return fig, plt
+	return fig
 
 
 def plot_seq_logo(logo, nt_width=None, step_multiple=None):
@@ -179,8 +178,8 @@ def plot_seq_logo(logo, nt_width=None, step_multiple=None):
 		num_nt = logo.shape[1]/nt_width
 		if step_multiple:
 			step_size = int(num_nt/(step_multiple+1))
-			nt_range = range(step_size, step_size*step_multiple)              
-			plt.xticks([step_size*nt_width, step_size*2*nt_width, step_size*3*nt_width, step_size*4*nt_width], 
+			nt_range = range(step_size, step_size*step_multiple)
+			plt.xticks([step_size*nt_width, step_size*2*nt_width, step_size*3*nt_width, step_size*4*nt_width],
 						[str(step_size), str(step_size*2), str(step_size*3), str(step_size*4)])
 		else:
 			plt.xticks([])
@@ -193,7 +192,6 @@ def plot_seq_logo(logo, nt_width=None, step_multiple=None):
 	else:
 		plt.imshow(logo, interpolation='none')
 		plt.axis('off');
-	return plt
 
 
 
@@ -217,13 +215,13 @@ def plot_seq_struct_saliency(X, W, nt_width=100, norm_factor=3):
 	seq_saliency = W[:4, plot_index]
 	pwm_seq_saliency = normalize_pwm(seq_saliency, factor=norm_factor)
 	pwm_seq_saliency_logo = seq_logo(pwm_seq_saliency, height=nt_width*5, nt_width=nt_width, norm=0, alphabet='rna', colormap='standard')
-	
-	# structure saliency logo	
+
+	# structure saliency logo
 	struct_saliency = W[4:, plot_index]
 	pwm_struct_saliency = normalize_pwm(struct_saliency, factor=norm_factor)
 	pwm_struct_saliency_logo = seq_logo_reverse(pwm_struct_saliency, height=int(nt_width*8), nt_width=nt_width, norm=0, alphabet='pu', colormap='bw')
 
-	# black line 
+	# black line
 	line1 = np.zeros([10, num_nt*nt_width, 3], dtype=np.uint8)
 
 	# space between seq logo and line
@@ -239,15 +237,13 @@ def plot_seq_struct_saliency(X, W, nt_width=100, norm_factor=3):
 	spacer6.fill(255)
 
 	# build logo image
-	logo_img = np.vstack([pwm_seq_saliency_logo, spacer6, line1, spacer2, pwm_seq_logo, spacer2,  
+	logo_img = np.vstack([pwm_seq_saliency_logo, spacer6, line1, spacer2, pwm_seq_logo, spacer2,
 						  pwm_struct_logo, line1, spacer6, pwm_struct_saliency_logo])
 
 	# plot logo image
 	plt.imshow(logo_img)
 	plt.axis('off');
 
-	# return plot handles
-	return plt
 
 
 
@@ -267,13 +263,10 @@ def plot_pos_saliency(W, height=500, nt_width=100, alphabet='dna', norm_factor=3
 	# sequence saliency logo
 	pwm = normalize_pwm(W, factor=norm_factor)
 	logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet, colormap=colormap)
-	
+
 	# plot logo image
 	plt.imshow(logo)
 	plt.axis('off');
-
-	# return figure and plot handles
-	return plt
 
 
 
@@ -289,8 +282,8 @@ def plot_seq_pos_saliency(X, W, nt_width=100, alphabet='dna', norm_factor=3, col
 	# sequence saliency logo
 	pwm_seq_saliency = normalize_pwm(W[:,plot_index], factor=norm_factor)
 	pwm_seq_saliency_logo = seq_logo(pwm_seq_saliency, height=nt_width*5, nt_width=nt_width, norm=0, alphabet=alphabet, colormap=colormap)
-	
-	# black line 
+
+	# black line
 	line1 = np.zeros([10, num_nt*nt_width, 3], dtype=np.uint8)
 
 	# space between seq logo and line
@@ -308,8 +301,6 @@ def plot_seq_pos_saliency(X, W, nt_width=100, alphabet='dna', norm_factor=3, col
 	plt.imshow(logo_img)
 	plt.axis('off');
 
-	# return plot handles
-	return plt
 
 
 def plot_neg_saliency(W, height=500, nt_width=100, alphabet='dna', norm_factor=3, colormap='standard'):
@@ -317,15 +308,15 @@ def plot_neg_saliency(W, height=500, nt_width=100, alphabet='dna', norm_factor=3
 	"""
 	num_rows = 2
 	grid = mpl.gridspec.GridSpec(num_rows, 1)
-	grid.update(wspace=0.2, hspace=0.00, left=0.1, right=0.2, bottom=0.0, top=0.05) 
+	grid.update(wspace=0.2, hspace=0.00, left=0.1, right=0.2, bottom=0.0, top=0.05)
 
 	fig = plt.figure(figsize=figsize);
 
-	plt.subplot(grid[0])	
+	plt.subplot(grid[0])
 	pwm = normalize_pwm(W, factor=factor)
 	pos_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 	plt.imshow(pos_logo, interpolation='none')
-	plt.xticks([])	
+	plt.xticks([])
 	plt.yticks([])
 	#plt.yticks([0, 100], ['2.0','0.0'])
 	ax = plt.gca()
@@ -340,7 +331,7 @@ def plot_neg_saliency(W, height=500, nt_width=100, alphabet='dna', norm_factor=3
 	pwm = normalize_pwm(-W, factor=factor)
 	neg_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 	plt.imshow(neg_logo[::-1,:,:], interpolation='none')
-	plt.xticks([])	
+	plt.xticks([])
 	plt.yticks([])
 	#plt.yticks([0, 100], ['2.0','0.0'])
 	ax = plt.gca()
@@ -361,8 +352,8 @@ def plot_neg_saliency(W, height=500, nt_width=100, alphabet='dna', norm_factor=3
 	# sequence saliency logo
 	neg_saliency = normalize_pwm(-W, factor=norm_factor)
 	neg_logo = seq_logo_reverse(neg_saliency, height=height, nt_width=nt_width, norm=0, alphabet=alphabet, colormap=colormap)
-	
-	# black line 
+
+	# black line
 	line1 = np.zeros([10, num_nt*nt_width, 3], dtype=np.uint8)
 
 	# space between seq logo and line
@@ -380,15 +371,12 @@ def plot_neg_saliency(W, height=500, nt_width=100, alphabet='dna', norm_factor=3
 	plt.imshow(logo_img)
 	plt.axis('off');
 
-	# return plot handles
-	return plt
-
 
 def plot_seq_neg_saliency(X, W, height=500, nt_width=100, alphabet='dna', norm_factor=3, colormap='standard'):
 	"""
 	num_rows = 3
 	grid = mpl.gridspec.GridSpec(num_rows, 1)
-	grid.update(wspace=0.2, hspace=0.2, left=0.1, right=0.2, bottom=0.1, top=0.2) 
+	grid.update(wspace=0.2, hspace=0.2, left=0.1, right=0.2, bottom=0.1, top=0.2)
 
 	fig = plt.figure(figsize=figsize);
 
@@ -416,7 +404,7 @@ def plot_seq_neg_saliency(X, W, height=500, nt_width=100, alphabet='dna', norm_f
 	pwm = normalize_pwm(-W, factor=factor)
 	neg_logo = seq_logo(pwm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 	plt.imshow(neg_logo[::-1,:,:], interpolation='none')
-	plt.xticks([])	
+	plt.xticks([])
 	plt.yticks([])
 	#plt.yticks([0, 100], ['2.0','0.0'])
 	#plt.yticks([0, 100], ['0.0','2.0'])
@@ -441,8 +429,8 @@ def plot_seq_neg_saliency(X, W, height=500, nt_width=100, alphabet='dna', norm_f
 	# sequence saliency logo
 	neg_saliency = normalize_pwm(-W, factor=norm_factor)
 	neg_logo = seq_logo_reverse(neg_saliency, height=height, nt_width=nt_width, norm=0, alphabet=alphabet, colormap=colormap)
-	
-	# black line 
+
+	# black line
 	line1 = np.zeros([10, num_nt*nt_width, 3], dtype=np.uint8)
 
 	# space between seq logo and line
@@ -464,8 +452,6 @@ def plot_seq_neg_saliency(X, W, height=500, nt_width=100, alphabet='dna', norm_f
 	plt.imshow(logo_img)
 	plt.axis('off');
 
-	# return plot handles
-	return plt
 
 
 
@@ -482,7 +468,7 @@ def fig_options(plt, options):
 		plt.yticks(options['yticks'])
 	if 'xticks' in options:
 		plt.xticks(options['xticks'])
-	if 'labelsize' in options:        
+	if 'labelsize' in options:
 		ax = plt.gca()
 		ax.tick_params(axis='x', labelsize=options['labelsize'])
 		ax.tick_params(axis='y', labelsize=options['labelsize'])
@@ -498,7 +484,7 @@ def fig_options(plt, options):
 
 def subplot_grid(nrows, ncols):
 	grid= mpl.gridspec.GridSpec(nrows, ncols)
-	grid.update(wspace=0.2, hspace=0.2, left=0.1, right=0.2, bottom=0.1, top=0.2) 
+	grid.update(wspace=0.2, hspace=0.2, left=0.1, right=0.2, bottom=0.1, top=0.2)
 	return grid
 
 
@@ -533,14 +519,14 @@ def load_alphabet(char_path, alphabet, colormap='standard'):
 		for i, char in enumerate(letters):
 			chars.append(load_char(char_path, char, colors[i]))
 
-	elif alphabet == 'rna': 
+	elif alphabet == 'rna':
 		letters = 'ACGU'
 		if colormap == 'standard':
 			colors = ['green', 'blue', 'orange', 'red']
 		chars = []
 		for i, char in enumerate(letters):
 			chars.append(load_char(char_path, char, colors[i]))
-			
+
 
 	elif alphabet == 'structure': # structural profile
 
@@ -550,9 +536,9 @@ def load_alphabet(char_path, alphabet, colormap='standard'):
 		chars = []
 		for i, char in enumerate(letters):
 			chars.append(load_char(char_path, char, colors[i]))
-	
+
 	elif alphabet == 'pu': # structural profile
-		
+
 		letters = 'PU'
 		if colormap == 'standard':
 			colors = ['cyan', 'purple']
@@ -567,9 +553,9 @@ def load_alphabet(char_path, alphabet, colormap='standard'):
 
 
 def seq_logo(pwm, height=30, nt_width=10, norm=0, alphabet='dna', colormap='standard'):
-	
+
 	def get_nt_height(pwm, height, norm):
-		
+
 		def entropy(p):
 			s = 0
 			for i in range(len(p)):
@@ -588,7 +574,7 @@ def seq_logo(pwm, height=30, nt_width=10, norm=0, alphabet='dna', colormap='stan
 				heights[:,i] = np.floor(pwm[:,i]*np.minimum(total_height, height));
 			else:
 				heights[:,i] = np.floor(pwm[:,i]*np.minimum(total_height, height*2));
-	
+
 		return heights.astype(int)
 
 
@@ -638,9 +624,9 @@ def seq_logo(pwm, height=30, nt_width=10, norm=0, alphabet='dna', colormap='stan
 
 
 def seq_logo_reverse(pwm, height=30, nt_width=10, norm=0, alphabet='dna', colormap='standard'):
-	
+
 	def get_nt_height(pwm, height, norm):
-		
+
 		def entropy(p):
 			s = 0
 			for i in range(len(p)):
@@ -659,7 +645,7 @@ def seq_logo_reverse(pwm, height=30, nt_width=10, norm=0, alphabet='dna', colorm
 				heights[:,i] = np.floor(pwm[:,i]*np.minimum(total_height, height));
 			else:
 				heights[:,i] = np.floor(pwm[:,i]*np.minimum(total_height, height*2));
-	
+
 		return heights.astype(int)
 
 
@@ -703,5 +689,3 @@ def seq_logo_reverse(pwm, height=30, nt_width=10, norm=0, alphabet='dna', colorm
 
 				remaining_height += nt_height[j]
 	return logo.astype(np.uint8)
-
-

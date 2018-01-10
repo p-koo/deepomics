@@ -208,11 +208,11 @@ class NeuralNet:
 			if len(y.get_shape()) == 4:
 				dy = func(y[:,:,:,class_index], axis=1)
 			else:
-				dy = func(y, axis=1) #  tf.sign(y[:,class_index])*tf.square(y[:,class_index])
+				dy = y[:,class_index] #  tf.sign(y[:,class_index])*tf.square(y[:,class_index])
 		return sess.run(tf.gradients(dy, dx), feed_dict=feed_dict)
 
 
-	def stochastic_saliency(self, sess, X, y, dx, stochastic_feed, num_average=200, threshold=1.0, class_index=None):
+	def stochastic_saliency(self, sess, X, y, dx, stochastic_feed, num_average=200, threshold=1.0, class_index=None, func=tf.reduce_max):
 
 		def choose_sign(x,y):
 			y2 = np.copy(y)
@@ -229,7 +229,15 @@ class NeuralNet:
 
 		augment = np.multiply(np.ones((num_average,1,1,1)), X)
 		stochastic_feed.update({dx: augment})
-		val = self.calculate_saliency(sess, y, dx, stochastic_feed, class_index=class_index)
+
+		if class_index is None:
+			dy = func(y, axis=1)
+		else:
+			if len(y.get_shape()) == 4:
+				dy = func(y[:,:,:,class_index], axis=1)
+			else:
+				dy = y[:,class_index] #  tf.sign(y[:,class_index])*tf.square(y[:,class_index])
+		val = sess.run([tf.gradients(dy, dx), dy], feed_dict=stochastic_feed)
 		dydx = val[0][0]
 		pred = val[1]
 
@@ -424,15 +432,18 @@ class NeuralTrainer():
 
 
 
-	def get_stochastic_saliency(self, sess, X, layer, class_index=None, num_average=200, threshold=1.0):
+	def get_stochastic_saliency(self, sess, X, layer, threshold, class_index=None, num_average=200):
 		y = layer.get_output()
 
 		saliency = []
 		counts = []
 		for i in range(X.shape[0]):
+			if np.mod(i, 10) == 0:
+				print('%d out of %d'%(i, X.shape[0]))
+				
 			x = np.expand_dims(X[i], axis=0)
 			saliency_ave, counter = self.nnmodel.stochastic_saliency(sess, x, y, self.placeholders['inputs'],
-														self.stochastic_feed, num_average, threshold, class_index)
+														self.stochastic_feed, num_average, threshold[i], class_index)
 			saliency.append(np.expand_dims(saliency_ave, axis=0))
 			counts.append(counter)
 
