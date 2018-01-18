@@ -151,12 +151,16 @@ def filter_heatmap(W, norm=True, cmap='hot_r', cbar_norm=True):
 		cbar.set_ticks([0.0, 0.5, 1.0])
 
 
-def plot_filter_logos(W, figsize=(10,7), height=25, nt_width=10, norm=0, alphabet='dna', norm_factor=3):
+def plot_filter_logos(W, figsize=(10,7), height=25, nt_width=10, norm=0, alphabet='dna', norm_factor=3, num_rows=None):
 
 	W = np.squeeze(W.transpose([3, 2, 0, 1]))
 	num_filters = W.shape[0]
-	num_rows = int(np.ceil(np.sqrt(num_filters)))
-	grid = mpl.gridspec.GridSpec(num_rows, num_rows)
+	if not num_rows:
+		num_rows = int(np.ceil(np.sqrt(num_filters)))
+		num_cols = num_rows
+	else:
+		num_cols = int(np.ceil(num_filters//num_rows))
+	grid = mpl.gridspec.GridSpec(num_rows, num_cols)
 	grid.update(wspace=0.2, hspace=0.2, left=0.1, right=0.2, bottom=0.1, top=0.2)
 	fig = plt.figure(figsize=figsize);
 	for i in range(num_filters):

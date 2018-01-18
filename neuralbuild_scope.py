@@ -147,19 +147,29 @@ class NeuralBuild():
 				# add max-pooling layer
 				if 'max_pool' in model_layer:
 					new_layer = name+'_maxpool'  # str(counter) + '_' + name+'_pool'
-					if isinstance(model_layer['max_pool'], (tuple, list)):
-							self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=model_layer['max_pool'], name=name+'_maxpool')
+					if 'max_pool_strides' in model_layer:
+						strides = model_layer['max_pool_strides']
 					else:
-							self.network[new_layer] = layers.MaxPool1DLayer(self.network[self.last_layer], pool_size=model_layer['max_pool'], name=name+'_maxpool')
+						strides = model_layer['max_pool']
+
+					if isinstance(model_layer['max_pool'], (tuple, list)):
+						self.network[new_layer] = layers.MaxPool2DLayer(self.network[self.last_layer], pool_size=model_layer['max_pool'], strides=strides, name=name+'_maxpool')
+					else:
+						self.network[new_layer] = layers.MaxPool1DLayer(self.network[self.last_layer], pool_size=model_layer['max_pool'], strides=strides, name=name+'_maxpool')
 					self.last_layer = new_layer
 
 				# add mean-pooling layer
 				elif 'mean_pool' in model_layer:
 					new_layer = name+'_meanpool'  # str(counter) + '_' + name+'_pool'
-					if isinstance(model_layer['mean_pool'], (tuple, list)):
-							self.network[new_layer] = layers.MeanPool2DLayer(self.network[self.last_layer], pool_size=model_layer['mean_pool'], name=name+'_meanpool')
+					if 'mean_pool_strides' in model_layer:
+						strides = model_layer['mean_pool_strides']
 					else:
-							self.network[new_layer] = layers.MeanPool1DLayer(self.network[self.last_layer], pool_size=model_layer['mean_pool'], name=name+'_meanpool')
+						strides = model_layer['mean_pool']
+
+					if isinstance(model_layer['mean_pool'], (tuple, list)):
+						self.network[new_layer] = layers.MeanPool2DLayer(self.network[self.last_layer], pool_size=model_layer['mean_pool'], strides=strides, name=name+'_meanpool')
+					else:
+						self.network[new_layer] = layers.MeanPool1DLayer(self.network[self.last_layer], pool_size=model_layer['mean_pool'], strides=strides, name=name+'_meanpool')
 					self.last_layer = new_layer
 
 				# add global-pooling layer
