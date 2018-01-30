@@ -94,7 +94,7 @@ class NeuralNet:
 
 		# get list of trainable parameters (default is trainable)
 		trainable_params = self.get_trainable_parameters()
-		self.train_step = self.updates.minimize(self.mean_loss, var_list=trainable_params)
+		self.train_step = self.updates.minimize(self.loss, var_list=trainable_params)
 
 
 	def train_metric(self):
@@ -280,8 +280,8 @@ class NeuralTrainer():
 		self.file_path = file_path
 
 
-		self.train_calc = [nnmodel.train_step, nnmodel.mean_loss, nnmodel.metric]
-		self.test_calc = [nnmodel.mean_loss, nnmodel.predictions]
+		self.train_calc = [nnmodel.train_step, nnmodel.loss, nnmodel.metric]
+		self.test_calc = [nnmodel.loss, nnmodel.predictions]
 
 		self.initialize_feed_dict(nnmodel.placeholders, nnmodel.feed_dict)
 
