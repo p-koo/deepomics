@@ -37,7 +37,7 @@ class NeuralNet:
 		self.predictions = []
 		self.targets = []
 		self.loss = []
-		self.mean_loss = []
+		self.sample_loss = []
 		self.updates = []
 		self.train_step = []
 		self.metric = []
@@ -86,8 +86,8 @@ class NeuralNet:
 		self.predictions = self.network[output_layer].get_output()
 		self.targets = self.placeholders['targets']
 
-		self.loss = optimize.build_loss(self.network, self.predictions, self.targets, optimization)
-		self.mean_loss = tf.reduce_mean(self.loss)
+		self.sample_loss = optimize.build_loss(self.network, self.predictions, self.targets, optimization)
+		self.loss = tf.reduce_mean(self.sample_loss)
 
 		# setup optimizer
 		self.updates = optimize.build_updates(self.optimization)

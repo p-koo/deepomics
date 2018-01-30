@@ -193,7 +193,7 @@ def cost_function(network, targets, optimization):
 	elif objective == 'squared_error':
 
 		predictions = network['output'].get_output()
-		loss = tf.reduce_mean(objectives.squared_error(targets, predictions))
+		loss = objectives.squared_error(targets, predictions)
 
 
 	elif objective == 'categorical2D':
@@ -268,7 +268,7 @@ def cost_function(network, targets, optimization):
 		X = network['X'].get_output()
 		Z = network['Z'].get_output()
 
-		loss = -tf.reduce_mean(objectives.elbo_softmax_normal(targets, X, Z, optimization['Z_shape'], KL_weight=KL_weight))
+		loss = -objectives.elbo_softmax_normal(targets, X, Z, optimization['Z_shape'], KL_weight=KL_weight)
 
 
 	elif objective == 'elbo_softmax_binary':
