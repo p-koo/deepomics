@@ -55,7 +55,7 @@ class Variable():
 
 		self.trainable = True
 		if 'trainable' in kwargs.keys():
-			self.l1_regularize = kwargs['trainable']
+			self.trainable = kwargs['trainable']
 
 		self.name = None
 		if 'name' in kwargs.keys():

@@ -440,7 +440,7 @@ class NeuralTrainer():
 		for i in range(X.shape[0]):
 			if np.mod(i, 10) == 0:
 				print('%d out of %d'%(i, X.shape[0]))
-				
+
 			x = np.expand_dims(X[i], axis=0)
 			saliency_ave, counter = self.nnmodel.stochastic_saliency(sess, x, y, self.placeholders['inputs'],
 														self.stochastic_feed, num_average, threshold[i], class_index)
@@ -632,6 +632,27 @@ class MonitorPerformance():
 				%(progress+spaces, percent*100, time_elapsed, self.get_mean_loss()))
 			sys.stdout.flush()
 
+	def progress_bar(self, epoch, num_batches, value, bar_length=30):
+		if self.verbose > 1:
+			remaining_time = (time.time()-self.start_time)*(num_batches-(epoch+1))/(epoch+1)
+			percent = epoch/num_batches
+			progress = '='*int(round(percent*bar_length))
+			spaces = ' '*int(bar_length-round(percent*bar_length))
+			if (self.objective == "binary") | (self.objective == "categorical"):
+				sys.stdout.write("\r[%s] %.1f%% -- remaining time=%ds -- loss=%.5f -- accuracy=%.2f%%  " \
+				%(progress+spaces, percent*100, remaining_time, self.get_mean_loss(), value*100))
+			else:# (self.objective == 'squared_error') | (self.objective == 'elbo_gaussian')| (self.objective == 'elbo_binary'):
+				sys.stdout.write("\r[%s] %.1f%% -- remaining time=%ds -- loss=%.5f" \
+				%(progress+spaces, percent*100, remaining_time, self.get_mean_loss()))
+
+			if epoch == num_batches:
+				if (self.objective == "binary") | (self.objective == "categorical"):
+					sys.stdout.write("\r[%s] %.1f%% -- elapsed time=%.2fs -- loss=%.5f -- acc=%.5f\n" \
+					    %(progress+spaces, percent*100, time.time()-elf.sstart_time, self.get_mean_loss(), value*100))
+				else:# (self.objective == 'squared_error') | (self.objective == 'elbo_gaussian')| (self.objective == 'elbo_binary'):
+					sys.stdout.write("\r[%s] %.1f%% -- elapsed time=%ds -- loss=%.5f" \
+					%(progress+spaces, percent*100, time.time()-elf.sstart_time, self.get_mean_loss()))
+			sys.stdout.flush()
 
 	def save_metrics(self, file_path):
 		savepath = file_path + "_" + self.name +"_performance.pickle"
