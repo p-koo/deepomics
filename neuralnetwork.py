@@ -620,20 +620,6 @@ class MonitorPerformance():
 
 	def progress_bar(self, epoch, num_batches, value, bar_length=30):
 		if self.verbose > 1:
-			time_elapsed = time.time()-self.start_time+1#*(num_batches-epoch)/epoch
-			percent = epoch/num_batches
-			progress = '='*int(round(percent*bar_length))
-			spaces = ' '*int(bar_length-round(percent*bar_length))
-			if (self.objective == "binary") | (self.objective == "categorical"):
-				sys.stdout.write("\r[%s] %.1f%% -- time=%ds -- loss=%.5f -- accuracy=%.2f%%  " \
-				%(progress+spaces, percent*100, time_elapsed, self.get_mean_loss(), value*100))
-			else:# (self.objective == 'squared_error') | (self.objective == 'elbo_gaussian')| (self.objective == 'elbo_binary'):
-				sys.stdout.write("\r[%s] %.1f%% -- time=%ds -- loss=%.5f" \
-				%(progress+spaces, percent*100, time_elapsed, self.get_mean_loss()))
-			sys.stdout.flush()
-
-	def progress_bar(self, epoch, num_batches, value, bar_length=30):
-		if self.verbose > 1:
 			remaining_time = (time.time()-self.start_time)*(num_batches-(epoch+1))/(epoch+1)
 			percent = epoch/num_batches
 			progress = '='*int(round(percent*bar_length))
@@ -648,10 +634,10 @@ class MonitorPerformance():
 			if epoch == num_batches:
 				if (self.objective == "binary") | (self.objective == "categorical"):
 					sys.stdout.write("\r[%s] %.1f%% -- elapsed time=%.2fs -- loss=%.5f -- acc=%.5f\n" \
-					    %(progress+spaces, percent*100, time.time()-elf.sstart_time, self.get_mean_loss(), value*100))
+					    %(progress+spaces, percent*100, time.time()-self.sstart_time, self.get_mean_loss(), value*100))
 				else:# (self.objective == 'squared_error') | (self.objective == 'elbo_gaussian')| (self.objective == 'elbo_binary'):
 					sys.stdout.write("\r[%s] %.1f%% -- elapsed time=%ds -- loss=%.5f" \
-					%(progress+spaces, percent*100, time.time()-elf.sstart_time, self.get_mean_loss()))
+					%(progress+spaces, percent*100, time.time()-self.sstart_time, self.get_mean_loss()))
 			sys.stdout.flush()
 
 	def save_metrics(self, file_path):
