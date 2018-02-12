@@ -634,10 +634,10 @@ class MonitorPerformance():
 			if epoch == num_batches:
 				if (self.objective == "binary") | (self.objective == "categorical"):
 					sys.stdout.write("\r[%s] %.1f%% -- elapsed time=%.2fs -- loss=%.5f -- acc=%.5f\n" \
-					    %(progress+spaces, percent*100, time.time()-self.sstart_time, self.get_mean_loss(), value*100))
+					    %(progress+spaces, percent*100, time.time()-self.start_time, self.get_mean_loss(), value*100))
 				else:# (self.objective == 'squared_error') | (self.objective == 'elbo_gaussian')| (self.objective == 'elbo_binary'):
 					sys.stdout.write("\r[%s] %.1f%% -- elapsed time=%ds -- loss=%.5f" \
-					%(progress+spaces, percent*100, time.time()-self.sstart_time, self.get_mean_loss()))
+					%(progress+spaces, percent*100, time.time()-self.start_time, self.get_mean_loss()))
 			sys.stdout.flush()
 
 	def save_metrics(self, file_path):
