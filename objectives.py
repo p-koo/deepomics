@@ -6,8 +6,13 @@ import numpy as np
 def binary_cross_entropy(targets, predictions):
 
 	predictions = tf.clip_by_value(predictions,1e-7,1-1e-7)
-	return tf.reduce_sum(targets*tf.log(predictions) + (1-targets)*tf.log(1-predictions), axis=get_reduce_axis(targets))
+	return tf.reduce_mean(targets*tf.log(predictions) + (1-targets)*tf.log(1-predictions), axis=get_reduce_axis(targets))
 
+
+def weighted_binary_cross_entropy(targets, predictions, class_weights):
+
+	predictions = tf.clip_by_value(predictions,1e-7,1-1e-7)
+	return tf.reduce_mean(class_weights*(targets*tf.log(predictions) + (1-targets)*tf.log(1-predictions)), axis=get_reduce_axis(targets))
 
 def categorical_cross_entropy(targets, predictions):
 
@@ -175,4 +180,3 @@ def get_reduce_axis(targets):
 		axis = [1,2,3]
 
 	return axis
-

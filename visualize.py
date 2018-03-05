@@ -163,13 +163,18 @@ def plot_filter_logos(W, figsize=(10,7), height=25, nt_width=10, norm=0, alphabe
 	grid = mpl.gridspec.GridSpec(num_rows, num_cols)
 	grid.update(wspace=0.2, hspace=0.2, left=0.1, right=0.2, bottom=0.1, top=0.2)
 	fig = plt.figure(figsize=figsize);
+	if norm:
+		MAX = np.max(W)
+	else:
+		MAX = None
+
 	for i in range(num_filters):
 		plt.subplot(grid[i]);
 		if norm_factor:
-			W_norm = normalize_pwm(W[i], factor=norm_factor)
+			W_norm = normalize_pwm(W[i], factor=norm_factor, max=MAX)
 		else:
 			W_norm = W[i]
-		logo = seq_logo(W_norm, height=height, nt_width=nt_width, norm=norm, alphabet=alphabet)
+		logo = seq_logo(W_norm, height=height, nt_width=nt_width, norm=0, alphabet=alphabet)
 		plot_seq_logo(logo, nt_width=nt_width, step_multiple=None)
 		#if np.mod(i, num_rows) != 0:
 		plt.yticks([])

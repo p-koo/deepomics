@@ -88,16 +88,16 @@ class NeuralBuild():
 
 					self.network[name+'_logits'] = layers.DenseLayer(self.network[self.last_layer], num_units=num_categories*num_classes, b=init.GlorotUniform())
 
-					self.network[name+'_logits_reshape'] = layers.ReshapeLayer(self.network[name+'_logits'], shape=[-1, num_classes])
-					self.network[name] = layers.ActivationLayer(self.network[name+'_logits_reshape'], function='softmax')
-					self.network[name+'_sample'] = layers.CategoricalSampleLayer(self.network[name+'_logits_reshape'], temperature=temperature, hard=hard)
 					self.network[name+'_logits_reshape'] = layers.ReshapeLayer(self.network[name+'_logits'], shape=[-1, num_categories, num_classes])
+
+					self.network[name+'_sample'] = layers.CategoricalSampleLayer(self.network[name+'_logits_reshape'], temperature=temperature, hard=hard)
+
 					self.network[name+'_softmax'] = layers.Softmax2DLayer(self.network[name+'_logits_reshape'])
-					self.network[name+'_sample'] = layers.CategoricalSampleLayer(self.network[name+'_logits_reshape'],
-																		temperature=temperature,
-																		hard=hard)
+
 					self.network[name] = layers.ReshapeLayer(self.network[name+'_softmax'], shape=[-1, num_categories*num_classes])
+
 					self.last_layer = name
+
 
 				else:
 					if layer == 'conv1d_residual':

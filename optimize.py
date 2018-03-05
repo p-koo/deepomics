@@ -175,7 +175,13 @@ def cost_function(network, targets, optimization):
 
 		predictions = network['output'].get_output()
 
-		loss = -objectives.binary_cross_entropy(targets, predictions)
+		if 'class_weights' in optimization:
+			if not optimization['class_weights']:
+				loss = -objectives.weighted_binary_cross_entropy(targets, predictions, )
+			else:
+				loss = -objectives.binary_cross_entropy(targets, predictions)
+		else:
+			loss = -objectives.binary_cross_entropy(targets, predictions)
 
 
 	elif objective == 'categorical':

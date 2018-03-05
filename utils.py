@@ -105,10 +105,11 @@ def make_directory(path, foldername, verbose=1):
 	return outdir
 
 
-def normalize_pwm(pwm, factor=None):
+def normalize_pwm(pwm, factor=None, max=None):
 
-	MAX = np.max(np.abs(pwm))
-	pwm = pwm/MAX
+	if not max:
+		max = np.max(np.abs(pwm))
+	pwm = pwm/max
 	if factor:
 		pwm = np.exp(pwm*factor)
 	norm = np.outer(np.ones(pwm.shape[0]), np.sum(np.abs(pwm), axis=0))
