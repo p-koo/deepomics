@@ -165,7 +165,7 @@ class NeuralBuild():
 		# dense layer
 		elif model_layer['layer'] == 'dense':
 			if 'W' not in model_layer.keys():
-				model_layer['W'] = init.HeNormal(**self.seed)
+				model_layer['W'] = init.GlorotUniform(**self.seed)
 			self.network[name] = layers.DenseLayer(self.network[self.last_layer], num_units=model_layer['num_units'],
 												 W=model_layer['W'],
 												 b=None)
@@ -174,7 +174,7 @@ class NeuralBuild():
 		elif (model_layer['layer'] == 'conv2d'):
 
 			if 'W' not in model_layer.keys():
-				W = init.HeNormal(**self.seed)
+				W = init.GlorotUniform(**self.seed)
 			else:
 				W = model_layer['W']
 			if 'padding' not in model_layer.keys():
@@ -194,7 +194,7 @@ class NeuralBuild():
 
 		elif model_layer['layer'] == 'conv1d':
 			if 'W' not in model_layer.keys():
-				W = init.HeNormal(**self.seed)
+				W = init.GlorotUniform(**self.seed)
 			else:
 				W = model_layer['W']
 			if 'padding' not in model_layer.keys():
@@ -217,7 +217,7 @@ class NeuralBuild():
 		elif (model_layer['layer'] == 'conv2d_transpose'):
 
 			if 'W' not in model_layer.keys():
-				W = init.HeNormal(**self.seed)
+				W = init.GlorotUniform(**self.seed)
 			else:
 				W = model_layer['W']
 			if 'padding' not in model_layer.keys():
@@ -237,7 +237,7 @@ class NeuralBuild():
 
 		elif model_layer['layer'] == 'conv1d_transpose':
 			if 'W' not in model_layer.keys():
-				W = init.HeNormal(**self.seed)
+				W = init.GlorotUniform(**self.seed)
 			else:
 				W = model_layer['W']
 			if 'padding' not in model_layer.keys():
@@ -292,7 +292,7 @@ class NeuralBuild():
 		num_filters = shape[-1].value
 
 		if 'W' not in model_layer.keys():
-			W = init.HeUniform(**self.seed)
+			W = init.GlorotUniform(**self.seed)
 		else:
 			W = model_layer['W']
 
@@ -343,7 +343,7 @@ class NeuralBuild():
 			filter_size = (filter_size, filter_size)
 
 		if 'W' not in model_layer.keys():
-			W = init.HeUniform(**self.seed)
+			W = init.GlorotUniform(**self.seed)
 		else:
 			W = model_layer['W']
 
@@ -391,7 +391,7 @@ class NeuralBuild():
 		num_units = shape[-1].value
 
 		if 'W' not in model_layer.keys():
-			W = init.HeUniform(**self.seed)
+			W = init.GlorotUniform(**self.seed)
 		else:
 			W = model_layer['W']
 

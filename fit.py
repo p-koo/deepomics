@@ -280,7 +280,7 @@ def train_kl_annealing(sess, nntrainer, data, annealing_rate=None, batch_size=12
 
 
 		if annealing_rate:
-			weight = 1 - np.exp(-(epoch+3)*annealing_rate)
+			weight = 1 - np.exp(-epoch*annealing_rate)
 		else:
 			weight = 1
 

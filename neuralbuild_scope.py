@@ -86,6 +86,11 @@ class NeuralBuild():
 					else:
 						name = 'Z'
 
+					if 'output' in model_layer:
+						output = model_layer['output']
+					else:
+						output = 'softmax'
+
 					self.network[name+'_logits'] = layers.DenseLayer(self.network[self.last_layer], num_units=num_categories*num_classes, b=init.GlorotUniform())
 
 					self.network[name+'_logits_reshape'] = layers.ReshapeLayer(self.network[name+'_logits'], shape=[-1, num_categories, num_classes])
@@ -94,7 +99,10 @@ class NeuralBuild():
 
 					self.network[name+'_softmax'] = layers.Softmax2DLayer(self.network[name+'_logits_reshape'])
 
-					self.network[name] = layers.ReshapeLayer(self.network[name+'_softmax'], shape=[-1, num_categories*num_classes])
+					if output == 'hard':
+						self.network[name] = layers.ReshapeLayer(self.network[name+'_sample'], shape=[-1, num_categories*num_classes])
+					else:
+						self.network[name] = layers.ReshapeLayer(self.network[name+'_softmax'], shape=[-1, num_categories*num_classes])
 
 					self.last_layer = name
 
