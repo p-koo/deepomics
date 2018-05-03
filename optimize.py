@@ -152,15 +152,16 @@ def build_loss(network, predictions, targets, optimization):
 		optimization['label_smoothing'] = 0
 	loss = cost_function(network, targets, optimization)
 
+	reg = 0
 	if 'l1' in optimization.keys():
 		l1 = get_l1_parameters(network)
-		loss += tf.reduce_sum(tf.abs(l1)) * optimization['l1']
+		reg += tf.reduce_sum(tf.abs(l1)) * optimization['l1']
 
 	if 'l2' in optimization.keys():
 		l2 = get_l2_parameters(network)
-		loss += tf.reduce_sum(tf.square(l2)) * optimization['l2']
-
-	return loss
+		reg += tf.reduce_sum(tf.square(l2)) * optimization['l2']
+	
+	return loss, reg
 
 
 def cost_function(network, targets, optimization):
