@@ -121,7 +121,6 @@ class NeuralBuild():
 
                     self.last_layer = name
 
-
                 else:
                     if layer == 'conv1d_residual':
                         self.conv1d_residual_block(model_layer, name)
@@ -149,7 +148,7 @@ class NeuralBuild():
                         if (model_layer['layer'] == 'dense') | (model_layer['layer'] == 'conv1d') | (
                                 model_layer['layer'] == 'conv2d'):
                             if 'b' in model_layer:
-                                if model_layer['b'] != None:
+                                if model_layer['b'] is not None:
                                     with tf.name_scope("bias") as scope:
                                         b = init.Constant(model_layer['b'])
                                         new_layer = name + '_bias'
@@ -250,8 +249,7 @@ class NeuralBuild():
         # input layer
         if model_layer['layer'] == 'input':
 
-            with tf.name_scope('input') as scope:
-                input_shape = str(model_layer['input_shape'])
+            with tf.name_scope('input'):
                 inputs = utils.placeholder(shape=model_layer['input_shape'], name=name)
                 self.network[name] = layers.InputLayer(inputs)
                 self.placeholders[name] = inputs
@@ -260,7 +258,7 @@ class NeuralBuild():
         # dense layer
         elif model_layer['layer'] == 'dense':
 
-            with tf.name_scope('dense') as scope:
+            with tf.name_scope('dense'):
                 if 'W' not in model_layer.keys():
                     model_layer['W'] = init.GlorotUniform(**self.seed)
                 self.network[name] = layers.DenseLayer(self.network[self.last_layer],
@@ -271,7 +269,7 @@ class NeuralBuild():
         # convolution layer
         elif (model_layer['layer'] == 'conv2d'):
 
-            with tf.name_scope('conv2d') as scope:
+            with tf.name_scope('conv2d'):
                 if 'W' not in model_layer.keys():
                     W = init.GlorotUniform(**self.seed)
                 else:
@@ -293,7 +291,7 @@ class NeuralBuild():
                                                         strides=strides)
 
         elif model_layer['layer'] == 'conv1d':
-            with tf.name_scope('conv1d') as scope:
+            with tf.name_scope('conv1d'):
                 if 'W' not in model_layer.keys():
                     W = init.GlorotUniform(**self.seed)
                 else:
@@ -387,7 +385,7 @@ class NeuralBuild():
         self.last_layer = name
 
     def conv1d_residual_block(self, model_layer, name):
-        with tf.name_scope('conv1d_residual_block') as scope:
+        with tf.name_scope('conv1d_residual_block'):
             last_layer = self.last_layer
 
             filter_size = model_layer['filter_size']
@@ -408,7 +406,7 @@ class NeuralBuild():
                                                                 filter_size=filter_size,
                                                                 W=W,
                                                                 padding='SAME')
-            # self.network[name+'_1resid'] = layers.Conv2DLayer(self.network[last_layer], num_filters=num_filters, filter_size=filter_size, padding='SAME', **self.seed)
+
             self.network[name + '_1resid_norm'] = layers.BatchNormLayer(self.network[name + '_1resid'],
                                                                         self.placeholders['is_training'])
             self.network[name + '_1resid_active'] = layers.ActivationLayer(self.network[name + '_1resid_norm'],
@@ -433,7 +431,7 @@ class NeuralBuild():
                                                                 filter_size=filter_size,
                                                                 W=W,
                                                                 padding='SAME')
-            # self.network[name+'_2resid'] = layers.Conv2DLayer(self.network[lastname], num_filters=num_filters, filter_size=filter_size, padding='SAME', **self.seed)
+
             self.network[name + '_2resid_norm'] = layers.BatchNormLayer(self.network[name + '_2resid'],
                                                                         self.placeholders['is_training'])
             self.network[name + '_resid_sum'] = layers.ElementwiseSumLayer(
@@ -444,7 +442,7 @@ class NeuralBuild():
             self.last_layer = name + '_resid'
 
     def conv2d_residual_block(self, model_layer, name):
-        with tf.name_scope('conv2d_residual_block') as scope:
+        with tf.name_scope('conv2d_residual_block'):
             last_layer = self.last_layer
             filter_size = model_layer['filter_size']
             if 'function' in model_layer:
@@ -467,7 +465,7 @@ class NeuralBuild():
                                                                 filter_size=filter_size,
                                                                 W=W,
                                                                 padding='SAME')
-            # self.network[name+'_1resid'] = layers.Conv2DLayer(self.network[last_layer], num_filters=num_filters, filter_size=filter_size, padding='SAME', **self.seed)
+
             self.network[name + '_1resid_norm'] = layers.BatchNormLayer(self.network[name + '_1resid'],
                                                                         self.placeholders['is_training'])
             self.network[name + '_1resid_active'] = layers.ActivationLayer(self.network[name + '_1resid_norm'],
@@ -492,7 +490,7 @@ class NeuralBuild():
                                                                 filter_size=filter_size,
                                                                 W=W,
                                                                 padding='SAME')
-            # self.network[name+'_2resid'] = layers.Conv2DLayer(self.network[lastname], num_filters=num_filters, filter_size=filter_size, padding='SAME', **self.seed)
+
             self.network[name + '_2resid_norm'] = layers.BatchNormLayer(self.network[name + '_2resid'],
                                                                         self.placeholders['is_training'])
             self.network[name + '_resid_sum'] = layers.ElementwiseSumLayer(
@@ -502,7 +500,7 @@ class NeuralBuild():
             self.last_layer = name + '_resid'
 
     def dense_residual_block(self, model_layer, name):
-        with tf.name_scope('dense_residual_block') as scope:
+        with tf.name_scope('dense_residual_block'):
             last_layer = self.last_layer
 
             if 'function' in model_layer:
