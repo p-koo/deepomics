@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-import objectives
+from deepomics import objectives
 
 __all__ = [
     "build_updates",
@@ -21,7 +21,7 @@ def build_updates(optimization):
     if optimizer == 'sgd':
         learning_rate = 0.005
         if 'learning_rate' in optimization.keys():
-            leanring_rate = optimization['learning_rate']
+            learning_rate = optimization['learning_rate']
         use_locking = False
         if 'use_locking' in optimization.keys():
             use_locking = optimization['use_locking']
@@ -35,7 +35,7 @@ def build_updates(optimization):
     elif optimizer == 'momentum':
         learning_rate = 0.005
         if 'learning_rate' in optimization.keys():
-            leanring_rate = optimization['learning_rate']
+            learning_rate = optimization['learning_rate']
         momentum = 0.9
         if 'momentum' in optimization.keys():
             momentum = optimization['momentum']
@@ -57,7 +57,7 @@ def build_updates(optimization):
     elif optimizer == 'adam':
         learning_rate = 0.001
         if 'learning_rate' in optimization.keys():
-            leanring_rate = optimization['learning_rate']
+            learning_rate = optimization['learning_rate']
         beta1 = 0.95
         if 'beta1' in optimization.keys():
             beta1 = optimization['beta1']
@@ -83,7 +83,7 @@ def build_updates(optimization):
     elif optimizer == 'rmsprop':
         learning_rate = 0.001
         if 'learning_rate' in optimization.keys():
-            leanring_rate = optimization['learning_rate']
+            learning_rate = optimization['learning_rate']
         rho = 0.95
         if 'rho' in optimization.keys():
             rho = optimization['rho']
@@ -105,7 +105,7 @@ def build_updates(optimization):
     elif optimizer == 'adadelta':
         learning_rate = 0.001
         if 'learning_rate' in optimization.keys():
-            leanring_rate = optimization['learning_rate']
+            learning_rate = optimization['learning_rate']
         rho = 0.95
         if 'rho' in optimization.keys():
             rho = optimization['rho']
@@ -127,7 +127,7 @@ def build_updates(optimization):
     elif optimizer == 'adagrad':
         learning_rate = 0.001
         if 'learning_rate' in optimization.keys():
-            leanring_rate = optimization['learning_rate']
+            learning_rate = optimization['learning_rate']
         initial_accumulator_value = 0.95
         if 'initial_accumulator_value' in optimization.keys():
             initial_accumulator_value = optimization['initial_accumulator_value']
@@ -180,7 +180,6 @@ def cost_function(network, targets, optimization):
         else:
             loss = -objectives.binary_cross_entropy(targets, predictions)
 
-
     elif objective == 'categorical':
 
         if label_smoothing > 0:
@@ -192,12 +191,10 @@ def cost_function(network, targets, optimization):
         predictions = network['output'].get_output()
         loss = -objectives.categorical_cross_entropy(targets, predictions)
 
-
     elif objective == 'squared_error':
 
         predictions = network['output'].get_output()
         loss = objectives.squared_error(targets, predictions)
-
 
     elif objective == 'categorical2D':
 
@@ -207,7 +204,6 @@ def cost_function(network, targets, optimization):
             predictions = network['X'].get_output()
 
         loss = -objectives.categorical_cross_entropy2D(targets, predictions, optimization['softmax_shape'])
-
 
     elif objective == 'elbo_gaussian_gaussian':
 
@@ -222,7 +218,6 @@ def cost_function(network, targets, optimization):
         Z_logvar = network['Z_logvar'].get_output()
 
         loss = -objectives.elbo_gaussian_gaussian(targets, X, X_logvar, Z_mu, Z_logvar, KL_weight=KL_weight)
-
 
     elif objective == 'elbo_gaussian_binary':
 
@@ -239,7 +234,6 @@ def cost_function(network, targets, optimization):
         Z_logvar = network['Z_logvar'].get_output()
 
         loss = -objectives.elbo_gaussian_binary(targets, X, Z_mu, Z_logvar, KL_weight=KL_weight)
-
 
     elif objective == 'elbo_gaussian_softmax':
 
@@ -261,7 +255,6 @@ def cost_function(network, targets, optimization):
         loss = -objectives.elbo_gaussian_softmax(targets, X, Z_mu, Z_logvar, optimization['softmax_shape'],
                                                  KL_weight=KL_weight)
 
-
     elif objective == 'elbo_softmax_normal':
 
         if 'KL_weight' in optimization:
@@ -273,7 +266,6 @@ def cost_function(network, targets, optimization):
         Z = network['Z'].get_output()
 
         loss = -objectives.elbo_softmax_normal(targets, X, Z, optimization['Z_shape'], KL_weight=KL_weight)
-
 
     elif objective == 'elbo_softmax_binary':
 
@@ -289,7 +281,6 @@ def cost_function(network, targets, optimization):
         Z = network['Z'].get_output()
 
         loss = -objectives.elbo_softmax_binary(targets, X, Z, optimization['Z_shape'], KL_weight=KL_weight)
-
 
     elif objective == 'elbo_softmax_softmax':
 
