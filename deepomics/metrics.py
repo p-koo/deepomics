@@ -1,6 +1,7 @@
 import numpy as np
 from scipy import stats
 from sklearn.metrics import roc_curve, auc, precision_recall_curve, accuracy_score
+from sklearn.preprocessing import OneHotEncoder
 
 __all__ = [
     "pearsonr",
@@ -32,9 +33,9 @@ def rsquare(label, prediction):
         y = label
         X = prediction
         m = np.dot(X, y) / np.dot(X, X)
-        resid = y - m * X;
-        ym = y - np.mean(y);
-        rsqr2 = 1 - np.dot(resid.T, resid) / np.dot(ym.T, ym);
+        resid = y - m * X
+        ym = y - np.mean(y)
+        rsqr2 = 1 - np.dot(resid.T, resid) / np.dot(ym.T, ym)
         metric = [rsqr2]
         slope = [m]
     else:
@@ -45,9 +46,9 @@ def rsquare(label, prediction):
             y = label[:, i]
             X = prediction[:, i]
             m = np.dot(X, y) / np.dot(X, X)
-            resid = y - m * X;
-            ym = y - np.mean(y);
-            rsqr2 = 1 - np.dot(resid.T, resid) / np.dot(ym.T, ym);
+            resid = y - m * X
+            ym = y - np.mean(y)
+            rsqr2 = 1 - np.dot(resid.T, resid) / np.dot(ym.T, ym)
             metric.append(rsqr2)
             slope.append(m)
     return metric, slope
@@ -109,7 +110,7 @@ def calculate_metrics(label, prediction, objective):
     if (objective == "binary") | (objective == 'hinge'):
         ndim = np.ndim(label)
         if ndim == 1:
-            label = one_hot_labels(label)
+            label = OneHotEncoder().fit_transform(label)
         correct = accuracy(label, prediction)
         auc_roc, roc_curves = roc(label, prediction)
         auc_pr, pr_curves = pr(label, prediction)

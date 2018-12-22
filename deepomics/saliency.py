@@ -37,7 +37,7 @@ def backprop(X, layer='output', class_index=None, params=None):
 
         saliency = []
         for neuron_index in active_indices:
-            val = get_saliency(sess, X, nnmodel.network[layer], class_index=neuron_index, batch_size=128)
+            val = nntrainer.get_saliency(sess, X, nnmodel.network[layer], class_index=neuron_index, batch_size=128)
             saliency.append(val)
 
     sess.close()

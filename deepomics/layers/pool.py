@@ -18,9 +18,6 @@ class GlobalPoolLayer(BaseLayer):
 
         self.incoming_shape = incoming.get_output_shape()
 
-        # self.output = tf.nn.global_pool(incoming.get_output(),
-        #								func=func,
-        #								**kwargs)
         pool_size = [1, self.incoming_shape[1], self.incoming_shape[2], 1]
         strides = [1, self.incoming_shape[1], self.incoming_shape[2], 1]
         padding = 'SAME'
@@ -198,8 +195,8 @@ class Upsample1DLayer(BaseLayer):
         self.output_shape = tf.stack(
             [self.incoming_shape[0], self.incoming_shape[1] * pool_size, self.incoming_shape[2],
              self.incoming_shape[3]])
-
-        self.output = tf.image.resize_images(input_tensor, self.output_shape)
+        raise NotImplementedError("Next line will die, input_tensor not defined")  # FIXME
+        self.output = tf.image.resize_images("input_tensor", self.output_shape)
 
     def get_input_shape(self):
         return self.incoming_shape
@@ -217,8 +214,8 @@ class Upsample2DLayer(BaseLayer):
         self.output_shape = tf.stack(
             [self.incoming_shape[0], self.incoming_shape[1] * pool_size, self.incoming_shape[2] * pool_size,
              self.incoming_shape[3]])
-
-        self.output = tf.image.resize_images(input_tensor, self.output_shape)
+        raise NotImplementedError("Next line will die, input tensor not defined")  # FIXME
+        self.output = tf.image.resize_images("input_tensor", self.output_shape)
 
     def get_input_shape(self):
         return self.incoming_shape

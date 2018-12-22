@@ -202,4 +202,4 @@ class Orthogonal(Initializer):
         # pick the one with the correct shape
         q = u if u.shape == flat_shape else v
         q = q.reshape(shape)
-        return tf.cast(self.gain * q[:shape[0], :shape[1]], dtype=dtype)
+        return tf.cast(self.gain * q[:shape[0], :shape[1]], dtype=q.dtype)

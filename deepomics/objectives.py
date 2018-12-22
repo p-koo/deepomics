@@ -110,7 +110,6 @@ def elbo_softmax_normal(targets, X, Z, Z_shape, KL_weight=None):
 
     # calculate reconstructed likelihood
     log_likelihood = -tf.reduce_sum(tf.square(targets - X), axis=get_reduce_axis(targets))
-    # log_likelihood = tf.reduce_sum(const - 0.5*X_logvar - 0.5*tf.divide(tf.square(targets-X_mu),tf.exp(X_logvar)), axis=1)
 
     if KL_weight is None:
         KL_weight = 1.0

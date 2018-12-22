@@ -95,8 +95,6 @@ class CategoricalSampleLayer(BaseLayer):
         self.output = gumbel_softmax_sample(incoming_reshape, temperature)
 
         if self.hard:
-            k = tf.shape(self.output)[-1]
-            # y_hard = tf.cast(tf.one_hot(tf.argmax(y,1),k), y.dtype)
             y_hard = tf.cast(tf.equal(self.output, tf.reduce_max(self.output, 1, keep_dims=True)), self.output.dtype)
             self.output = tf.stop_gradient(y_hard - self.output) + self.output
 

@@ -5,8 +5,9 @@ import time
 
 import numpy as np
 import tensorflow as tf
-from deepomics import optimize, metrics
 from six.moves import cPickle
+
+from deepomics import optimize, metrics
 
 __all__ = [
     "NeuralNet",
@@ -287,7 +288,7 @@ class NeuralTrainer():
         self.train_feed[self.placeholders[key]] = value
         if 'keep_prob' in key:
             self.test_feed[self.placeholders[key]] = 1.0
-            self.stochastic_feed[self.placeholders[key]] = self.train_feed[placeholders[key]]
+            self.stochastic_feed[self.placeholders[key]] = self.train_feed[self.placeholders[key]]
         if key == 'is_training':
             self.test_feed[self.placeholders[key]] = False
             self.stochastic_feed[self.placeholders[key]] = False
@@ -342,7 +343,6 @@ class NeuralTrainer():
         batch_generator = BatchGenerator(num_data, batch_size, shuffle)
         num_batches = batch_generator.get_num_batches()
 
-        value = 0
         metric = 0
         for i in range(num_batches):
             self.train_feed = batch_generator.next_minibatch(data, self.train_feed, self.placeholders)
@@ -594,20 +594,20 @@ class MonitorPerformance():
             progress = '=' * int(round(percent * bar_length))
             spaces = ' ' * int(bar_length - round(percent * bar_length))
             if (self.objective == "binary") | (self.objective == "categorical"):
-                sys.stdout.write("\r[%s] %.1f%% -- remaining time=%ds -- loss=%.5f -- accuracy=%.2f%%  " \
-                                 % (
-                                 progress + spaces, percent * 100, remaining_time, self.get_mean_loss(), value * 100))
-            else:  # (self.objective == 'squared_error') | (self.objective == 'elbo_gaussian')| (self.objective == 'elbo_binary'):
-                sys.stdout.write("\r[%s] %.1f%% -- remaining time=%ds -- loss=%.5f" \
+                sys.stdout.write("\r[%s] %.1f%% -- remaining time=%ds -- loss=%.5f -- accuracy=%.2f%%  "
+                                 % (progress + spaces, percent * 100, remaining_time,
+                                    self.get_mean_loss(), value * 100))
+            else:
+                sys.stdout.write("\r[%s] %.1f%% -- remaining time=%ds -- loss=%.5f"
                                  % (progress + spaces, percent * 100, remaining_time, self.get_mean_loss()))
 
             if epoch == num_batches:
                 if (self.objective == "binary") | (self.objective == "categorical"):
-                    sys.stdout.write("\r[%s] %.1f%% -- elapsed time=%.2fs -- loss=%.5f -- acc=%.5f\n" \
+                    sys.stdout.write("\r[%s] %.1f%% -- elapsed time=%.2fs -- loss=%.5f -- acc=%.5f\n"
                                      % (progress + spaces, percent * 100, time.time() - self.start_time,
                                         self.get_mean_loss(), value * 100))
-                else:  # (self.objective == 'squared_error') | (self.objective == 'elbo_gaussian')| (self.objective == 'elbo_binary'):
-                    sys.stdout.write("\r[%s] %.1f%% -- elapsed time=%ds -- loss=%.5f" \
+                else:
+                    sys.stdout.write("\r[%s] %.1f%% -- elapsed time=%ds -- loss=%.5f"
                                      % (progress + spaces, percent * 100, time.time() - self.start_time,
                                         self.get_mean_loss()))
             sys.stdout.flush()
@@ -645,7 +645,7 @@ class BatchGenerator():
         if batch_size is None:
             batch_size = self.batch_size
 
-        if shuffle == True:
+        if shuffle is True:
             index = np.random.permutation(self.num_data)
         else:
             index = range(self.num_data)

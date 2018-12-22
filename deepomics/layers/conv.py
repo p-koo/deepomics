@@ -58,9 +58,11 @@ class Conv1DLayer(BaseLayer):
             self.b = []
         else:
             if not b:
-                self.b = Variable(var=init.Constant(0.05, kwargs), shape=[num_units])
+                raise NotImplementedError("FIXME, next line would not work if you called me")
+                # self.b = Variable(var=init.Constant(0.05, kwargs), shape=[num_units])
             else:
-                self.b = Variable(var=b, shape=[num_units], **kwargs)
+                raise NotImplementedError("FIXME, next line would not work if you called me")
+                # self.b = Variable(var=b, shape=[num_units], **kwargs)
             self.output = tf.nn.bias_add(self.output, self.b.get_variable())
 
         # shape of the output
@@ -219,11 +221,11 @@ class TransposeConv1DLayer(BaseLayer):
         # input data shape
         inputs_shape = incoming.get_output_shape().as_list()  # array_ops.shape(Z_reshape)
         height, dim = inputs_shape[1], inputs_shape[3]
-
+        raise NotImplementedError("ERROR next line will not work, fixme.")
         out_height = deconv_output_length(height,
-                                          kernel_h,
+                                          "kernel_h",  # undefined variable, FIXME
                                           self.padding,
-                                          stride)
+                                          self.strides)
 
         batch_size = tf.shape(incoming.get_output())[0]
 
@@ -454,13 +456,13 @@ class StochasticConv2DLayer(BaseLayer):
             self.shape = [filter_size[0], filter_size[1], dim, num_filters]
 
         if not W:
-            self.W_mu = Variable(var=init.HeUniform(), shape=shape)
-            self.W_sigma = Variable(var=init.HeUniform(), shape=shape)
+            self.W_mu = Variable(var=init.HeUniform(), shape=self.shape)
+            self.W_sigma = Variable(var=init.HeUniform(), shape=self.shape)
         else:
-            self.W_mu = Variable(var=W, shape=shape)
-            self.W_sigma = Variable(var=W, shape=shape)
+            self.W_mu = Variable(var=W, shape=self.shape)
+            self.W_sigma = Variable(var=W, shape=self.shape)
 
-        z = tf.random_normal(shape=shape, mean=0.0, stddev=1.0, dtype=tf.float32)
+        z = tf.random_normal(shape=self.shape, mean=0.0, stddev=1.0, dtype=tf.float32)
         self.W = self.W_mu.get_variable() + tf.multiply(tf.exp(0.5 * self.W_sigma.get_variable()), z)
 
         if not strides:

@@ -4,12 +4,12 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import rcParams
-
-rcParams.update({'figure.autolayout': True})
 from scipy.misc import imresize
 from .utils import normalize_pwm
 import matplotlib.image as mpimg
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+rcParams.update({'figure.autolayout': True})
 
 
 def plot_roc_all(final_roc):
@@ -131,10 +131,10 @@ def filter_heatmap(W, norm=True, cmap='hot_r', cbar_norm=True):
 
     # plt.axis('off');
     ax = plt.gca()
-    ax.set_xticks(np.arange(-.5, W.shape[1], 1.), minor=True);
-    ax.set_yticks(np.arange(-.5, W.shape[0], 1.), minor=True);
+    ax.set_xticks(np.arange(-.5, W.shape[1], 1.), minor=True)
+    ax.set_yticks(np.arange(-.5, W.shape[0], 1.), minor=True)
     ax.grid(which='minor', color='k', linestyle='-', linewidth=2)
-    plt.xticks([]);
+    plt.xticks([])
     if W.shape[0] == 4:
         plt.yticks([0, 1, 2, 3], ['A', 'C', 'G', 'U'], fontsize=16)
     else:
@@ -159,14 +159,14 @@ def plot_filter_logos(W, figsize=(10, 7), height=25, nt_width=10, norm=0, alphab
         num_cols = int(np.ceil(num_filters // num_rows))
     grid = mpl.gridspec.GridSpec(num_rows, num_cols)
     grid.update(wspace=0.2, hspace=0.2, left=0.1, right=0.2, bottom=0.1, top=0.2)
-    fig = plt.figure(figsize=figsize);
+    fig = plt.figure(figsize=figsize)
     if norm:
         MAX = np.max(W)
     else:
         MAX = None
 
     for i in range(num_filters):
-        plt.subplot(grid[i]);
+        plt.subplot(grid[i])
         if norm_factor:
             W_norm = normalize_pwm(W[i], factor=norm_factor, max=MAX)
         else:
@@ -184,7 +184,6 @@ def plot_seq_logo(logo, nt_width=None, step_multiple=None):
         num_nt = logo.shape[1] / nt_width
         if step_multiple:
             step_size = int(num_nt / (step_multiple + 1))
-            nt_range = range(step_size, step_size * step_multiple)
             plt.xticks(
                 [step_size * nt_width, step_size * 2 * nt_width, step_size * 3 * nt_width, step_size * 4 * nt_width],
                 [str(step_size), str(step_size * 2), str(step_size * 3), str(step_size * 4)])
@@ -198,7 +197,7 @@ def plot_seq_logo(logo, nt_width=None, step_multiple=None):
         ax.xaxis.set_ticks_position('none')
     else:
         plt.imshow(logo, interpolation='none')
-        plt.axis('off');
+        plt.axis('off')
 
 
 def plot_seq_struct_saliency(X, W, nt_width=100, norm_factor=3):
@@ -249,7 +248,7 @@ def plot_seq_struct_saliency(X, W, nt_width=100, norm_factor=3):
 
     # plot logo image
     plt.imshow(logo_img)
-    plt.axis('off');
+    plt.axis('off')
 
 
 def plot_pos_saliency(W, height=500, nt_width=100, alphabet='dna', norm_factor=3, colormap='standard'):
@@ -271,7 +270,7 @@ def plot_pos_saliency(W, height=500, nt_width=100, alphabet='dna', norm_factor=3
 
     # plot logo image
     plt.imshow(logo)
-    plt.axis('off');
+    plt.axis('off')
 
 
 def plot_seq_pos_saliency(X, W, nt_width=100, alphabet='dna', norm_factor=3, colormap='standard'):
@@ -304,7 +303,7 @@ def plot_seq_pos_saliency(X, W, nt_width=100, alphabet='dna', norm_factor=3, col
 
     # plot logo image
     plt.imshow(logo_img)
-    plt.axis('off');
+    plt.axis('off')
 
 
 def plot_neg_saliency(W, height=500, nt_width=100, alphabet='dna', norm_factor=3, colormap='standard'):
@@ -373,7 +372,7 @@ def plot_neg_saliency(W, height=500, nt_width=100, alphabet='dna', norm_factor=3
 
     # plot logo image
     plt.imshow(logo_img)
-    plt.axis('off');
+    plt.axis('off')
 
 
 def plot_seq_neg_saliency(X, W, height=500, nt_width=100, alphabet='dna', norm_factor=3, colormap='standard'):
@@ -456,7 +455,7 @@ def plot_seq_neg_saliency(X, W, height=500, nt_width=100, alphabet='dna', norm_f
 
     # plot logo image
     plt.imshow(logo_img)
-    plt.axis('off');
+    plt.axis('off')
 
 
 # ------------------------------------------------------------------------------------------------
@@ -529,9 +528,7 @@ def load_alphabet(char_path, alphabet, colormap='standard'):
         for i, char in enumerate(letters):
             chars.append(load_char(char_path, char, colors[i]))
 
-
     elif alphabet == 'structure':  # structural profile
-
         letters = 'PHIME'
         if colormap == 'standard':
             colors = ['blue', 'green', 'orange', 'red', 'cyan']
@@ -564,16 +561,16 @@ def seq_logo(pwm, height=30, nt_width=10, norm=0, alphabet='dna', colormap='stan
             return s
 
         num_nt, num_seq = pwm.shape
-        heights = np.zeros((num_nt, num_seq));
+        heights = np.zeros((num_nt, num_seq))
         for i in range(num_seq):
             if norm == 1:
                 total_height = height
             else:
-                total_height = (np.log2(num_nt) - entropy(pwm[:, i])) * height;
+                total_height = (np.log2(num_nt) - entropy(pwm[:, i])) * height
             if alphabet == 'pu':
-                heights[:, i] = np.floor(pwm[:, i] * np.minimum(total_height, height));
+                heights[:, i] = np.floor(pwm[:, i] * np.minimum(total_height, height))
             else:
-                heights[:, i] = np.floor(pwm[:, i] * np.minimum(total_height, height * 2));
+                heights[:, i] = np.floor(pwm[:, i] * np.minimum(total_height, height * 2))
 
         return heights.astype(int)
 
@@ -594,11 +591,11 @@ def seq_logo(pwm, height=30, nt_width=10, norm=0, alphabet='dna', colormap='stan
     else:
         max_height = height * 2
     # total_height = np.sum(heights,axis=0) # np.minimum(np.sum(heights,axis=0), max_height)
-    logo = np.ones((max_height, width, 3)).astype(int) * 255;
+    logo = np.ones((max_height, width, 3)).astype(int) * 255
     for i in range(num_seq):
-        nt_height = np.sort(heights[:, i]);
+        nt_height = np.sort(heights[:, i])
         index = np.argsort(heights[:, i])
-        remaining_height = np.sum(heights[:, i]);
+        remaining_height = np.sum(heights[:, i])
         offset = max_height - remaining_height
 
         for j in range(num_nt):
@@ -614,7 +611,7 @@ def seq_logo(pwm, height=30, nt_width=10, norm=0, alphabet='dna', colormap='stan
                 if height_range:
                     for k in range(3):
                         for m in range(len(width_range)):
-                            logo[height_range + offset, width_range[m], k] = nt_img[:, m, k];
+                            logo[height_range + offset, width_range[m], k] = nt_img[:, m, k]
 
                 remaining_height -= nt_height[j]
 
@@ -632,16 +629,16 @@ def seq_logo_reverse(pwm, height=30, nt_width=10, norm=0, alphabet='dna', colorm
             return s
 
         num_nt, num_seq = pwm.shape
-        heights = np.zeros((num_nt, num_seq));
+        heights = np.zeros((num_nt, num_seq))
         for i in range(num_seq):
             if norm == 1:
                 total_height = height
             else:
-                total_height = (np.log2(num_nt) - entropy(pwm[:, i])) * height;
+                total_height = (np.log2(num_nt) - entropy(pwm[:, i])) * height
             if alphabet == 'pu':
-                heights[:, i] = np.floor(pwm[:, i] * np.minimum(total_height, height));
+                heights[:, i] = np.floor(pwm[:, i] * np.minimum(total_height, height))
             else:
-                heights[:, i] = np.floor(pwm[:, i] * np.minimum(total_height, height * 2));
+                heights[:, i] = np.floor(pwm[:, i] * np.minimum(total_height, height * 2))
 
         return heights.astype(int)
 
@@ -662,7 +659,7 @@ def seq_logo_reverse(pwm, height=30, nt_width=10, norm=0, alphabet='dna', colorm
     else:
         max_height = height * 2
     # total_height = np.sum(heights,axis=0) # np.minimum(np.sum(heights,axis=0), max_height)
-    logo = np.ones((max_height, width, 3)).astype(int) * 255;
+    logo = np.ones((max_height, width, 3)).astype(int) * 255
     for i in range(num_seq):
         nt_height = np.sort(heights[:, i])
         index = np.argsort(heights[:, i])
@@ -681,7 +678,7 @@ def seq_logo_reverse(pwm, height=30, nt_width=10, norm=0, alphabet='dna', colorm
                 if height_range:
                     for k in range(3):
                         for m in range(len(width_range)):
-                            logo[height_range, width_range[m], k] = nt_img[:, m, k];
+                            logo[height_range, width_range[m], k] = nt_img[:, m, k]
 
                 remaining_height += nt_height[j]
     return logo.astype(np.uint8)

@@ -26,33 +26,33 @@ def train_minibatch(sess, nntrainer, data, batch_size=128, num_epochs=500,
                 sys.stdout.write("\rEpoch %d out of %d \n" % (epoch + 1, num_epochs))
 
         # training set
-        train_loss = nntrainer.train_epoch(sess, data['train'],
-                                           batch_size=batch_size,
-                                           verbose=verbose,
-                                           shuffle=shuffle)
+        nntrainer.train_epoch(sess, data['train'],
+                              batch_size=batch_size,
+                              verbose=verbose,
+                              shuffle=shuffle)
 
         # test current model with cross-validation data and store results
         if save_all:
             # save training metrics
-            loss, mean_vals, error_vals = nntrainer.test_model(sess, data['train'],
-                                                               name="train",
-                                                               batch_size=batch_size,
-                                                               verbose=verbose)
+            nntrainer.test_model(sess, data['train'],
+                                 name="train",
+                                 batch_size=batch_size,
+                                 verbose=verbose)
 
             # save test metrics
             if 'test' in data.keys():
-                loss, mean_vals, error_vals = nntrainer.test_model(sess, data['test'],
-                                                                   name="test",
-                                                                   batch_size=batch_size,
-                                                                   verbose=verbose)
+                nntrainer.test_model(sess, data['test'],
+                                     name="test",
+                                     batch_size=batch_size,
+                                     verbose=verbose)
 
         # test current model with cross-validation data and store results
         if 'valid' in data.keys():
             # save cross-validcation metrics
-            loss, mean_vals, error_vals = nntrainer.test_model(sess, data['valid'],
-                                                               name="valid",
-                                                               batch_size=batch_size,
-                                                               verbose=verbose)
+            loss, _, _ = nntrainer.test_model(sess, data['valid'],
+                                              name="valid",
+                                              batch_size=batch_size,
+                                              verbose=verbose)
             # save model
             nntrainer.save_model(sess)
 
@@ -83,33 +83,33 @@ def train_decay_learning_rate(sess, nntrainer, data, learning_rate=0.01, decay_r
         nntrainer.update_feed_dict(nntrainer.nnmodel.placeholders, nntrainer.nnmodel.feed_dict)
 
         # training set
-        train_loss = nntrainer.train_epoch(sess, data['train'],
-                                           batch_size=batch_size,
-                                           verbose=verbose,
-                                           shuffle=shuffle)
+        nntrainer.train_epoch(sess, data['train'],
+                              batch_size=batch_size,
+                              verbose=verbose,
+                              shuffle=shuffle)
 
         # test current model with cross-validation data and store results
         if save_all:
             # save training metrics
-            loss, mean_vals, error_vals = nntrainer.test_model(sess, data['train'],
-                                                               name="train",
-                                                               batch_size=batch_size,
-                                                               verbose=verbose)
+            nntrainer.test_model(sess, data['train'],
+                                 name="train",
+                                 batch_size=batch_size,
+                                 verbose=verbose)
 
             # save test metrics
             if 'test' in data.keys():
-                loss, mean_vals, error_vals = nntrainer.test_model(sess, data['test'],
-                                                                   name="test",
-                                                                   batch_size=batch_size,
-                                                                   verbose=verbose)
+                nntrainer.test_model(sess, data['test'],
+                                     name="test",
+                                     batch_size=batch_size,
+                                     verbose=verbose)
 
         # test current model with cross-validation data and store results
         if 'valid' in data.keys():
             # save cross-validcation metrics
-            loss, mean_vals, error_vals = nntrainer.test_model(sess, data['valid'],
-                                                               name="valid",
-                                                               batch_size=batch_size,
-                                                               verbose=verbose)
+            loss, _, _ = nntrainer.test_model(sess, data['valid'],
+                                              name="valid",
+                                              batch_size=batch_size,
+                                              verbose=verbose)
 
             # save model
             nntrainer.save_model(sess)
@@ -147,33 +147,33 @@ def train_anneal_batch_size(sess, nntrainer, data, batch_schedule, num_epochs=50
             batch_size = batch_schedule[epoch]
 
         # training set
-        train_loss = nntrainer.train_epoch(sess, data['train'],
-                                           batch_size=batch_size,
-                                           verbose=verbose,
-                                           shuffle=shuffle)
+        nntrainer.train_epoch(sess, data['train'],
+                              batch_size=batch_size,
+                              verbose=verbose,
+                              shuffle=shuffle)
 
         # test current model with cross-validation data and store results
         if save_all:
             # save training metrics
-            loss, mean_vals, error_vals = nntrainer.test_model(sess, data['valid'],
-                                                               name="valid",
-                                                               batch_size=batch_size,
-                                                               verbose=verbose)
+            nntrainer.test_model(sess, data['valid'],
+                                 name="valid",
+                                 batch_size=batch_size,
+                                 verbose=verbose)
 
             # save test metrics
             if 'test' in data.keys():
-                loss, mean_vals, error_vals = nntrainer.test_model(sess, data['test'],
-                                                                   name="test",
-                                                                   batch_size=batch_size,
-                                                                   verbose=verbose)
+                nntrainer.test_model(sess, data['test'],
+                                     name="test",
+                                     batch_size=batch_size,
+                                     verbose=verbose)
 
         # test current model with cross-validation data and store results
         if 'valid' in data.keys():
             # save cross-validcation metrics
-            loss, mean_vals, error_vals = nntrainer.test_model(sess, data['valid'],
-                                                               name="valid",
-                                                               batch_size=batch_size,
-                                                               verbose=verbose)
+            loss, _, _ = nntrainer.test_model(sess, data['valid'],
+                                              name="valid",
+                                              batch_size=batch_size,
+                                              verbose=verbose)
 
             # save model
             nntrainer.save_model(sess)
@@ -210,33 +210,33 @@ def train_anneal_learning_rate(sess, nntrainer, data, learning_rate_schedule, ba
             nntrainer.placeholders['learning_rate'] = np.float32(learning_rate_schedule[epoch])
 
         # training set
-        train_loss = nntrainer.train_epoch(sess, data['train'],
-                                           batch_size=batch_size,
-                                           verbose=verbose,
-                                           shuffle=shuffle)
+        nntrainer.train_epoch(sess, data['train'],
+                              batch_size=batch_size,
+                              verbose=verbose,
+                              shuffle=shuffle)
 
         if save_all:
             # save training metrics
-            loss, mean_vals, error_vals = nntrainer.test_model(sess, data['train'],
-                                                               name="train",
-                                                               batch_size=batch_size,
-                                                               verbose=verbose)
+            nntrainer.test_model(sess, data['train'],
+                                 name="train",
+                                 batch_size=batch_size,
+                                 verbose=verbose)
 
             # save test metrics
             if 'test' in data.keys():
-                loss, mean_vals, error_vals = nntrainer.test_model(sess, data['test'],
-                                                                   name="test",
-                                                                   batch_size=batch_size,
-                                                                   verbose=verbose)
+                nntrainer.test_model(sess, data['test'],
+                                     name="test",
+                                     batch_size=batch_size,
+                                     verbose=verbose)
 
         # test current model with cross-validation data and store results
         if 'valid' in data.keys():
 
             # save cross-validcation metrics
-            loss, mean_vals, error_vals = nntrainer.test_model(sess, data['valid'],
-                                                               name="valid",
-                                                               batch_size=batch_size,
-                                                               verbose=verbose)
+            loss, _, _ = nntrainer.test_model(sess, data['valid'],
+                                              name="valid",
+                                              batch_size=batch_size,
+                                              verbose=verbose)
 
             # save model
             nntrainer.save_model(sess)
@@ -280,33 +280,33 @@ def train_kl_annealing(sess, nntrainer, data, annealing_rate=None, batch_size=12
         nntrainer.update_feed_dict('KL_weight', weight)
 
         # training set
-        train_loss = nntrainer.train_epoch(sess, data['train'],
-                                           batch_size=batch_size,
-                                           verbose=verbose,
-                                           shuffle=shuffle)
+        nntrainer.train_epoch(sess, data['train'],
+                              batch_size=batch_size,
+                              verbose=verbose,
+                              shuffle=shuffle)
 
         if save_all:
             # save training metrics
-            loss, mean_vals, error_vals = nntrainer.test_model(sess, data['train'],
-                                                               name="train",
-                                                               batch_size=batch_size,
-                                                               verbose=verbose)
+            nntrainer.test_model(sess, data['train'],
+                                 name="train",
+                                 batch_size=batch_size,
+                                 verbose=verbose)
 
             # save test metrics
             if 'test' in data.keys():
-                loss, mean_vals, error_vals = nntrainer.test_model(sess, data['test'],
-                                                                   name="test",
-                                                                   batch_size=batch_size,
-                                                                   verbose=verbose)
+                nntrainer.test_model(sess, data['test'],
+                                     name="test",
+                                     batch_size=batch_size,
+                                     verbose=verbose)
 
         # test current model with cross-validation data and store results
         if 'valid' in data.keys():
 
             # save cross-validcation metrics
-            loss, mean_vals, error_vals = nntrainer.test_model(sess, data['valid'],
-                                                               name="valid",
-                                                               batch_size=batch_size,
-                                                               verbose=verbose)
+            loss, _, _ = nntrainer.test_model(sess, data['valid'],
+                                              name="valid",
+                                              batch_size=batch_size,
+                                              verbose=verbose)
 
             # save model
             nntrainer.save_model(sess)

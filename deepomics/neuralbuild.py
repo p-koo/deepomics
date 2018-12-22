@@ -81,7 +81,7 @@ class NeuralBuild():
                 if (model_layer['layer'] == 'dense') | (model_layer['layer'] == 'conv1d') | (
                         model_layer['layer'] == 'conv2d'):
                     if 'b' in model_layer:
-                        if model_layer['b'] != None:
+                        if model_layer['b'] is not None:
                             b = init.Constant(0.05)
                             new_layer = name + '_bias'
                             self.network[new_layer] = layers.BiasLayer(self.network[self.last_layer], b=b)
@@ -93,7 +93,7 @@ class NeuralBuild():
                         self.last_layer = new_layer
                 else:
                     if 'b' in model_layer:
-                        if model_layer['b'] != None:
+                        if model_layer['b'] is not None:
                             b = init.Constant(0.05)
                             new_layer = name + '_bias'
                             self.network[new_layer] = layers.BiasLayer(self.network[self.last_layer], b=b)
@@ -172,7 +172,6 @@ class NeuralBuild():
 
         # input layer
         if model_layer['layer'] == 'input':
-            input_shape = str(model_layer['input_shape'])
             inputs = utils.placeholder(shape=model_layer['input_shape'], name=name)
             self.network[name] = layers.InputLayer(inputs)
             self.placeholders[name] = inputs

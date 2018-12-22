@@ -228,7 +228,8 @@ class StochasticBiasLayer(BaseLayer):
         else:
             self.b_mu = Variable(var=b, shape=[num_units], **kwargs)
             self.b_sigma = Variable(var=b, shape=[num_units], **kwargs)
-        z = tf.random_normal(shape=shape, mean=0.0, stddev=1.0, dtype=tf.float32)
+        raise NotImplementedError("Next line will die, shape not defined")  # FIXME
+        z = tf.random_normal(shape="shape", mean=0.0, stddev=1.0, dtype=tf.float32)
         self.b = self.b_mu.get_variable() + tf.multiply(tf.exp(0.5 * self.b_sigma.get_variable()), z)
 
         self.output = tf.nn.bias_add(incoming.get_output(), self.b)
