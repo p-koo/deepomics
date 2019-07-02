@@ -324,10 +324,8 @@ def activation(z, function='relu', **kwargs):
 	elif function == 'prelu':
 		output = tf.nn.relu(z) - kwargs['alpha']*tf.nn.relu(-z)
 
-	elif function == 'cdf':
-		softmax = tf.nn.softmax(z)
-		output = tf.cumsum(softmax, axis=1)
-
+	elif function == 'exp':
+		output = tf.exp(z)
 	return output
 
 
