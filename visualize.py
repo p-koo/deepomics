@@ -51,58 +51,73 @@ def plot_pr_all(final_pr):
 	return fig
 
 
-def activation_pwm(fmap, X, threshold, window):
 
-	# find regions above threshold
-	x, y = np.where(fmap > threshold)
+def activation_pwm(fmap, X, threshold=0.5, window=20):
 
-	# sort score
-	index = np.argsort(fmap[x,y])[-1:0:-1]
-	data_index = x[index].astype(int)
-	pos_index = y[index].astype(int)
-	activation = fmap[data_index, pos_index]
+    # extract sequences with aligned activation
+    window_left = int(window/2)
+    window_right = window - window_left
 
-	# extract sequences with aligned activation
-	seq_align = []
-	window = int(window/2)
-	num_dims = X.shape[2]
-	count_matrix = np.zeros((window*2, num_dims))
+    N,seq_length,_,num_dims = X.shape
+    num_filters = fmap.shape[-1]
 
-	for i in range(len(pos_index)):
+    W = []
+    for filter_index in range(num_filters):
 
-		start_window = pos_index[i] - window
-		if start_window < 0:
-			start_buffer = np.zeros((-start_window, num_dims))
-			start = 0
-		else:
-			start = start_window
+       # find regions above threshold
+       x, y = np.where(fmap[:,:,0,filter_index] > np.max(fmap[:,:,0,filter_index])*threshold)
 
-		end_window = pos_index[i] + window
-		end_remainder = end_window - fmap.shape[1]
-		if end_remainder > 0:
-			end = fmap.shape[1]
-			end_buffer = np.zeros((end_remainder, num_dims))
-		else:
-			end = end_window
+       # sort score
+       index = np.argsort(fmap[x,y,0,filter_index])[::-1]
+       data_index = x[index].astype(int)
+       pos_index = y[index].astype(int)
+       activation = fmap[data_index, pos_index, 0, filter_index]
 
-		seq = X[data_index[i], start:end, :]*activation[i]
-		counts = np.ones(seq.shape)*activation[i]
 
-		if start_window < 0:
-			seq = np.vstack([start_buffer, seq])
-			counts = np.vstack([start_buffer, counts])
-		if end_remainder > 0:
-			seq = np.vstack([seq, end_buffer])
-			counts = np.vstack([counts, end_buffer])
+       seq_align = []
+       count_matrix = []
+       for i in range(len(pos_index)):
 
-		seq_align.append(seq)
-		count_matrix += counts
-	seq_align = np.array(seq_align)
+           # handle boundary conditions at start
+           start_window = pos_index[i] - window_left
+           if start_window < 0:
+               start_buffer = np.zeros((-start_window, num_dims))
+               start = 0
+           else:
+               start = start_window
 
-	seq_align = np.sum(seq_align, axis=0)/count_matrix
-	seq_align[np.isnan(seq_align)] = 0
+           # handle boundary conditions at end 
+           end_window = pos_index[i] + window_right
+           end_remainder = end_window - seq_length
+           if end_remainder > 0:
+               end = seq_length
+               end_buffer = np.zeros((end_remainder, num_dims))
+           else:
+               end = end_window
 
-	return seq_align
+           seq = X[data_index[i], start:end, 0, :]
+
+           if start_window < 0:
+               seq = np.vstack([start_buffer, seq])
+           if end_remainder > 0:
+               seq = np.vstack([seq, end_buffer])
+
+           weight = fmap[data_index[i],pos_index[i],0,filter_index]
+           seq_align.append(seq*weight)
+           count_matrix.append(np.sum(seq, axis=1, keepdims=True)*weight)
+
+       seq_align = np.array(seq_align)
+       count_matrix = np.array(count_matrix)
+
+       # normalize counts
+       seq_align = np.sum(seq_align, axis=0)/np.sum(count_matrix, axis=0)*np.ones((window,4))
+       seq_align[np.isnan(seq_align)] = 0
+       W.append(seq_align)
+    W = np.expand_dims(np.transpose(np.array(W),[1,2,0]), axis=1)
+
+    return W
+
+
 
 def generate_pwm(sess, nntrainer, X, guided_saliency, window=6, layer='conv1d_0_active'):
 
