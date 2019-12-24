@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-import objectives
+from deepomics import objectives
 
 __all__ = [
 	"build_updates",
