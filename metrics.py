@@ -5,28 +5,24 @@ from scipy import stats
 
 
 __all__ = [
-	"pearsonr",
-	"rsquare",
-	"accuracy",
-	"roc",
-	"pr",
-	"calculate_metrics"
-]
-
+    "pearsonr",
+    "rsquare",
+    "accuracy",
+    "roc",
+    "pr",
+    "calculate_metrics"]
 
 
 def pearsonr(label, prediction):
-	ndim = np.ndim(label)
-	if ndim == 1:
-		corr = [stats.pearsonr(label, prediction)]
-	else:		
-		num_labels = label.shape[1]
-		corr = []
-		for i in range(num_labels):
-			#corr.append(np.corrcoef(label[:,i], prediction[:,i]))
-			corr.append(stats.pearsonr(label[:,i], prediction[:,i])[0])
-		
-	return corr
+    ndim = np.ndim(label)
+    if ndim == 1:
+        corr = [stats.pearsonr(label, prediction)]
+    else:		
+	    num_labels = label.shape[1]
+	    corr = []
+	    for i in range(num_labels):
+            corr.append(stats.pearsonr(label[:,i], prediction[:,i])[0])
+    return corr
 
 
 def rsquare(label, prediction):
